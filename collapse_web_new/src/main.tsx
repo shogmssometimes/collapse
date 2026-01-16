@@ -36,3 +36,20 @@ if (typeof window !== 'undefined') {
     // ignore
   }
 }
+
+// If running on a touch device, disable text selection globally (can be narrowed to components if desired)
+if (typeof window !== 'undefined' && 'ontouchstart' in window) {
+  // Add no-select class to root so interactive components prioritize taps
+  document.getElementById('root')?.classList.add('no-select');
+
+  // Track recent touch to distinguish touch-triggered contextmenu (long-press) from mouse right-click
+  let lastTouch = 0;
+  document.addEventListener('touchstart', () => { lastTouch = Date.now(); }, { passive: true });
+
+  // Prevent the contextmenu (long-press menu) when it was triggered by a recent touch
+  document.addEventListener('contextmenu', (e) => {
+    if (Date.now() - lastTouch < 1000) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+}

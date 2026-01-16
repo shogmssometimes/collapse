@@ -399,6 +399,25 @@ button:hover {
   font-weight: 700;
 }
 
+/* Prevent accidental selection and long-press highlight on touch devices to prioritize tap interactions */
+.no-select, .no-select * {
+  -webkit-user-select: none; /* iOS Safari */
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* disable callout/menu on iOS */
+  -webkit-tap-highlight-color: transparent; /* hide tap highlight */
+  touch-action: manipulation; /* prioritize taps over pan/zoom on interactive elements */
+}
+
+/* Use .selectable on elements that must allow text selection */
+.selectable, .selectable * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 .topbar {
   position: sticky;
   top: 0;
