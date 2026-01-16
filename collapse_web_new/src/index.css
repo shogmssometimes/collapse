@@ -399,8 +399,8 @@ button:hover {
   font-weight: 700;
 }
 
-/* Prevent accidental selection and long-press highlight on touch devices to prioritize tap interactions */
-.no-select, .no-select * {
+/* Prevent text selection and highlights globally in the app (use .selectable to opt back in) */
+html, body, #root, #root * {
   -webkit-user-select: none; /* iOS Safari */
   -moz-user-select: none;
   -ms-user-select: none;
@@ -408,6 +408,7 @@ button:hover {
   -webkit-touch-callout: none; /* disable callout/menu on iOS */
   -webkit-tap-highlight-color: transparent; /* hide tap highlight */
   touch-action: manipulation; /* prioritize taps over pan/zoom on interactive elements */
+  -webkit-user-drag: none; /* prevent image dragging */
 }
 
 /* Use .selectable on elements that must allow text selection */
