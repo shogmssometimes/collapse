@@ -52,4 +52,12 @@ if (typeof window !== 'undefined' && 'ontouchstart' in window) {
       e.preventDefault();
     }
   }, { passive: false });
+
+  // Prevent text selection triggered by long-press on touch devices, but allow on elements with .selectable
+  document.addEventListener('selectstart', (e) => {
+    const el = (e.target instanceof Element) ? e.target : null;
+    if (!el) return;
+    if (el.closest('.selectable')) return; // allow selection inside opt-in areas
+    e.preventDefault();
+  }, { passive: false });
 }

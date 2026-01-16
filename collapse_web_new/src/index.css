@@ -399,8 +399,8 @@ button:hover {
   font-weight: 700;
 }
 
-/* Prevent text selection and highlights globally (use .selectable to opt back in) */
-html, body, #root, #root *, .no-select, .no-select * {
+/* Prevent accidental selection and long-press highlight on touch devices to prioritize tap interactions */
+.no-select, .no-select * {
   -webkit-user-select: none; /* iOS Safari */
   -moz-user-select: none;
   -ms-user-select: none;
