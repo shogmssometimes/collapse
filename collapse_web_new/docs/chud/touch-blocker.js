@@ -47,7 +47,9 @@
     blocker.addEventListener('touchmove', (e)=>{ const t = e.changedTouches[0]; if (!t) return; if (Math.abs((t.clientX||0)-startX)>10 || Math.abs((t.clientY||0)-startY)>10) cancelHold(); }, { passive:true });
     blocker.addEventListener('touchend', (e)=>{ if (holdTimer){ clearTimeout(holdTimer); holdTimer=null; } const dt = Date.now()-downTime; downTime=0; if (dt<350) el.click(); }, { passive:true });
 
-    el.insertBefore(blocker, el.firstChild);
+    // append blocker so it sits above most inner children; enforce high z-index
+    blocker.style.zIndex = '9999';
+    el.appendChild(blocker);
     el._touchBlockerAttached = true;
   }
 
