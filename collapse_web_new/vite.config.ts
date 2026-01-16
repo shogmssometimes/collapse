@@ -3,8 +3,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Keep a single React instance and make HMR work under the production base path.
-// The repo is published to https://shogmssometimes.github.io/fancybuild_clean/ by default.
-const defaultBasePath = "/fancybuild_clean/";
+// The repo is published to https://shogmssometimes.github.io/collapse/ by default.
+const defaultBasePath = "/collapse/";
 const base = process.env.VITE_BASE_PATH || defaultBasePath;
 
 export default defineConfig({
