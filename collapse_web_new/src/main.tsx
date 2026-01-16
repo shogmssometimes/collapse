@@ -195,12 +195,13 @@ function attachBlockersToAllButtons() {
 if (typeof window !== 'undefined') {
   attachBlockersToAllButtons();
   try {
+    const selector = 'button, a[href], [role="button"], .button, .counter-btn, .card, .stat-card, .core-card, .interactive, .stat-large';
     const mo = new MutationObserver((mutations) => {
       mutations.forEach((m) => {
         m.addedNodes.forEach((node) => {
           if (!(node instanceof HTMLElement)) return;
-          if (node.matches && node.matches('button, a.button, .button')) attachTouchBlockerToButton(node);
-          node.querySelectorAll && node.querySelectorAll('button, a.button, .button').forEach((el) => { if (el instanceof HTMLElement) attachTouchBlockerToButton(el); });
+          if (node.matches && node.matches(selector)) attachTouchBlockerToButton(node);
+          node.querySelectorAll && node.querySelectorAll(selector).forEach((el) => { if (el instanceof HTMLElement) attachTouchBlockerToButton(el); });
         });
       });
     });
