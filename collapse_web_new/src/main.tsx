@@ -82,15 +82,19 @@ function clearSelectionUnlessSelectable() {
   }
 }
 
-// Add transparent touch-blocker overlays to buttons to intercept long-press selection
+// Add transparent touch-blocker overlays to interactive controls to intercept long-press selection
 function attachTouchBlockerToButton(btn: HTMLElement) {
+  // skip elements that opt out
+  if (btn.matches && btn.matches('[data-touch-blocker-ignore]')) return;
+
   // avoid double-attaching
   if ((btn as any)._touchBlockerAttached) return;
-  // ensure positioning context
+  // ensure positioning context and mark host
   const cs = getComputedStyle(btn);
   if (cs.position === 'static') {
     btn.style.position = 'relative';
   }
+  btn.classList.add('has-touch-blocker');
 
   const blocker = document.createElement('span');
   blocker.className = 'touch-blocker';
@@ -100,6 +104,10 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
   // touch handling: start a hold timer; short taps synthesize a click
   let downTime = 0;
   let holdTimer: number | null = null;
+  let startX = 0;
+  let startY = 0;
+
+  const cancelHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.pointerType && e.pointerType !== 'touch') return;
@@ -108,12 +116,24 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
     if (el && el.closest && el.closest('.selectable')) return;
 
     downTime = Date.now();
-    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    startX = (e as any).clientX || 0;
+    startY = (e as any).clientY || 0;
+    cancelHold();
     holdTimer = window.setTimeout(() => {
-      // clear selection if user is holding
+      // Clear selection and trigger long-press context menu
       clearSelectionUnlessSelectable();
+      try { btn.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true })); } catch(e) {}
       holdTimer = null;
     }, 350);
+    e.preventDefault();
+  };
+
+  const onPointerMove = (e: PointerEvent) => {
+    const x = (e as any).clientX || 0;
+    const y = (e as any).clientY || 0;
+    if (Math.abs(x - startX) > 10 || Math.abs(y - startY) > 10) {
+      cancelHold();
+    }
   };
 
   const onPointerUp = (e: PointerEvent) => {
@@ -121,23 +141,33 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
     if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
     const dt = Date.now() - downTime;
     downTime = 0;
-    // short tap -> activate the button
+    // short tap -> activate the element
     if (dt < 350) {
       // synthesize a click to preserve native behavior
       btn.click();
     }
   };
 
-  blocker.addEventListener('pointerdown', onPointerDown, { passive: true });
+  blocker.addEventListener('pointerdown', onPointerDown, { passive: false });
+  blocker.addEventListener('pointermove', onPointerMove, { passive: true });
   blocker.addEventListener('pointerup', onPointerUp, { passive: true });
   // fallback for older touch-only environments
   blocker.addEventListener('touchstart', (e) => {
-    // ignore inside selectable
+    const touch = (e as TouchEvent).changedTouches[0];
     const el = (e.target instanceof Element) ? (e.target as Element) : null;
     if (el && el.closest && el.closest('.selectable')) return;
     downTime = Date.now();
-    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-    holdTimer = window.setTimeout(() => { clearSelectionUnlessSelectable(); holdTimer = null; }, 350);
+    startX = touch.clientX || 0;
+    startY = touch.clientY || 0;
+    cancelHold();
+    holdTimer = window.setTimeout(() => { clearSelectionUnlessSelectable(); try { btn.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true })); } catch(e) {} holdTimer = null; }, 350);
+    // prevent default to stop iOS from creating selection/context menu
+    e.preventDefault();
+  }, { passive: false });
+  blocker.addEventListener('touchmove', (e) => {
+    const touch = (e as TouchEvent).changedTouches[0];
+    if (!touch) return;
+    if (Math.abs((touch.clientX || 0) - startX) > 10 || Math.abs((touch.clientY || 0) - startY) > 10) cancelHold();
   }, { passive: true });
   blocker.addEventListener('touchend', (e) => {
     if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
@@ -152,7 +182,8 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
 
 function attachBlockersToAllButtons() {
   try {
-    document.querySelectorAll('button, a.button, .button').forEach((el) => {
+    // expanded selector set for interactive elements
+    document.querySelectorAll('button, a[href], [role="button"], .button, .counter-btn, .card, .stat-card, .core-card, .interactive, .stat-large').forEach((el) => {
       if (el instanceof HTMLElement) attachTouchBlockerToButton(el);
     });
   } catch (e) {

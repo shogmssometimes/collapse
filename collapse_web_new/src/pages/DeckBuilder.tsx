@@ -1275,6 +1275,7 @@ export default function DeckBuilder({
                       <div
                         key={card.id}
                         className={`card base-card ${isSelectedBase ? 'is-selected' : ''}`}
+                        data-touch-blocker-ignore
                         onContextMenu={(e) => { e.preventDefault(); handleBaseContext(card.id) }}
                         onPointerDown={startLongPress}
                         onPointerUp={endPress}
@@ -1365,6 +1366,7 @@ export default function DeckBuilder({
                         <div
                           key={card.id}
                           className={`card mod-card ${isAttached ? 'is-selected' : ''}`}
+                          data-touch-blocker-ignore
                           onContextMenu={(e) => { e.preventDefault(); handleModContext(card.id) }}
                           onPointerDown={startModLongPress}
                           onPointerUp={endModPress}

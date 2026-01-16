@@ -457,6 +457,10 @@ input.selectable, textarea.selectable, [contenteditable="true"].selectable {
   touch-action: manipulation;
 }
 
+.has-touch-blocker {
+  position: relative;
+}
+
 button.has-touch-blocker, a.button.has-touch-blocker, .button.has-touch-blocker {
   position: relative;
 }

@@ -71,7 +71,7 @@ export default function Pager({ pageIndex, onPageIndexChange, children }: PagerP
   }
 
   return (
-    <div className="pager" ref={containerRef} tabIndex={0}>
+    <div className="pager" ref={containerRef} tabIndex={0} data-touch-blocker-ignore>
       <div
         className="pager-inner"
         style={pagerStyle}
