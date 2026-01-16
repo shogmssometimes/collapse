@@ -7,6 +7,13 @@
     <script type="module" crossorigin src="./assets/index-BKkeXuXE.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-DrzRuqxm.css">
     <script type="module" src="./meter-bridge.js"></script>
+    <style>
+      /* touch-blocker styles for CHUD iframe */
+      .touch-blocker{position:absolute;inset:0;z-index:2;background:transparent;border-radius:inherit;display:block;pointer-events:auto;touch-action:manipulation}
+      .has-touch-blocker{position:relative}
+      ::selection{background:transparent !important;color:inherit !important}
+    </style>
+    <script src="./touch-blocker.js" defer></script>
   </head>
   <body>
     <div id="root"></div>
