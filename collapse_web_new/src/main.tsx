@@ -175,8 +175,8 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
     if (dt < 350) btn.click();
   }, { passive: true });
 
-  // insert overlay
-  btn.insertBefore(blocker, btn.firstChild);
+  // insert overlay - append so it sits above other positioned children; increase z-index via CSS
+  btn.appendChild(blocker);
   (btn as any)._touchBlockerAttached = true;
 }
 

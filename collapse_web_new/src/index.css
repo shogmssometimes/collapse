@@ -449,7 +449,7 @@ input.selectable, textarea.selectable, [contenteditable="true"].selectable {
 .touch-blocker {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 9999; /* high so overlay sits above internal children */
   background: transparent;
   border-radius: inherit;
   display: block;
