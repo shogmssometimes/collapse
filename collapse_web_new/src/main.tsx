@@ -82,9 +82,18 @@ function clearSelectionUnlessSelectable() {
   }
 }
 
-// Global handlers: run on selectionchange and pointer/touch end events
+// Global handlers: run on selectionchange and pointer/touch events
 if (typeof window !== 'undefined') {
-  document.addEventListener('selectionchange', clearSelectionUnlessSelectable, { passive: true });
+  // Clear immediately when selection changes
+  document.addEventListener('selectionchange', () => {
+    // use rAF to ensure we clear after browser selection update
+    requestAnimationFrame(clearSelectionUnlessSelectable);
+  }, { passive: true });
+
+  // Immediately clear on pointer/touch interactions to prevent handles popping up
+  document.addEventListener('pointerdown', clearSelectionUnlessSelectable, { passive: true });
+  document.addEventListener('touchstart', clearSelectionUnlessSelectable, { passive: true });
+  document.addEventListener('touchmove', clearSelectionUnlessSelectable, { passive: true });
   document.addEventListener('pointerup', clearSelectionUnlessSelectable, { passive: true });
   document.addEventListener('touchend', clearSelectionUnlessSelectable, { passive: true });
 }

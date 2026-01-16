@@ -401,15 +401,18 @@ button:hover {
 
 /* Prevent text selection and highlights globally in the app (use .selectable to opt back in) */
 html, body, #root, #root * {
-  -webkit-user-select: none; /* iOS Safari */
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none; /* disable callout/menu on iOS */
-  -webkit-tap-highlight-color: transparent; /* hide tap highlight */
-  touch-action: manipulation; /* prioritize taps over pan/zoom on interactive elements */
-  -webkit-user-drag: none; /* prevent image dragging */
+  -webkit-user-select: none !important; /* iOS Safari */
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important; /* disable callout/menu on iOS */
+  -webkit-tap-highlight-color: transparent !important; /* hide tap highlight */
+  touch-action: manipulation !important; /* prioritize taps over pan/zoom on interactive elements */
+  -webkit-user-drag: none !important; /* prevent image dragging */
 }
+
+/* remove any visible ::selection highlight */
+::selection { background: transparent !important; color: inherit !important; }
 
 /* Use .selectable on elements that must allow text selection */
 .selectable, .selectable * {
