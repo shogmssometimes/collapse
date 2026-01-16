@@ -422,6 +422,25 @@ html, body, #root, #root * {
   touch-action: auto;
 }
 
+/* Ensure form controls and contenteditable regions cannot be selected or show caret on long-press
+   unless explicitly marked .selectable */
+input, textarea, [contenteditable="true"], button {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  caret-color: transparent; /* hide caret to avoid caret showing on long-press */
+}
+
+/* If a specific input needs to be selectable/editable, opt it in with .selectable */
+input.selectable, textarea.selectable, [contenteditable="true"].selectable {
+  -webkit-user-select: text;
+  user-select: text;
+  caret-color: initial;
+}
 .topbar {
   position: sticky;
   top: 0;

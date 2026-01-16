@@ -52,6 +52,20 @@ if (typeof window !== 'undefined' && 'ontouchstart' in window) {
       e.preventDefault();
     }
   }, { passive: false });
+
+  // Proactive long-press handling: clear selection if a touch is held down for ~450ms
+  let holdTimer: number | null = null;
+  document.addEventListener('touchstart', (e) => {
+    // ignore if inside a selectable area
+    const el = (e.target instanceof Element) ? e.target as Element : null;
+    if (el && el.closest && el.closest('.selectable')) return;
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    holdTimer = window.setTimeout(() => {
+      // Clear selection and prevent any menu from showing
+      clearSelectionUnlessSelectable();
+    }, 450);
+  }, { passive: true });
+  document.addEventListener('touchend', () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } }, { passive: true });
 }
 
 // Clear any text selection unless the selection is inside an element with `.selectable`.
