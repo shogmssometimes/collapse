@@ -1,0 +1,12 @@
+# General
+.DS_Store
+node_modules
+coverage
+*.log
+*.tsbuildinfo
+
+# Build artifacts
+dist
+tmp
+.cache
+.vite
