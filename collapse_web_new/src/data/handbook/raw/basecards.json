@@ -1,6 +1,9 @@
 [
-  { "id": "base-vigor", "name": "Vigor", "type": "base", "category": "base", "skill": "vigor", "rarity": "common", "capacityCost": 0 },
-  { "id": "base-infer", "name": "Infer", "type": "base", "category": "base", "skill": "infer", "rarity": "common", "capacityCost": 0 },
-  { "id": "base-perso", "name": "Perso", "type": "base", "category": "base", "skill": "perso", "rarity": "common", "capacityCost": 0 },
+  { "id": "base-force", "name": "Force", "type": "base", "category": "base", "skill": "force", "rarity": "common", "capacityCost": 0 },
+  { "id": "base-finesse", "name": "Finesse", "type": "base", "category": "base", "skill": "finesse", "rarity": "common", "capacityCost": 0 },
+  { "id": "base-guts", "name": "Guts", "type": "base", "category": "base", "skill": "guts", "rarity": "common", "capacityCost": 0 },
+  { "id": "base-logic", "name": "Logic", "type": "base", "category": "base", "skill": "logic", "rarity": "common", "capacityCost": 0 },
+  { "id": "base-show", "name": "Show", "type": "base", "category": "base", "skill": "show", "rarity": "common", "capacityCost": 0 },
+  { "id": "base-tell", "name": "Tell", "type": "base", "category": "base", "skill": "tell", "rarity": "common", "capacityCost": 0 },
   { "id": "base-null", "name": "Null", "type": "null", "category": "null", "skill": null, "rarity": "special", "capacityCost": 0 }
 ]

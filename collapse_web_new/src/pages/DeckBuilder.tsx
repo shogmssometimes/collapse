@@ -56,6 +56,12 @@ const buildInitialCounts = (cards: Card[]) =>
     return acc
   }, {})
 
+const filterCounts = (counts: CountMap, allowedIds: Set<string>) =>
+  Object.entries(counts).reduce<CountMap>((acc, [id, qty]) => {
+    if (allowedIds.has(id)) acc[id] = qty
+    return acc
+  }, {})
+
 const defaultState = (baseCards: Card[], modCards: Card[], minNulls: number, defaultModCapacity: number): DeckBuilderState => ({
   baseCounts: buildInitialCounts(baseCards),
   modCounts: buildInitialCounts(modCards),
@@ -78,9 +84,13 @@ const loadState = (baseCards: Card[], modCards: Card[], storageKey: string, minN
     const raw = window.localStorage.getItem(storageKey)
     if (!raw) return defaultState(baseCards, modCards, minNulls, defaultModCapacity)
     const parsed = JSON.parse(raw) as DeckBuilderState
+    const baseIdSet = new Set(baseCards.map((card) => card.id))
+    const modIdSet = new Set(modCards.map((card) => card.id))
+    const parsedBaseCounts = filterCounts(parsed.baseCounts ?? {}, baseIdSet)
+    const parsedModCounts = filterCounts(parsed.modCounts ?? {}, modIdSet)
     return {
-      baseCounts: { ...buildInitialCounts(baseCards), ...parsed.baseCounts },
-      modCounts: { ...buildInitialCounts(modCards), ...parsed.modCounts },
+      baseCounts: { ...buildInitialCounts(baseCards), ...parsedBaseCounts },
+      modCounts: { ...buildInitialCounts(modCards), ...parsedModCounts },
       nullCount: Math.max(parsed.nullCount ?? minNulls, minNulls),
       modifierCapacity: parsed.modifierCapacity ?? defaultModCapacity,
       hasBuiltDeck: parsed.hasBuiltDeck ?? false,

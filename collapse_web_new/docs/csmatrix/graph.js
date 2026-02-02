@@ -10,6 +10,11 @@ class CSGraph {
     this.pad = Object.assign({}, this.basePad);
     try { this.svg.setAttribute('viewBox', `${this.viewBox.x} ${this.viewBox.y} ${this.viewBox.w} ${this.viewBox.h}`); } catch (e) {}
     this.scale = 1;
+    // color palette and mode state
+    this._palette = ['#4caf50','#f0764b','#2196f3','#ff9800'];
+    this._colorIndex = 0;
+    this._mode = null;
+    this._modeHandler = null;
     // whether the graph will auto-fit/maximize to the canvas area
     this.autoMax = true;
     this.lockScale = false; // when true, prevent the scale from reducing below lockedScale value
@@ -62,6 +67,17 @@ class CSGraph {
     const x = this.pad.left + ((gx - this.gridMin) / steps) * w;
     const y = this.pad.top + ((this.gridMax - gy) / steps) * h;
     return { x, y };
+  }
+  pixelToGrid(x, y) {
+    try {
+      const rect = this.svg.getBoundingClientRect();
+      const px = (x / rect.width) * this.viewBox.w;
+      const py = (y / rect.height) * this.viewBox.h;
+      const steps = this.gridSteps;
+      const gx = this.gridMin + ((px - this.pad.left) / (this.viewBox.w - this.pad.left - this.pad.right)) * steps;
+      const gy = this.gridMax - ((py - this.pad.top) / (this.viewBox.h - this.pad.top - this.pad.bottom)) * steps;
+      return { gx: Math.round(gx), gy: Math.round(gy) };
+    } catch (e) { return { gx: 0, gy: 0 }; }
   }
   render() {
     // compute current scale of the SVG container to scale nodes and labels
@@ -187,6 +203,44 @@ class CSGraph {
       return { id: n.id || `n${Date.now()}`, name: n.name, gx, gy, color: n.color };
     });
     this.render();
+  }
+  _nextColor() {
+    const c = this._palette[this._colorIndex % this._palette.length];
+    this._colorIndex = (this._colorIndex + 1) % this._palette.length;
+    return c;
+  }
+  toJSON() {
+    return {
+      nodes: this.nodes.map(n => ({ id: n.id, name: n.name, gx: n.gx, gy: n.gy, color: n.color })),
+      edges: [],
+    };
+  }
+  setMode(mode) {
+    if (this._mode === mode) return;
+    if (this._modeHandler && this.svg && this._mode) {
+      try { this.svg.removeEventListener('pointerdown', this._modeHandler); } catch(e) {}
+      this._modeHandler = null;
+    }
+    this._mode = mode;
+    if (mode === 'addNode') {
+      this._modeHandler = (ev) => {
+        try {
+          const rect = this.svg.getBoundingClientRect();
+          const x = ev.clientX - rect.left;
+          const y = ev.clientY - rect.top;
+          const { gx, gy } = this.pixelToGrid(x, y);
+          const n = this.addNode({ name: 'New Node', gx, gy, color: this._nextColor() });
+          this.selectNode(n);
+        } catch (err) { /* ignore */ }
+        try { this.svg.removeEventListener('pointerdown', this._modeHandler); } catch(e) {}
+        this._modeHandler = null;
+        this._mode = null;
+      };
+      this.svg.addEventListener('pointerdown', this._modeHandler);
+    } else {
+      // clear mode
+      this._mode = null;
+    }
   }
 }
 export default CSGraph;

@@ -1,6 +1,6 @@
 // Bump cache version to force a new cache after major deploys.
 // If you need faster invalidation in the future, update this to v3, v4, etc.
-const CACHE_NAME = "collapse-fullbuild-v3";
+const CACHE_NAME = "collapse-fullbuild-v5";
 
 // Derive the base path from the service worker registration so it works from any repo path.
 const scopeUrl = new URL(self.registration.scope);

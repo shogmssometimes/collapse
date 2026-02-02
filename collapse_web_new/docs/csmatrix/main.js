@@ -609,13 +609,13 @@ function loadSample() {
 	if (saved) {
 		try {
 			const parsed = JSON.parse(saved);
-			if (!parsed || !parsed.nodes || parsed.nodes.length === 0) {
-				throw new Error('Saved graph is empty or invalid');
+			if (parsed && Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
+				graph.fromJSON(parsed);
+				if (parsed.meta && parsed.meta.globalMeters) { globalMeters = parsed.meta.globalMeters; updateControlMeterBars(); }
+				updateGlobalMetersUI();
+				return;
 			}
-			graph.fromJSON(parsed);
-			if (parsed.meta && parsed.meta.globalMeters) { globalMeters = parsed.meta.globalMeters; updateControlMeterBars(); }
-			updateGlobalMetersUI();
-			return;
+			// otherwise fall back to the sample
 		} catch (err) { /* continue to sample */ }
 	}
 	const sample = { nodes: [ { id: 'n1', name: 'Organizer', gx: -1, gy: 2 }, { id: 'n2', name: 'Ally', gx: 1, gy: 2 }, { id: 'n3', name: 'Neutral', gx: 0, gy: 0 } ], edges: [], meta: { globalMeters: { collapse: 0, influence: 2, record: 1, grit: 0 } } };
