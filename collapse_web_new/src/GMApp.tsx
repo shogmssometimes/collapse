@@ -48,7 +48,7 @@ export default function GMApp() {
           style={{
             background: "var(--surface)",
             border: "1px solid var(--border)",
-            borderRadius: 12,
+            borderRadius: 8,
             padding: "1rem 1.25rem",
             marginBottom: "1.25rem",
           }}

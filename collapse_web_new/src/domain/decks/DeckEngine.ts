@@ -39,10 +39,12 @@ export class DeckEngine {
     return { library: [...this.library], hand: [...this.hand], discard: [...this.discard] };
   }
 
-  shuffle(seed?: number) {
-    // Fisher-Yates
+  shuffle() {
+    // Fisher-Yates with crypto entropy
+    const rand = new Uint32Array(this.library.length);
+    crypto.getRandomValues(rand);
     for (let i = this.library.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = rand[i] % (i + 1);
       [this.library[i], this.library[j]] = [this.library[j], this.library[i]];
     }
   }

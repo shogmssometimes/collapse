@@ -4,7 +4,7 @@ import { startPlaySelection, toggleAttach, finalizeSelection, cancelSelection, A
 import { getModCapacityUsed, canAddModCardFrom } from '../utils/modCapacity'
 import { validateImportedDeck } from '../utils/deckExportImport'
 import Handbook from '../data/handbook'
-import { Card } from '../domain/decks/DeckEngine'
+import { Card, CardDetail } from '../domain/decks/DeckEngine'
 
 const DEFAULT_BASE_TARGET = 26
 const DEFAULT_MIN_NULLS = 5
@@ -192,11 +192,11 @@ export default function DeckBuilder({
   const [activePlay, setActivePlay] = useState<ActivePlay>(null)
   const [modifierOverlayInView, setModifierOverlayInView] = useState(false)
   const [modifierOverlayPinned, setModifierOverlayPinned] = useState(false)
-  const compactView = false
   const [attachWarningId, setAttachWarningId] = useState<string | null>(null)
   const [hasBuiltDeck, setHasBuiltDeck] = useState(initialState.hasBuiltDeck ?? false)
   const [hasShuffledDeck, setHasShuffledDeck] = useState(initialState.hasShuffledDeck ?? false)
   const [opsError, setOpsError] = useState<string | null>(null)
+  const [shuffledRecently, setShuffledRecently] = useState(false)
   const [showViewDeck, setShowViewDeck] = useState(false)
   const [pendingDeckPlay, setPendingDeckPlay] = useState<string[]>([])
   const handListRef = useRef<HTMLDivElement | null>(null)
@@ -433,9 +433,11 @@ export default function DeckBuilder({
     return out
   }
 
-  const shuffleInPlace = (arr: any[]) => {
+  const shuffleInPlace = <T,>(arr: T[]): T[] => {
+    const rand = new Uint32Array(arr.length)
+    crypto.getRandomValues(rand)
     for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
+      const j = rand[i] % (i + 1)
       ;[arr[i], arr[j]] = [arr[j], arr[i]]
     }
     return arr
@@ -458,6 +460,7 @@ export default function DeckBuilder({
     setDeckSeed((s) => s + 1)
     setHasShuffledDeck(true)
     setOpsError(null)
+    setShuffledRecently(true)
   }
 
   // Draw a single card to hand (only allowed when deck is locked)
@@ -489,21 +492,6 @@ export default function DeckBuilder({
     } else if (depleted) {
       setOpsError('Deck depleted. Refill or rebuild to continue drawing.')
     }
-  }
-
-  // Remove discardFromDeck - deprecated in new UI; keep internal function to support automated flows
-  const discardFromDeck = (count = 1) => {
-    setBuilderState((prev) => {
-      const deck = [...(prev.deck ?? [])]
-      const discard = [...(prev.discard ?? [])]
-      for (let i = 0; i < count; i++) {
-        const cardId = deck.pop()
-        if (!cardId) break
-        discard.push({ id: cardId, origin: 'discarded' })
-      }
-      return { ...prev, deck, discard }
-    })
-    setDeckSeed((s) => s + 1)
   }
 
   const returnDiscardToDeck = (shuffle = true, toTop = true) => {
@@ -894,8 +882,8 @@ export default function DeckBuilder({
           modText = card.text
         }
       }
-      const effectDetails = !isBase && !isNull ? details.filter((d: any) => d.label?.toLowerCase() === 'effect') : []
-      const metaDetails = !isBase && !isNull ? details.filter((d: any) => d.label?.toLowerCase() !== 'effect') : []
+      const effectDetails = !isBase && !isNull ? details.filter((d: CardDetail) => d.label?.toLowerCase() === 'effect') : []
+      const metaDetails = !isBase && !isNull ? details.filter((d: CardDetail) => d.label?.toLowerCase() !== 'effect') : []
 
       const cardStyle: React.CSSProperties = {
         zIndex: 100 - index,
@@ -924,7 +912,7 @@ export default function DeckBuilder({
                   <>
                     {effectDetails.length > 0 && (
                       <div className="effect-block">
-                        {effectDetails.map((detail: any) => (
+                        {effectDetails.map((detail: CardDetail) => (
                           <div key={`${card?.id ?? id}-effect-${detail.label}`} className="effect-line">
                             {detail.value}
                           </div>
@@ -933,7 +921,7 @@ export default function DeckBuilder({
                     )}
                     {metaDetails.length > 0 && (
                       <dl className="meta-block">
-                        {metaDetails.map((detail: any) => (
+                        {metaDetails.map((detail: CardDetail) => (
                           <React.Fragment key={`${card?.id ?? id}-meta-${detail.label}`}>
                             <dt>{detail.label}</dt>
                             <dd>{detail.value}</dd>
@@ -1523,7 +1511,7 @@ export default function DeckBuilder({
                 </div>
                 <div style={{ marginTop: 12 }}>
                   <div style={{ marginTop: 8 }}>
-                    <label style={{ fontWeight: 600, display: 'block', textAlign: 'center' }}>Hand Limit</label>
+                    <label style={{ fontWeight: 600, display: 'block', textAlign: 'center' }}>Hand Draw</label>
                     <div
                       style={{
                         display: 'flex',
@@ -1555,7 +1543,10 @@ export default function DeckBuilder({
                   </div>
                   <div style={{ marginTop: 12, textAlign: 'center' }} className="text-body">
                     <div>Cards Remaining:</div>
-                    <strong>{cardsRemaining}</strong>
+                    <strong
+                      className={shuffledRecently ? 'shuffle-flash' : undefined}
+                      onAnimationEnd={() => setShuffledRecently(false)}
+                    >{cardsRemaining}</strong>
                   </div>
                   <div style={{ marginTop: 8 }}>
                     {/* Saved decks section removed */}
@@ -1591,7 +1582,7 @@ export default function DeckBuilder({
           aria-label="View Deck Overlay"
         >
           <div
-            style={{ background: '#0f1625', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 20, width: 'min(420px, 90vw)', color: '#fff', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: 12 }}
+            style={{ background: '#0d0b09', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: 20, width: 'min(420px, 90vw)', color: '#fff', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: 12 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
@@ -1725,7 +1716,7 @@ export default function DeckBuilder({
       )}
       {basePrompt && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#0f1625', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 16, width: 'min(320px, 90vw)', boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ background: '#0d0b09', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: 16, width: 'min(320px, 90vw)', boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 18 }}>Adjust {basePrompt.name ?? basePrompt.id}</div>
             <div style={{ color: 'rgba(255,255,255,0.75)' }}>Current count: {basePrompt.qty}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1738,7 +1729,7 @@ export default function DeckBuilder({
       )}
       {modPrompt && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#0f1625', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 16, width: 'min(320px, 90vw)', boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ background: '#0d0b09', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: 16, width: 'min(320px, 90vw)', boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 18 }}>Adjust {modPrompt.name ?? modPrompt.id}</div>
             <div style={{ color: 'rgba(255,255,255,0.75)' }}>Current count: {modPrompt.qty}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -11,7 +11,8 @@
     "smoke:mobile": "playwright test tests/smoke.mobile.spec.ts --project=chromium --workers=1 --retries=1 --reporter=list",
     "e2e": "playwright test tests/e2e --project=chromium --workers=1 --retries=1 --reporter=list",
     "test:coverage": "vitest --run --coverage \"src/**/*.test.ts\"",
-    "build": "tsc -b && vite build",
+    "build:chud": "vite build --config vite.chud.config.ts && mv public/chud/chud.html public/chud/index.html",
+    "build": "npm run build:chud && tsc -b && vite build",
     "build:fancybuild": "tsc -b && vite build",
     "build:gm-local": "tsc -b && vite build --config vite.gm.config.ts",
     "preview": "vite preview"

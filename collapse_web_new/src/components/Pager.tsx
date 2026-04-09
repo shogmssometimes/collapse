@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type PagerProps = {
   pageIndex: number
@@ -16,7 +16,7 @@ export default function Pager({ pageIndex, onPageIndexChange, children }: PagerP
 
   const pages = useMemo(() => React.Children.toArray(children), [children])
   const maxIndex = pages.length > 0 ? pages.length - 1 : 0
-  const clampIndex = (value: number) => clamp(value, 0, maxIndex)
+  const clampIndex = useCallback((value: number) => clamp(value, 0, maxIndex), [maxIndex])
 
   const releasePointer = () => {
     if (pointerIdRef.current === null) return

@@ -27,7 +27,7 @@ interface RoleSelectLandingProps {
 
 const tileStyles: React.CSSProperties = {
   border: "1px solid var(--border)",
-  borderRadius: 16,
+  borderRadius: 8,
   padding: "1.25rem",
   background: "var(--surface)",
   minHeight: 160,

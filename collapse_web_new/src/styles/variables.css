@@ -17,13 +17,18 @@
   --counter-size: 34px;
   --hit-area: 44px;
 
+  /* fonts */
+  --font-display: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+  --font-document: 'Courier Prime', 'Courier New', monospace;
+
   /* colors */
-  --bg-dark: #0b0b0b;
+  --bg-dark: #0c0a08;
   --accent: #0ff6ff;
   --surface: rgba(255,255,255,0.03);
-  --surface-solid: rgba(12,12,12,0.92);
-  --accent-collapse: #ff6b9a;
+  --surface-solid: rgba(12,10,8,0.92);
+  --accent-collapse: #d42b2b;
   --accent-influence: #63ffb1;
+  --accent-amber: #c89030;
   --muted: #9aa0a6;
   --separator: rgba(255,255,255,0.06);
   --border: #333;

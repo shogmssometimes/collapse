@@ -3,6 +3,7 @@ import modCards from './modCards'
 import nullCards from './nullCards'
 import gear from './gear'
 import events from './events'
+import type { Card } from '../../domain/decks/DeckEngine'
 
 export const Handbook = {
   baseCards,
@@ -10,7 +11,7 @@ export const Handbook = {
   nullCards,
   gear,
   events,
-  getAllCards(): any[] {
+  getAllCards(): Card[] {
     return [...modCards, ...baseCards, ...nullCards, ...gear]
   }
 }

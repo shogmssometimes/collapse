@@ -2,6 +2,7 @@
   'use strict';
   function clearSelectionUnlessSelectable() {
     try {
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
       const sel = window.getSelection && window.getSelection();
       if (!sel || !sel.rangeCount) return;
       const anchor = sel.anchorNode && (sel.anchorNode.nodeType === Node.TEXT_NODE ? sel.anchorNode.parentElement : sel.anchorNode);

@@ -40,6 +40,6 @@ export function finalizeSelection(activePlay: ActivePlay): ActivePlaySelection |
   return { baseId: activePlay.baseId, mods: [...activePlay.mods] }
 }
 
-export function cancelSelection(activePlay: ActivePlay) {
+export function cancelSelection(_activePlay: ActivePlay) {
   return null
 }

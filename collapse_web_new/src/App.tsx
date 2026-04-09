@@ -41,17 +41,16 @@ const deriveMode = (): Mode => {
   return saved ?? "player";
 };
 
-const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; note?: string; actions?: React.ReactNode; actionsClassName?: string; frameRef?: React.Ref<HTMLIFrameElement>; onFrameLoad?: () => void }> = ({
+const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; actions?: React.ReactNode; actionsClassName?: string; frameRef?: React.Ref<HTMLIFrameElement>; onFrameLoad?: () => void }> = ({
   title,
   src,
   onBack,
-  note,
   actions,
   actionsClassName,
   frameRef,
   onFrameLoad,
 }) => (
-  <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+  <main className="route-view" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
     <header className="topbar">
       <button className="ghost-btn ghost-btn-icon" onClick={onBack} aria-label="Back to hub">
         <span aria-hidden="true">←</span>
@@ -260,12 +259,13 @@ const HubLanding: React.FC<{
             marginTop: "1.1rem",
           }}
         >
-          {cards.map((card) => (
+          {cards.map((card, index) => (
             <button
               key={card.id}
+              className="hub-card"
               style={{
                 border: "1px solid var(--border)",
-                borderRadius: 16,
+                borderRadius: 8,
                 padding: "1rem",
                 background: "var(--surface)",
                 minHeight: 126,
@@ -276,7 +276,8 @@ const HubLanding: React.FC<{
                 gap: "0.5rem",
                 textAlign: "center",
                 cursor: "pointer",
-              }}
+              '--card-index': index,
+              } as React.CSSProperties}
               onClick={() => onNavigate(card.id)}
             >
               <h2 style={{ margin: 0 }}>{card.title}</h2>
@@ -389,7 +390,7 @@ export default function App() {
 
   if (route === "player") {
     return (
-      <PlayerShell onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
         <DeckBuilder
           showOpsSections={false}
           showModifierCards={true}
@@ -404,7 +405,7 @@ export default function App() {
 
   if (route === "player-ops") {
     return (
-      <PlayerShell onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
         <DeckBuilder
           storageKey="collapse.deck-builder.v2"
           showBuilderSections={false}
@@ -417,7 +418,7 @@ export default function App() {
 
   if (route === "gm") {
     return (
-      <GMShell onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <GMShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
         <CompanionIntro
           eyebrow="GM Companion"
           title="GM Deck & Table Tools"
@@ -446,7 +447,7 @@ export default function App() {
 
   if (route === "gm-ops") {
     return (
-      <GMShell onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <GMShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
         <CompanionIntro
           eyebrow="GM Deck Ops"
           title="Operational View"
@@ -476,10 +477,10 @@ export default function App() {
   if (route === "chud") {
     return (
       <SubAppFrame
+        key={route}
         title="cHUD — Compact HUD"
         src={`${buildPath("")}chud/index.html`}
         onBack={() => setRoute("hub")}
-        note="Loaded inside the fullbuild shell."
       />
     );
   }
@@ -487,10 +488,10 @@ export default function App() {
   if (route === "csmatrix") {
     return (
       <SubAppFrame
+        key={route}
         title="CS Matrix"
         src={buildPath("csmatrix/index.html")}
         onBack={() => setRoute("hub")}
-        note="Campaign Support Matrix (in-app iframe)."
         actionsClassName="topbar-actions topbar-actions-stack"
         actions={
           <>
