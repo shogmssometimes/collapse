@@ -329,12 +329,13 @@ if (btnHideControls) {
 	btnHideControls.addEventListener('click', () => { try { if (graph && typeof graph.render === 'function') graph.render(); } catch(e) {} });
 }
 const btnToggleNodes = document.getElementById('btn-toggle-nodes');
-const btnHideNodes = document.getElementById('btn-hide-nodes');
+const btnHideNodes = null; // removed — no separate close button in inline drawer
 function syncNodeToggleState() {
 	if (!btnToggleNodes) return;
 	const open = document.body.classList.contains('nodes-open');
-	btnToggleNodes.textContent = open ? 'Hide Nodes' : 'Show Nodes';
 	btnToggleNodes.setAttribute('aria-expanded', open ? 'true' : 'false');
+	const chevron = btnToggleNodes.querySelector('.nodes-drawer-chevron');
+	if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
 	notifyHostState();
 }
 if (btnToggleNodes) {
@@ -342,22 +343,11 @@ if (btnToggleNodes) {
 		const open = document.body.classList.toggle('nodes-open');
 		syncNodeToggleState();
 		try { if (graph && typeof graph.render === 'function') graph.render(); } catch (e) {}
-		if (open) {
-			const nodeSection = document.getElementById('node-list-section');
-			if (nodeSection && typeof nodeSection.scrollIntoView === 'function') {
-				nodeSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-			}
-		}
 		try { syncCanvasHeight(); } catch (e) {}
 	});
 }
 if (btnHideNodes) {
-	btnHideNodes.addEventListener('click', () => {
-		document.body.classList.remove('nodes-open');
-		syncNodeToggleState();
-		try { if (graph && typeof graph.render === 'function') graph.render(); } catch (e) {}
-		try { syncCanvasHeight(); } catch (e) {}
-	});
+	// no-op: inline drawer has no separate close button
 }
 syncControlsToggleState();
 syncNodeToggleState();
@@ -471,6 +461,13 @@ try { syncCanvasHeight(); } catch(e) {}
 function updateEdgePanel() { return; }
 
 // Node list rendering
+function getQuadrantLabel(gx, gy) {
+	if (gx === 0 || gy === 0) return '';
+	if (gx > 0 && gy > 0) return 'Target';
+	if (gx < 0 && gy > 0) return 'Valuable Risk';
+	if (gx < 0 && gy < 0) return 'Asset';
+	return 'Useful Ghost';
+}
 function updateNodeList() {
 	const list = document.getElementById('node-list'); if (!list) return;
 	console.log('updateNodeList called, nodes:', graph.nodes.map(n => n.id));
@@ -490,6 +487,8 @@ function updateNodeList() {
 		const title = document.createElement('div'); title.textContent = n.name || '(no name)'; title.className = 'node-name'; meta.appendChild(title);
 		const coords = document.createElement('div'); coords.textContent = `x: ${n.gx} y: ${n.gy}`; coords.className = 'node-coords'; meta.appendChild(coords);
 		header.appendChild(meta);
+		const quadLabel = getQuadrantLabel(n.gx, n.gy);
+		const quadBadge = document.createElement('span'); quadBadge.className = 'node-quadrant'; quadBadge.textContent = quadLabel; quadBadge.style.display = quadLabel ? '' : 'none'; header.appendChild(quadBadge);
 		const del = document.createElement('button'); del.className = 'delete-node'; del.textContent = 'Delete'; del.setAttribute('aria-label', `Delete ${n.name || 'node'}`);
 		del.addEventListener('click', (ev) => { ev.stopPropagation(); console.log('delete button clicked for', n.id); graph.removeNode(n.id); try { persistGraph(); } catch (e) {} updateNodeList(); });
 		header.appendChild(del);
@@ -576,8 +575,8 @@ function updateNodeList() {
 			applySliderColors(card, normalizedColor);
 		});
 		// live input handlers
-		xInput.addEventListener('input', (ev) => { xSpan.textContent = ev.target.value; const gx = parseInt(ev.target.value,10); if (!Number.isNaN(gx)) { n.gx = Math.max(-6, Math.min(6, gx)); coords.textContent = `x: ${n.gx} y: ${n.gy}`; graph.render(); } });
-		yInput.addEventListener('input', (ev) => { ySpan.textContent = ev.target.value; const gy = parseInt(ev.target.value,10); if (!Number.isNaN(gy)) { n.gy = Math.max(-6, Math.min(6, gy)); coords.textContent = `x: ${n.gx} y: ${n.gy}`; graph.render(); } });
+		xInput.addEventListener('input', (ev) => { xSpan.textContent = ev.target.value; const gx = parseInt(ev.target.value,10); if (!Number.isNaN(gx)) { n.gx = Math.max(-6, Math.min(6, gx)); coords.textContent = `x: ${n.gx} y: ${n.gy}`; const ql = getQuadrantLabel(n.gx, n.gy); quadBadge.textContent = ql; quadBadge.style.display = ql ? '' : 'none'; graph.render(); } });
+		yInput.addEventListener('input', (ev) => { ySpan.textContent = ev.target.value; const gy = parseInt(ev.target.value,10); if (!Number.isNaN(gy)) { n.gy = Math.max(-6, Math.min(6, gy)); coords.textContent = `x: ${n.gx} y: ${n.gy}`; const ql = getQuadrantLabel(n.gx, n.gy); quadBadge.textContent = ql; quadBadge.style.display = ql ? '' : 'none'; graph.render(); } });
 		colorInput.addEventListener('change', (ev) => {
 			const normalizedColor = getColorOrDefault(ev.target.value);
 			ev.target.value = normalizedColor;
