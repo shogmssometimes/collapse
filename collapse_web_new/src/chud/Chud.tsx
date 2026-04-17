@@ -715,6 +715,103 @@ export default function Chud() {
   const [gearOpen, setGearOpen] = useState(() => readSavedUI().gearOpen ?? true);
   const [statsOpen, setStatsOpen] = useState(() => readSavedUI().statsOpen ?? true);
   const [hpVivOpen, setHpVivOpen] = useState(() => readSavedUI().hpVivOpen ?? true);
+
+  const vibrate = (pattern: number = 10) => {
+    if (typeof navigator !== 'undefined' && typeof (navigator as any).vibrate === 'function') {
+      (navigator as any).vibrate(pattern);
+    }
+  };
+
+  const useSemiLongPress = (callback: () => void) => {
+    const state = useRef({
+      timer: null as number | null,
+      moved: false,
+      fired: false,
+      startX: 0,
+      startY: 0,
+      ignoreClick: false,
+    });
+
+    const cancel = useCallback(() => {
+      if (state.current.timer) {
+        clearTimeout(state.current.timer);
+        state.current.timer = null;
+      }
+      state.current.moved = false;
+      state.current.fired = false;
+    }, []);
+
+    const onPointerDown = useCallback(
+      (e: React.PointerEvent<HTMLButtonElement>) => {
+        if (e.pointerType && e.pointerType !== 'touch' && e.pointerType !== 'mouse') return;
+        state.current.startX = e.clientX;
+        state.current.startY = e.clientY;
+        state.current.moved = false;
+        state.current.fired = false;
+        if (e.currentTarget.setPointerCapture) {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }
+        cancel();
+        state.current.timer = window.setTimeout(() => {
+          state.current.fired = true;
+          callback();
+          vibrate(10);
+          state.current.timer = null;
+        }, 260);
+      },
+      [callback, cancel]
+    );
+
+    const onPointerMove = useCallback(
+      (e: React.PointerEvent<HTMLButtonElement>) => {
+        if (!state.current.timer) return;
+        if (
+          Math.abs(e.clientX - state.current.startX) > 10 ||
+          Math.abs(e.clientY - state.current.startY) > 10
+        ) {
+          state.current.moved = true;
+          cancel();
+        }
+      },
+      [cancel]
+    );
+
+    const onPointerUp = useCallback(
+      (e: React.PointerEvent<HTMLButtonElement>) => {
+        if (state.current.timer) {
+          clearTimeout(state.current.timer);
+          state.current.timer = null;
+          if (!state.current.moved && !state.current.fired) {
+            callback();
+            vibrate(10);
+            state.current.ignoreClick = true;
+          }
+        }
+        state.current.fired = false;
+      },
+      [callback]
+    );
+
+    const onClick = useCallback(
+      (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (state.current.ignoreClick) {
+          state.current.ignoreClick = false;
+          e.preventDefault();
+          return;
+        }
+        callback();
+      },
+      [callback]
+    );
+
+    return {
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+      onPointerCancel: cancel,
+      onClick,
+    };
+  };
   const [levelUpReady, setLevelUpReady] = useState<Record<keyof SecondaryStats, boolean>>({
     vigor: false, inference: false, personality: false,
   });
@@ -949,7 +1046,7 @@ export default function Chud() {
             <button
               type="button"
               className="secondary-toggle"
-              onClick={() => setHpVivOpen((o) => !o)}
+              {...useSemiLongPress(() => setHpVivOpen((o) => !o))}
             >
               <span>HP &amp; Viv</span>
               <span className="secondary-toggle-chevron">{hpVivOpen ? "▲" : "▼"}</span>
@@ -1034,7 +1131,7 @@ export default function Chud() {
             <button
               type="button"
               className="secondary-toggle"
-              onClick={() => setStatsOpen((o) => !o)}
+              {...useSemiLongPress(() => setStatsOpen((o) => !o))}
             >
               <span>Stats</span>
               <span className="secondary-toggle-chevron">{statsOpen ? "▲" : "▼"}</span>
@@ -1085,7 +1182,7 @@ export default function Chud() {
             <button
               type="button"
               className="secondary-toggle"
-              onClick={() => setSecondaryOpen((o) => !o)}
+              {...useSemiLongPress(() => setSecondaryOpen((o) => !o))}
             >
               <span>Reps</span>
               <span className="secondary-toggle-chevron">{secondaryOpen ? "▲" : "▼"}</span>
@@ -1139,7 +1236,7 @@ export default function Chud() {
             <button
               type="button"
               className="secondary-toggle"
-              onClick={() => setGearOpen((o) => !o)}
+              {...useSemiLongPress(() => setGearOpen((o) => !o))}
             >
               <span>Gear Mgmt</span>
               <span className="secondary-toggle-chevron">{gearOpen ? "▲" : "▼"}</span>

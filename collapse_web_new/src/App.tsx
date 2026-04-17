@@ -155,6 +155,11 @@ const CompanionIntro: React.FC<{ eyebrow: string; title: string; description: st
 
 const ChudDock: React.FC<{ basePath: string }> = ({ basePath }) => {
   const [open, setOpen] = React.useState(false);
+  const vibrate = (pattern: number = 10) => {
+    if (typeof navigator !== "undefined" && typeof (navigator as any).vibrate === "function") {
+      (navigator as any).vibrate(pattern);
+    }
+  };
   React.useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener("chud-open", handler as EventListener);
@@ -181,11 +186,31 @@ const ChudDock: React.FC<{ basePath: string }> = ({ basePath }) => {
         cHUD
       </button>
       {open && (
-        <div className="chud-overlay" role="dialog" aria-modal="true" aria-label="cHUD overlay">
+        <div
+          className="chud-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="cHUD overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              vibrate();
+              setOpen(false);
+            }
+          }}
+        >
           <div className="chud-sheet">
             <div className="chud-sheet-header">
               <span>cHUD</span>
-              <button className="chud-close" onClick={() => setOpen(false)} aria-label="Close cHUD">✕</button>
+              <button
+                className="chud-close"
+                onClick={() => {
+                  vibrate();
+                  setOpen(false);
+                }}
+                aria-label="Close cHUD"
+              >
+                ✕
+              </button>
             </div>
             <div className="chud-sheet-body">
               <iframe
