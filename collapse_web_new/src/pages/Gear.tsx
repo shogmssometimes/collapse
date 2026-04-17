@@ -56,18 +56,33 @@ function loadGearEntries(): SlotEntry[] {
 // --- Wardrobe ---
 export type WardrobeEntry = { name: string; approach: string; quality: string }
 const WARDROBE_KEY = 'wardrobe.v1'
-const EMPTY_WARDROBE: WardrobeEntry = { name: '', approach: '', quality: '' }
-function loadWardrobe(): WardrobeEntry {
+const EMPTY_WARDROBE_ENTRY: WardrobeEntry = { name: '', approach: '', quality: '' }
+const WARDROBE_ROW_COUNT = 3
+function loadWardrobe(): WardrobeEntry[] {
   try {
     const raw = localStorage.getItem(WARDROBE_KEY)
-    if (!raw) return { ...EMPTY_WARDROBE }
+    if (!raw) return Array.from({ length: WARDROBE_ROW_COUNT }, () => ({ ...EMPTY_WARDROBE_ENTRY }))
     const p = JSON.parse(raw)
-    return {
-      name: typeof p.name === 'string' ? p.name : '',
-      approach: typeof p.approach === 'string' ? p.approach : '',
-      quality: typeof p.quality === 'string' ? p.quality : '',
+    if (Array.isArray(p)) {
+      return Array.from({ length: WARDROBE_ROW_COUNT }, (_, i) => {
+        const row = p[i]
+        return {
+          name: row && typeof row.name === 'string' ? row.name : '',
+          approach: row && typeof row.approach === 'string' ? row.approach : '',
+          quality: row && typeof row.quality === 'string' ? row.quality : '',
+        }
+      })
     }
-  } catch { return { ...EMPTY_WARDROBE } }
+    // legacy single-row format
+    return [
+      {
+        name: typeof p.name === 'string' ? p.name : '',
+        approach: typeof p.approach === 'string' ? p.approach : '',
+        quality: typeof p.quality === 'string' ? p.quality : '',
+      },
+      ...Array.from({ length: WARDROBE_ROW_COUNT - 1 }, () => ({ ...EMPTY_WARDROBE_ENTRY })),
+    ]
+  } catch { return Array.from({ length: WARDROBE_ROW_COUNT }, () => ({ ...EMPTY_WARDROBE_ENTRY })) }
 }
 
 const FIELD_STYLE: React.CSSProperties = {
@@ -498,7 +513,7 @@ export default function GearPage() {
   const [search, setSearch] = useState('')
   const [chudSlots, setChudSlots] = useState<number | null>(readChudInventorySlots)
   const [entries, setEntries] = useState<SlotEntry[]>(loadGearEntries)
-  const [wardrobe, setWardrobe] = useState<WardrobeEntry>(loadWardrobe)
+  const [wardrobe, setWardrobe] = useState<WardrobeEntry[]>(loadWardrobe)
   // Inventory assignment backbone (search UI not yet deployed)
   const [equippedItems, setEquippedItems] = useState<EquippedItem[]>(
     () => Array.from({ length: MAX_INVENTORY_SLOTS }, () => null)
@@ -571,8 +586,12 @@ export default function GearPage() {
     localStorage.setItem(WARDROBE_KEY, JSON.stringify(wardrobe))
   }, [wardrobe])
 
-  const handleWardrobeChange = (field: keyof WardrobeEntry, value: string) =>
-    setWardrobe(prev => ({ ...prev, [field]: value }))
+  const handleWardrobeChange = (index: number, field: keyof WardrobeEntry, value: string) =>
+    setWardrobe(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], [field]: value }
+      return next
+    })
 
   // Suppress unused-variable warnings until search UI is deployed
   void assignToSlot
@@ -669,109 +688,118 @@ export default function GearPage() {
         }}>
           Wardrobe
         </h2>
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Name */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
-            <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
-              Name
-            </label>
-            <input
-              type="text"
-              value={wardrobe.name}
-              onChange={e => handleWardrobeChange('name', e.target.value)}
-              style={{ ...FIELD_STYLE }}
-            />
-          </div>
+        {wardrobe.map((row, index) => (
+          <div key={index} style={{ marginBottom: 16 }}>
+            <div style={{
+              fontSize: '0.72rem',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'var(--muted)',
+              marginBottom: 8,
+            }}>
+              Look {index + 1}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
+                <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={row.name}
+                  onChange={e => handleWardrobeChange(index, 'name', e.target.value)}
+                  style={{ ...FIELD_STYLE }}
+                />
+              </div>
 
-          {/* Approach */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
-            <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
-              Approach
-            </label>
-            <div style={{ position: 'relative' }}>
-              <select
-                value={wardrobe.approach}
-                onChange={e => handleWardrobeChange('approach', e.target.value)}
-                style={{
-                  ...FIELD_STYLE,
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                  paddingRight: '2rem',
-                  cursor: 'pointer',
-                  width: '100%',
-                }}
-              >
-                <option value="">—</option>
-                {['Force', 'Finesse', 'Guts', 'Logic', 'Show', 'Tell'].map(a => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
-              {/* Chevron indicator */}
-              <span
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  right: 8,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none',
-                  color: 'var(--muted)',
-                  fontSize: '0.7rem',
-                  lineHeight: 1,
-                }}
-              >
-                ▾
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
+                <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
+                  Approach
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={row.approach}
+                    onChange={e => handleWardrobeChange(index, 'approach', e.target.value)}
+                    style={{
+                      ...FIELD_STYLE,
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      paddingRight: '2rem',
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    <option value="">—</option>
+                    {['Force', 'Finesse', 'Guts', 'Logic', 'Show', 'Tell'].map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                  <span
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      right: 8,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      color: 'var(--muted)',
+                      fontSize: '0.7rem',
+                      lineHeight: 1,
+                    }}
+                  >
+                    ▾
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
+                <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
+                  Quality
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={row.quality}
+                    onChange={e => handleWardrobeChange(index, 'quality', e.target.value)}
+                    style={{
+                      ...FIELD_STYLE,
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      paddingRight: '2rem',
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    <option value="">—</option>
+                    {[1, 2, 3, 4, 5, 6].map(n => (
+                      <option key={n} value={`+${n}`}>+{n}</option>
+                    ))}
+                  </select>
+                  <span
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      right: 8,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      color: 'var(--muted)',
+                      fontSize: '0.7rem',
+                      lineHeight: 1,
+                    }}
+                  >
+                    ▾
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* Quality */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
-            <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
-              Quality
-            </label>
-            <div style={{ position: 'relative' }}>
-              <select
-                value={wardrobe.quality}
-                onChange={e => handleWardrobeChange('quality', e.target.value)}
-                style={{
-                  ...FIELD_STYLE,
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                  paddingRight: '2rem',
-                  cursor: 'pointer',
-                  width: '100%',
-                }}
-              >
-                <option value="">—</option>
-                {[1, 2, 3, 4, 5, 6].map(n => (
-                  <option key={n} value={`+${n}`}>+{n}</option>
-                ))}
-              </select>
-              <span
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  right: 8,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none',
-                  color: 'var(--muted)',
-                  fontSize: '0.7rem',
-                  lineHeight: 1,
-                }}
-              >
-                ▾
-              </span>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* ── Gear browser ─────────────────────────────────── */}
