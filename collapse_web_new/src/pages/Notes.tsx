@@ -71,7 +71,7 @@ export default function NotesPage() {
     setModules((prev) => (prev.length <= 1 ? prev : prev.filter((module) => module.id !== id)));
   };
 
-  const holdTimerRef = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
+  const holdTimerRef = useRef<Record<string, number | null>>({});
 
   const toggleCollapsed = (id: string) => {
     setModules((prev) => prev.map((module) => (module.id === id ? { ...module, collapsed: !module.collapsed } : module)));

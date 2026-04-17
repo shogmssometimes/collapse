@@ -12,7 +12,7 @@ export const Handbook = {
   gear,
   events,
   getAllCards(): Card[] {
-    return [...modCards, ...baseCards, ...nullCards, ...gear]
+    return [...modCards, ...baseCards, ...nullCards]
   }
 }
 
