@@ -114,6 +114,7 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
   let startX = 0;
   let startY = 0;
 
+  let moved = false;
   const cancelHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
 
   const onPointerDown = (e: PointerEvent) => {
@@ -125,6 +126,7 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
     downTime = Date.now();
     startX = (e as any).clientX || 0;
     startY = (e as any).clientY || 0;
+    moved = false;
     cancelHold();
     holdTimer = window.setTimeout(() => {
       // Clear selection and trigger long-press context menu
@@ -132,7 +134,6 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
       try { btn.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true })); } catch(e) {}
       holdTimer = null;
     }, 350);
-    e.preventDefault();
   };
 
   const onPointerMove = (e: PointerEvent) => {
@@ -140,6 +141,7 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
     const y = (e as any).clientY || 0;
     if (Math.abs(x - startX) > 10 || Math.abs(y - startY) > 10) {
       cancelHold();
+      moved = true;
     }
   };
 
@@ -148,9 +150,8 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
     if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
     const dt = Date.now() - downTime;
     downTime = 0;
-    // short tap -> activate the element
-    if (dt < 350) {
-      // synthesize a click to preserve native behavior
+    // short tap -> activate the element only if it was not moved
+    if (dt < 350 && !moved) {
       btn.click();
     }
   };
@@ -166,20 +167,22 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
     downTime = Date.now();
     startX = touch.clientX || 0;
     startY = touch.clientY || 0;
+    moved = false;
     cancelHold();
     holdTimer = window.setTimeout(() => { clearSelectionUnlessSelectable(); try { btn.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true })); } catch(e) {} holdTimer = null; }, 350);
-    // prevent default to stop iOS from creating selection/context menu
-    e.preventDefault();
-  }, { passive: false });
+  }, { passive: true });
   blocker.addEventListener('touchmove', (e) => {
     const touch = (e as TouchEvent).changedTouches[0];
     if (!touch) return;
-    if (Math.abs((touch.clientX || 0) - startX) > 10 || Math.abs((touch.clientY || 0) - startY) > 10) cancelHold();
+    if (Math.abs((touch.clientX || 0) - startX) > 10 || Math.abs((touch.clientY || 0) - startY) > 10) {
+      cancelHold();
+      moved = true;
+    }
   }, { passive: true });
   blocker.addEventListener('touchend', (e) => {
     if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
     const dt = Date.now() - downTime; downTime = 0;
-    if (dt < 350) btn.click();
+    if (dt < 350 && !moved) btn.click();
   }, { passive: true });
 
   // insert overlay - append so it sits above other positioned children; increase z-index via CSS
