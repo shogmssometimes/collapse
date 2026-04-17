@@ -24,6 +24,12 @@ interface SecondaryStats {
   personality: number;
 }
 
+interface StatReps {
+  ap: number;
+  draw: number;
+  invSlots: number;
+}
+
 interface SaveState {
   core: CoreStats;
   hpCounter: number;
@@ -31,7 +37,10 @@ interface SaveState {
   approach: ApproachStats;
   wt: number;
   ap: number;
+  draw: number;
+  inventorySlots: number;
   secondary?: SecondaryStats;
+  statReps?: StatReps;
   shortRest?: boolean;
   pushIt?: boolean;
 }
@@ -39,8 +48,11 @@ interface SaveState {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "chud.state.v1";
+const UI_KEY = "chud.ui.v1";
+const GEAR_SLOTS_KEY = "gear.slots.v1";
 
 const DEFAULT_CORE: CoreStats = { vigor: 3, inference: 2, personality: 2 };
+const DEFAULT_DRAW = 5;
 const DEFAULT_APPROACH: ApproachStats = {
   force: 0,
   finesse: 0,
@@ -55,6 +67,8 @@ const DEFAULT_SECONDARY: SecondaryStats = {
   inference: 0,
   personality: 0,
 };
+
+const DEFAULT_STAT_REPS: StatReps = { ap: 0, draw: 0, invSlots: 0 };
 
 const VIV_TIERS = [
   {
@@ -125,6 +139,13 @@ function loadState(): Partial<SaveState> | null {
   } catch {
     return null;
   }
+}
+
+function readSavedUI(): { hpVivOpen?: boolean; statsOpen?: boolean; secondaryOpen?: boolean; gearOpen?: boolean } {
+  try {
+    const raw = window.localStorage.getItem(UI_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
 }
 
 // ── Derived stats ─────────────────────────────────────────────────────────────
@@ -409,6 +430,231 @@ function RepCard({
   );
 }
 
+// ── GearBrief — swipeable inventory summary ───────────────────────────────────
+
+type GearSlotEntry = { name: string; units: string; qty: string }
+type GearData = { entries: GearSlotEntry[]; slotsUsed: number }
+
+function readGearData(): GearData | null {
+  try {
+    const raw = window.localStorage.getItem(GEAR_SLOTS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // new format: { entries, slotsUsed }
+    if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.entries)) {
+      return { entries: parsed.entries as GearSlotEntry[], slotsUsed: typeof parsed.slotsUsed === 'number' ? parsed.slotsUsed : 0 };
+    }
+    // legacy array format
+    if (Array.isArray(parsed)) {
+      return { entries: parsed as GearSlotEntry[], slotsUsed: 0 };
+    }
+    return null;
+  } catch { return null; }
+}
+
+function GearBriefWidget({
+  entries,
+  count,
+  isOverEncumbered,
+}: {
+  entries: GearSlotEntry[];
+  count: number;
+  isOverEncumbered: boolean;
+}) {
+  const [idx, setIdx] = useState(0);
+  const [holdProgress, setHoldProgress] = useState(0); // 0–100
+  const [flashOut, setFlashOut] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isHolding = useRef(false);
+  const holdFired = useRef(false);
+  const HOLD_MS = 2000;
+
+  // only show entries with QTY > 0
+  const activeEntries = entries.slice(0, count).filter(e => {
+    const q = parseFloat(e.qty);
+    return !isNaN(q) && q > 0;
+  });
+  const activeCount = activeEntries.length;
+
+  const safeIdx = activeCount > 0 ? idx % activeCount : 0;
+
+  const prev = () => setIdx(i => (activeCount > 0 ? (i - 1 + activeCount) % activeCount : 0));
+  const next = () => setIdx(i => (activeCount > 0 ? (i + 1) % activeCount : 0));
+
+  const entry = activeCount > 0 ? (activeEntries[safeIdx] ?? null) : null;
+  const nameText = entry?.name.trim() || '—';
+  const qtyText = entry?.qty.trim() || '0';
+  const hasContent = entry?.name.trim() || entry?.qty.trim();
+
+  // we need the original index in `entries` to write back on use
+  const entryOriginalIdx = entry ? entries.findIndex(e => e === entry) : -1;
+
+  const canUse = entry !== null && (() => { const q = parseFloat(entry.qty); return !isNaN(q) && q > 0; })();
+
+  const cancelHold = () => {
+    if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
+    if (holdInterval.current) { clearInterval(holdInterval.current); holdInterval.current = null; }
+    isHolding.current = false;
+    setHoldProgress(0);
+  };
+
+  const startHold = () => {
+    if (!canUse) return;
+    isHolding.current = true;
+    const start = Date.now();
+    holdInterval.current = setInterval(() => {
+      setHoldProgress(Math.min(((Date.now() - start) / HOLD_MS) * 100, 100));
+    }, 30);
+    holdTimer.current = setTimeout(() => {
+      holdFired.current = true;
+      cancelHold();
+      // decrement qty in localStorage
+      try {
+        const raw = window.localStorage.getItem(GEAR_SLOTS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const arr: GearSlotEntry[] = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.entries) ? parsed.entries : []);
+          const slotsUsed: number = typeof parsed?.slotsUsed === 'number' ? parsed.slotsUsed : 0;
+          const updated = arr.map((e, i) => {
+            if (i !== entryOriginalIdx) return e;
+            const q = parseFloat(e.qty);
+            return { ...e, qty: String(isNaN(q) || q <= 0 ? 0 : q - 1) };
+          });
+          window.localStorage.setItem(GEAR_SLOTS_KEY, JSON.stringify({ entries: updated, slotsUsed }));
+          // trigger storage event for Gear page
+          window.dispatchEvent(new StorageEvent('storage', { key: GEAR_SLOTS_KEY, newValue: JSON.stringify({ entries: updated, slotsUsed }), storageArea: window.localStorage }));
+        }
+      } catch {}
+      setFlashOut(true);
+      setTimeout(() => setFlashOut(false), 600);
+    }, HOLD_MS);
+  };
+
+  // border/shadow driven by hold progress
+  const holdGlow = holdProgress / 100;
+  const accentR = 15; const accentG = 246; const accentB = 255;
+  const borderColor = holdProgress > 0
+    ? `rgba(${accentR},${accentG},${accentB},${0.15 + 0.85 * holdGlow})`
+    : isOverEncumbered ? 'rgba(212,43,43,0.55)' : 'rgba(255,255,255,0.1)';
+  const boxShadow = holdProgress > 0
+    ? `0 0 ${8 + 24 * holdGlow}px rgba(${accentR},${accentG},${accentB},${0.15 + 0.55 * holdGlow})`
+    : flashOut
+    ? `0 0 28px rgba(${accentR},${accentG},${accentB},0.6)`
+    : isOverEncumbered ? '0 0 12px rgba(212,43,43,0.2)' : 'none';
+
+  if (count === 0 || activeCount === 0) return null;
+
+  return (
+    <div
+      style={{
+        flex: '7 1 0',
+        background: isOverEncumbered
+          ? 'linear-gradient(135deg, rgba(212,43,43,0.18), rgba(180,20,20,0.10))'
+          : 'rgba(8,13,23,0.92)',
+        border: `1px solid ${borderColor}`,
+        borderRadius: 8,
+        padding: '8px 10px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        minWidth: 0,
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        touchAction: 'none',
+        cursor: canUse ? 'pointer' : 'default',
+        boxShadow,
+        transition: holdProgress > 0 ? 'none' : 'background 0.3s, border-color 0.4s, box-shadow 0.4s',
+      }}
+      onPointerDown={e => {
+        touchStartX.current = e.clientX;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        startHold();
+      }}
+      onPointerUp={e => {
+        const dx = touchStartX.current !== null ? e.clientX - touchStartX.current : 0;
+        const fired = holdFired.current;
+        cancelHold();
+        holdFired.current = false;
+        if (!fired && Math.abs(dx) <= 30) {
+          next();
+        }
+        touchStartX.current = null;
+      }}
+      onPointerLeave={() => { cancelHold(); touchStartX.current = null; }}
+      onPointerCancel={() => { cancelHold(); touchStartX.current = null; }}
+      onContextMenu={e => e.preventDefault()}
+    >
+      <span
+        style={{
+          fontSize: '0.58rem',
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: isOverEncumbered ? 'rgba(255,100,100,0.9)' : 'var(--muted, #9aa0a6)',
+          textAlign: 'center',
+        }}
+      >
+        {isOverEncumbered ? '⚠ Over-Encumbered' : 'In Brief'}
+      </span>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'center',
+          gap: 6,
+          minWidth: 0,
+          overflow: 'hidden',
+        }}
+      >
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            fontSize: '0.88rem',
+            fontWeight: 600,
+            textAlign: 'center',
+            color: hasContent ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.3)',
+          }}
+        >
+          {nameText}
+        </span>
+        {hasContent && (
+          <span
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--accent, #0ff6ff)',
+              fontVariantNumeric: 'tabular-nums',
+              flexShrink: 0,
+            }}
+          >
+            ×{qtyText}
+          </span>
+        )}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 2,
+        }}
+      >
+        <span
+          style={{
+            fontSize: '0.6rem',
+            color: 'rgba(255,255,255,0.35)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {safeIdx + 1} / {activeCount}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ── StatCard — shared by core stats, approach, WT, AP ─────────────────────────
 
 function StatCard({
@@ -454,14 +700,26 @@ export default function Chud() {
   );
   const [wt, setWtRaw] = useState<number>(saved?.wt ?? 4);
   const [ap, setApRaw] = useState<number>(saved?.ap ?? 4);
+  const [draw, setDrawRaw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
+  const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? 6);
+  const [gearEntries, setGearEntries] = useState<GearSlotEntry[] | null>(() =>
+    typeof window !== "undefined" ? (readGearData()?.entries ?? null) : null
+  );
+  const [gearSlotsUsed, setGearSlotsUsed] = useState<number>(() =>
+    typeof window !== "undefined" ? (readGearData()?.slotsUsed ?? 0) : 0
+  );
   const [secondary, setSecondary] = useState<SecondaryStats>(
     saved?.secondary ?? DEFAULT_SECONDARY
   );
-  const [secondaryOpen, setSecondaryOpen] = useState(false);
-  const [hpVivOpen, setHpVivOpen] = useState(true);
+  const [secondaryOpen, setSecondaryOpen] = useState(() => readSavedUI().secondaryOpen ?? true);
+  const [gearOpen, setGearOpen] = useState(() => readSavedUI().gearOpen ?? true);
+  const [statsOpen, setStatsOpen] = useState(() => readSavedUI().statsOpen ?? true);
+  const [hpVivOpen, setHpVivOpen] = useState(() => readSavedUI().hpVivOpen ?? true);
   const [levelUpReady, setLevelUpReady] = useState<Record<keyof SecondaryStats, boolean>>({
     vigor: false, inference: false, personality: false,
   });
+  const [statReps, setStatReps] = useState<StatReps>(saved?.statReps ?? DEFAULT_STAT_REPS);
+  const [statLevelUpReady, setStatLevelUpReady] = useState({ ap: false, draw: false, invSlots: false });
   const [shortRest, setShortRest] = useState<boolean>(saved?.shortRest ?? false);
   const [pushIt, setPushIt] = useState<boolean>(saved?.pushIt ?? false);
 
@@ -484,12 +742,20 @@ export default function Chud() {
   // Persist to localStorage
   useEffect(() => {
     try {
-      const state: SaveState = { core, hpCounter, viv, approach, wt, ap, secondary, shortRest, pushIt };
+      const state: SaveState = { core, hpCounter, viv, approach, wt, ap, draw, inventorySlots, secondary, statReps, shortRest, pushIt };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       // storage unavailable — ignore
     }
-  }, [core, hpCounter, viv, approach, wt, ap, secondary, shortRest, pushIt]);
+  }, [core, hpCounter, viv, approach, wt, ap, draw, inventorySlots, secondary, statReps, shortRest, pushIt]);
+
+  // Persist accordion open/close state
+  useEffect(() => {
+    try {
+      const prev = readSavedUI();
+      window.localStorage.setItem(UI_KEY, JSON.stringify({ ...prev, hpVivOpen, statsOpen, secondaryOpen, gearOpen }));
+    } catch {}
+  }, [hpVivOpen, statsOpen, secondaryOpen, gearOpen]);
 
   // Cross-tab sync
   useEffect(() => {
@@ -503,7 +769,10 @@ export default function Chud() {
         if (s.approach) setApproach(s.approach);
         if (typeof s.wt === "number") setWtRaw(Math.max(0, s.wt));
         if (typeof s.ap === "number") setApRaw(Math.max(0, s.ap));
+        if (typeof s.draw === "number") setDrawRaw(Math.max(0, s.draw));
+        if (typeof s.inventorySlots === "number") setInventorySlotsRaw(Math.max(0, s.inventorySlots));
         if (s.secondary) setSecondary(s.secondary);
+        if (s.statReps) setStatReps(s.statReps);
         if (typeof s.shortRest === "boolean") setShortRest(s.shortRest);
         if (typeof s.pushIt === "boolean") setPushIt(s.pushIt);
       } catch {
@@ -512,6 +781,17 @@ export default function Chud() {
     };
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
+  }, []);
+
+  useEffect(() => {
+    const gearHandler = (e: StorageEvent) => {
+      if (e.key !== GEAR_SLOTS_KEY) return;
+      const data = readGearData();
+      setGearEntries(data?.entries ?? null);
+      setGearSlotsUsed(data?.slotsUsed ?? 0);
+    };
+    window.addEventListener("storage", gearHandler);
+    return () => window.removeEventListener("storage", gearHandler);
   }, []);
 
   const collapseLocked = hpCounter <= 0 && !collapseUnlocked;
@@ -523,6 +803,8 @@ export default function Chud() {
   const setViv = useCallback((v: number) => setVivRaw(Math.max(0, v)), []);
   const setWt = useCallback((v: number) => setWtRaw(Math.max(0, v)), []);
   const setAp = useCallback((v: number) => setApRaw(Math.max(0, v)), []);
+  const setDraw = useCallback((v: number) => setDrawRaw(Math.max(0, v)), []);
+  const setInventorySlots = useCallback((v: number) => setInventorySlotsRaw(Math.max(0, v)), []);
 
   const setCoreField = useCallback(
     (field: keyof CoreStats, updater: (v: number) => number) =>
@@ -546,7 +828,7 @@ export default function Chud() {
     (field: keyof SecondaryStats) => {
       const threshold = (core as unknown as Record<string, number>)[field] + 1;
       const current = Number.isFinite(secondary[field]) ? secondary[field] : 0;
-      if (current >= threshold) return; // already maxed, wait for level-up tap
+      if (current >= threshold) return;
       const next = current + 1;
       setSecondary((prev) => ({ ...prev, [field]: next }));
       if (next >= threshold) {
@@ -568,6 +850,43 @@ export default function Chud() {
     (field: keyof SecondaryStats) => {
       setSecondary((prev) => ({ ...prev, [field]: 0 }));
       setLevelUpReady((prev) => ({ ...prev, [field]: false }));
+    },
+    []
+  );
+
+  const statRepThreshold = useCallback(
+    (field: keyof StatReps) => {
+      if (field === 'ap') return ap + 1;
+      if (field === 'draw') return draw + 1;
+      return inventorySlots + 1;
+    },
+    [ap, draw, inventorySlots]
+  );
+
+  const incrementStatRep = useCallback(
+    (field: keyof StatReps) => {
+      const threshold = statRepThreshold(field);
+      const current = statReps[field];
+      if (current >= threshold) return;
+      const next = current + 1;
+      setStatReps((prev) => ({ ...prev, [field]: next }));
+      if (next >= threshold) setStatLevelUpReady((prev) => ({ ...prev, [field]: true }));
+    },
+    [statReps, statRepThreshold]
+  );
+
+  const resetStatRep = useCallback(
+    (field: keyof StatReps) => {
+      setStatReps((prev) => ({ ...prev, [field]: 0 }));
+      setStatLevelUpReady((prev) => ({ ...prev, [field]: false }));
+    },
+    []
+  );
+
+  const confirmStatLevelUp = useCallback(
+    (field: keyof StatReps) => {
+      setStatReps((prev) => ({ ...prev, [field]: 0 }));
+      setStatLevelUpReady((prev) => ({ ...prev, [field]: false }));
     },
     []
   );
@@ -637,40 +956,42 @@ export default function Chud() {
             </button>
             {hpVivOpen && (
               <>
-          {/* ── HP Card ── */}
-          <div
-            className="stat-card hp-card interactive"
-            role="button"
-            aria-disabled={collapseLocked ? "true" : "false"}
-            tabIndex={collapseLocked ? -1 : 0}
-            data-hp-state={hpFillPct <= 30 ? "critical" : hpFillPct <= 60 ? "warning" : "normal"}
-            {...(collapseLocked ? {} : hpHandlers)}
-          >
-            <div className="stat-label">
-              <strong>HP</strong>
-              <span>
-                {hpCounter} / {hpMax}
-              </span>
-            </div>
-            <div
-              className="stat-bar"
-              role="img"
-              aria-label={`HP ${hpCounter} of ${hpMax}`}
-            >
+          {/* ── Row 1: HP (70%) | VIV (30%) ── */}
+          <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+            <div style={{ flex: 7, minWidth: 0 }}>
               <div
-                className="bar-fill"
-                style={{ width: `${hpFillPct}%` }}
+                className="stat-card hp-card interactive"
+                role="button"
+                aria-disabled={collapseLocked ? "true" : "false"}
+                tabIndex={collapseLocked ? -1 : 0}
+                data-hp-state={hpFillPct <= 30 ? "critical" : hpFillPct <= 60 ? "warning" : "normal"}
+                style={{ height: "100%" }}
+                {...(collapseLocked ? {} : hpHandlers)}
+              >
+                <div className="stat-label">
+                  <strong>HP</strong>
+                  <span>{hpCounter} / {hpMax}</span>
+                </div>
+                <div
+                  className="stat-bar"
+                  role="img"
+                  aria-label={`HP ${hpCounter} of ${hpMax}`}
+                >
+                  <div className="bar-fill" style={{ width: `${hpFillPct}%` }} />
+                </div>
+              </div>
+            </div>
+            <div style={{ flex: 3, minWidth: 0 }}>
+              <VivCard
+                viv={viv}
+                onIncr={() => setViv(viv + 1)}
+                onDecr={() => setViv(viv - 1)}
               />
             </div>
           </div>
 
-          {/* ── VIV | WT | AP row ── */}
+          {/* ── Row 2: WT | AP | Draw ── */}
           <div className="viv-row">
-            <VivCard
-              viv={viv}
-              onIncr={() => setViv(viv + 1)}
-              onDecr={() => setViv(viv - 1)}
-            />
             <StatCard
               label="WT"
               value={wt}
@@ -683,12 +1004,15 @@ export default function Chud() {
               onIncr={() => setAp(ap + 1)}
               onDecr={() => setAp(ap - 1)}
             />
-          </div>
-              </>
-            )}
+            <StatCard
+              label="Draw"
+              value={draw}
+              onIncr={() => setDraw(draw + 1)}
+              onDecr={() => setDraw(draw - 1)}
+            />
           </div>
 
-          {/* ── Derived chips: Capacity | Readyness ── */}
+          {/* ── Row 3: Capacity | Readyness ── */}
           <div className="stat-row trio">
             <div className="chip">
               <span>Capacity</span>
@@ -696,10 +1020,27 @@ export default function Chud() {
             </div>
             <div className="chip">
               <span>Readyness</span>
-              <strong>{derived.readyness}</strong>
+              <strong style={gearSlotsUsed > inventorySlots ? { color: 'rgba(255,100,100,0.95)', fontStyle: 'italic' } : undefined}>
+                {gearSlotsUsed > inventorySlots ? 'Last' : derived.readyness}
+              </strong>
             </div>
           </div>
+              </>
+            )}
+          </div>
 
+          {/* ── Stats accordion: Core Stats + Approach ── */}
+          <div className={`mods secondary-accordion${statsOpen ? " open" : ""}`}>
+            <button
+              type="button"
+              className="secondary-toggle"
+              onClick={() => setStatsOpen((o) => !o)}
+            >
+              <span>Stats</span>
+              <span className="secondary-toggle-chevron">{statsOpen ? "▲" : "▼"}</span>
+            </button>
+            {statsOpen && (
+              <>
           {/* ── Core Stats ── */}
           <div className="mods">
             <h3>Core Stats</h3>
@@ -735,6 +1076,9 @@ export default function Chud() {
               ))}
             </div>
           </div>
+              </>
+            )}
+          </div>
 
           {/* ── Secondary Stats accordion ── */}
           <div className={`mods secondary-accordion${secondaryOpen ? " open" : ""}`}>
@@ -747,48 +1091,78 @@ export default function Chud() {
               <span className="secondary-toggle-chevron">{secondaryOpen ? "▲" : "▼"}</span>
             </button>
             {secondaryOpen && (
-              <div className="core-grid secondary-grid">
-                {([
-                  ["vigor", "VIG"],
-                  ["inference", "INFER"],
-                  ["personality", "PERSO"],
-                ] as Array<[keyof SecondaryStats, string]>).map(([field, label]) => (
-                  <RepCard
-                    key={field}
-                    label={label}
-                    reps={Number.isFinite(secondary[field]) ? secondary[field] : 0}
-                    threshold={(core as unknown as Record<string, number>)[field] + 1}
-                    ready={levelUpReady[field]}
-                    onTap={() => incrementRep(field)}
-                    onReset={() => resetRep(field)}
-                    onLevelUp={() => confirmLevelUp(field)}
+              <>
+                <div style={{ fontSize: '0.6rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(248,250,252,0.35)', paddingBottom: 4, paddingTop: 6, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Major</div>
+                <div className="core-grid secondary-grid">
+                  {([
+                    ["vigor", "VIG"],
+                    ["inference", "INFER"],
+                    ["personality", "PERSO"],
+                  ] as Array<[keyof SecondaryStats, string]>).map(([field, label]) => (
+                    <RepCard
+                      key={field}
+                      label={label}
+                      reps={Number.isFinite(secondary[field]) ? secondary[field] : 0}
+                      threshold={(core as unknown as Record<string, number>)[field] + 1}
+                      ready={levelUpReady[field]}
+                      onTap={() => incrementRep(field)}
+                      onReset={() => resetRep(field)}
+                      onLevelUp={() => confirmLevelUp(field)}
+                    />
+                  ))}
+                </div>
+                <div style={{ fontSize: '0.6rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(248,250,252,0.35)', paddingBottom: 4, paddingTop: 10, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Minor</div>
+                <div className="core-grid secondary-grid" style={{ marginTop: 8 }}>
+                  {([
+                    ['invSlots', 'INV'],
+                    ['ap', 'AP'],
+                    ['draw', 'DRAW'],
+                  ] as Array<[keyof StatReps, string]>).map(([field, label]) => (
+                    <RepCard
+                      key={field}
+                      label={label}
+                      reps={statReps[field]}
+                      threshold={statRepThreshold(field)}
+                      ready={statLevelUpReady[field]}
+                      onTap={() => incrementStatRep(field)}
+                      onReset={() => resetStatRep(field)}
+                      onLevelUp={() => confirmStatLevelUp(field)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── Gear Mgmt accordion ── */}
+          <div className={`mods secondary-accordion${gearOpen ? " open" : ""}`}>
+            <button
+              type="button"
+              className="secondary-toggle"
+              onClick={() => setGearOpen((o) => !o)}
+            >
+              <span>Gear Mgmt</span>
+              <span className="secondary-toggle-chevron">{gearOpen ? "▲" : "▼"}</span>
+            </button>
+            {gearOpen && (
+              <div className="viv-row">
+                <div style={{ flex: '3 1 0', minWidth: 0 }}>
+                  <StatCard
+                    label="Inventory Slots"
+                    value={inventorySlots}
+                    onIncr={() => setInventorySlots(inventorySlots + 1)}
+                    onDecr={() => setInventorySlots(inventorySlots - 1)}
                   />
-                ))}
+                </div>
+                <GearBriefWidget
+                  entries={gearEntries ?? []}
+                  count={inventorySlots}
+                  isOverEncumbered={gearSlotsUsed > inventorySlots}
+                />
               </div>
             )}
           </div>
 
-          {/* ── Flags ── */}
-          <div className="chud-flags">
-            <label className={`chud-flag${shortRest ? " checked" : ""}`}>
-              <input
-                type="checkbox"
-                checked={shortRest}
-                onChange={(e) => setShortRest(e.target.checked)}
-              />
-              <span className="chud-flag-box" />
-              <span className="chud-flag-label">Short Rest</span>
-            </label>
-            <label className={`chud-flag${pushIt ? " checked" : ""}`}>
-              <input
-                type="checkbox"
-                checked={pushIt}
-                onChange={(e) => setPushIt(e.target.checked)}
-              />
-              <span className="chud-flag-box" />
-              <span className="chud-flag-label">Push It</span>
-            </label>
-          </div>
         </section>
       </div>
     </div>

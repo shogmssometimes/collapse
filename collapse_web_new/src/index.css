@@ -415,7 +415,7 @@ button:hover {
 }
 
 /* Prevent text selection and highlights globally in the app (use .selectable to opt back in) */
-html, body, #root, #root * {
+html, body, #root, #root *:not(input):not(textarea):not([contenteditable]) {
   -webkit-user-select: none !important; /* iOS Safari */
   -moz-user-select: none !important;
   -ms-user-select: none !important;
@@ -440,24 +440,31 @@ html, body, #root, #root * {
   touch-action: auto;
 }
 
-/* Ensure form controls and contenteditable regions cannot be selected or show caret on long-press
-   unless explicitly marked .selectable */
-input, textarea, [contenteditable="true"], button {
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  user-select: none !important;
-  -webkit-touch-callout: none !important;
+/* Ensure inputs and textareas are always fully interactive */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: auto;
+  caret-color: auto;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Buttons keep the tap optimisation but not the user-select block */
+button {
   -webkit-tap-highlight-color: transparent !important;
-  touch-action: manipulation !important;
-  caret-color: transparent !important; /* hide caret to avoid caret showing on long-press */
+  touch-action: manipulation;
 }
 
 /* If a specific input needs to be selectable/editable, opt it in with .selectable */
-input.selectable, textarea.selectable, [contenteditable="true"].selectable {
+/* Use #root prefix to get specificity (1,1,1) > #root * (1,0,1) so !important wins */
+#root input.selectable, #root textarea.selectable, #root [contenteditable="true"].selectable {
   -webkit-user-select: text !important;
+  -moz-user-select: text !important;
   user-select: text !important;
-  caret-color: initial !important;
+  caret-color: auto !important;
+  touch-action: auto !important;
+  pointer-events: auto !important;
 }
 
 /* Overlay element used to intercept touch/long-press on buttons */
@@ -1683,6 +1690,7 @@ code {
   padding: 12px 14px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   font-weight: 800;
+  touch-action: none;
 }
 .chud-close {
   border: 1px solid rgba(255,255,255,0.2);
@@ -1695,8 +1703,8 @@ code {
 .chud-sheet-body {
   flex: 1;
   min-height: 0;
-  height: auto;
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .chud-sheet-body iframe {
   width: 100%;

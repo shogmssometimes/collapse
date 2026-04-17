@@ -56,9 +56,11 @@ if (typeof window !== 'undefined' && 'ontouchstart' in window) {
   // Proactive long-press handling: clear selection if a touch is held down for ~450ms
   let holdTimer: number | null = null;
   document.addEventListener('touchstart', (e) => {
-    // ignore if inside a selectable area
+    // ignore if inside a selectable area or a text input
     const el = (e.target instanceof Element) ? e.target as Element : null;
     if (el && el.closest && el.closest('.selectable')) return;
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+    if (el && (el as HTMLElement).isContentEditable) return;
     if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
     holdTimer = window.setTimeout(() => {
       // Clear selection and prevent any menu from showing
@@ -72,6 +74,11 @@ if (typeof window !== 'undefined' && 'ontouchstart' in window) {
 // This complements the CSS rule and ensures long-press or programmatic selection won't stick.
 function clearSelectionUnlessSelectable() {
   try {
+    // Never interfere when a text input or textarea has focus
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+    if (active && (active as HTMLElement).isContentEditable) return;
+
     const sel = window.getSelection && window.getSelection();
     if (!sel || !sel.rangeCount) return;
     const anchor = sel.anchorNode && (sel.anchorNode.nodeType === Node.TEXT_NODE ? sel.anchorNode.parentElement : (sel.anchorNode as Element));

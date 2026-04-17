@@ -1,9 +1,9 @@
-export type ActivePlay = { baseId: string; mods: string[] } | null
+export type ActivePlay = { baseId: string; baseHandIndex: number; mods: string[]; modIndices: number[] } | null
 export type ActivePlaySelection = { baseId: string; mods: string[] }
 
-export function startPlaySelection(prev: ActivePlay, baseId: string): ActivePlay {
-  if (prev && prev.baseId === baseId) return null
-  return { baseId, mods: [] }
+export function startPlaySelection(prev: ActivePlay, baseId: string, baseHandIndex: number): ActivePlay {
+  if (prev && prev.baseHandIndex === baseHandIndex) return null
+  return { baseId, baseHandIndex, mods: [], modIndices: [] }
 }
 
 export function toggleAttach(

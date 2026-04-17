@@ -10,6 +10,27 @@ const DEFAULT_BASE_TARGET = 26
 const DEFAULT_MIN_NULLS = 5
 const DEFAULT_STORAGE_KEY = 'collapse.deck-builder.v2'
 const DEFAULT_MODIFIER_CAPACITY = 10
+const CHUD_STATE_KEY = 'chud.state.v1'
+
+function readChudCapacity(): number | null {
+  try {
+    const raw = window.localStorage.getItem(CHUD_STATE_KEY)
+    if (!raw) return null
+    const s = JSON.parse(raw)
+    if (typeof s?.core?.inference === 'number') return s.core.inference + 10
+    return null
+  } catch { return null }
+}
+
+function readChudDraw(): number | null {
+  try {
+    const raw = window.localStorage.getItem(CHUD_STATE_KEY)
+    if (!raw) return null
+    const s = JSON.parse(raw)
+    if (typeof s?.draw === 'number') return s.draw
+    return null
+  } catch { return null }
+}
 const DEFAULT_HAND_LIMIT = 5
 const MAX_HAND_LIMIT = 20
 
@@ -202,10 +223,36 @@ export default function DeckBuilder({
   const handListRef = useRef<HTMLDivElement | null>(null)
   const modifierSectionRef = useRef<HTMLDivElement | null>(null)
   const [handNavState, setHandNavState] = useState({ left: false, right: false })
-  const [basePrompt, setBasePrompt] = useState<{ id: string; qty: number; name?: string } | null>(null)
-  const [modPrompt, setModPrompt] = useState<{ id: string; qty: number; name?: string } | null>(null)
+
   const modLongPressTimer = useRef<number | null>(null)
   const modLongPressFired = useRef(false)
+
+  const [chudCapacity, setChudCapacity] = useState<number | null>(() =>
+    typeof window !== 'undefined' ? readChudCapacity() : null
+  )
+  const [chudDraw, setChudDraw] = useState<number | null>(() =>
+    typeof window !== 'undefined' ? readChudDraw() : null
+  )
+
+  useEffect(() => {
+    if (chudCapacity === null) return
+    setBuilderState(prev => ({ ...prev, modifierCapacity: chudCapacity }))
+  }, [chudCapacity])
+
+  useEffect(() => {
+    if (chudDraw === null) return
+    setBuilderState(prev => ({ ...prev, handLimit: chudDraw }))
+  }, [chudDraw])
+
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key !== CHUD_STATE_KEY) return
+      setChudCapacity(readChudCapacity())
+      setChudDraw(readChudDraw())
+    }
+    window.addEventListener('storage', handler)
+    return () => window.removeEventListener('storage', handler)
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -220,7 +267,7 @@ export default function DeckBuilder({
   )
   const modCapacityTotal = builderState.modifierCapacity ?? 0
   const modCapacityRemaining = Math.max(modCapacityTotal - modCapacityUsed, 0)
-  const modOverlayLabel = modCapacityAsCount ? 'Modifier Slots Left' : 'Modifier Capacity Left'
+  const modOverlayLabel = modCapacityAsCount ? 'Modifier Slots Left' : 'Capacity Left'
   const cardsRemaining = builderState.deck?.length ?? 0
   const totalCards = cardsRemaining + (builderState.hand?.length ?? 0) + (builderState.discard?.length ?? 0)
   const deckPercent = totalCards > 0 ? cardsRemaining / totalCards : 0
@@ -590,7 +637,7 @@ export default function DeckBuilder({
     }
 
     // Selecting a base from the deck overlay starts a fresh play selection scoped to the overlay
-    setActivePlay({ baseId: cardId, mods: [] })
+    setActivePlay({ baseId: cardId, baseHandIndex: -1, mods: [], modIndices: [] })
     setPendingDeckPlay([cardId])
     setOpsError(null)
   }
@@ -686,20 +733,8 @@ export default function DeckBuilder({
   }
 
   const handleBaseContext = (cardId: string) => {
-    const current = builderState.baseCounts[cardId] ?? 0
-    if (builderState.isLocked || current <= 0) return
-    const cardName = getCard(cardId)?.name ?? cardId
-    setBasePrompt({ id: cardId, qty: current, name: cardName })
-  }
-
-  const closeBasePrompt = () => setBasePrompt(null)
-
-  const handleBaseRemoveAction = (removeAll: boolean) => {
-    if (!basePrompt) return
-    const currentQty = builderState.baseCounts[basePrompt.id] ?? 0
-    const delta = removeAll ? -currentQty : -1
-    if (delta !== 0) adjustBaseCount(basePrompt.id, delta)
-    closeBasePrompt()
+    if (builderState.isLocked) return
+    adjustBaseCount(cardId, -1)
   }
 
   const adjustModCount = (cardId: string, delta: number) => {
@@ -729,20 +764,8 @@ export default function DeckBuilder({
   }
 
   const handleModContext = (cardId: string) => {
-    const current = builderState.modCounts[cardId] ?? 0
-    if (builderState.isLocked || current <= 0) return
-    const cardName = getCard(cardId)?.name ?? cardId
-    setModPrompt({ id: cardId, qty: current, name: cardName })
-  }
-
-  const closeModPrompt = () => setModPrompt(null)
-
-  const handleModRemoveAction = (removeAll: boolean) => {
-    if (!modPrompt) return
-    const currentQty = builderState.modCounts[modPrompt.id] ?? 0
-    const delta = removeAll ? -currentQty : -1
-    if (delta !== 0) adjustModCount(modPrompt.id, delta)
-    closeModPrompt()
+    if (builderState.isLocked) return
+    adjustModCount(cardId, -1)
   }
 
   const adjustNullCount = (delta: number) => {
@@ -857,15 +880,20 @@ export default function DeckBuilder({
 
   const groupedHandStacks = useMemo(() => {
     const handList = builderState.hand ?? []
+    const idOccurrenceCount: Record<string, number> = {}
     return handList.map((entry, index) => {
       const id = entry.id
+      idOccurrenceCount[id] = (idOccurrenceCount[id] ?? 0) + 1
+      const thisOccurrence = idOccurrenceCount[id]
       const card = getCard(id)
       const typeLabel = card?.type ?? 'Base'
       const isBase = typeLabel.toLowerCase() === 'base'
       const isNull = (card?.type ?? '').toLowerCase() === 'null'
-      const isQueuedModifier = !isBase && !!activePlay?.mods?.includes(id)
+      const modsCount = activePlay?.mods?.filter((m) => m === id).length ?? 0
+      const isQueuedModifier = !isBase && !isNull && (activePlay?.modIndices?.includes(index) ?? false)
       const showAttachWarning = !isBase && attachWarningId === id
-      const highlight = isBase && activePlay?.baseId === id
+      const isSelectedBase = isBase && activePlay?.baseHandIndex === index
+      const highlight = isSelectedBase
         ? 'Selected Base'
         : (isQueuedModifier ? 'Queued' : null)
       const canPlayBase = isBase && !activePlay
@@ -946,9 +974,11 @@ export default function DeckBuilder({
           </div>
           <div className="hand-actions" style={{ justifyContent: isNull ? 'flex-end' : undefined }}>
             {isNull ? null : isBase ? (
-              <button onClick={() => startPlayBase(id)} disabled={!canPlayBase}>Play Base</button>
+              <button onClick={() => startPlayBase(id, index)} disabled={!canPlayBase}>Play Base</button>
             ) : (
-              <button onClick={() => attachModifier(id)} disabled={false}>Attach</button>
+              isQueuedModifier
+                ? <button onClick={() => detachModifier(index)}>Remove</button>
+                : <button onClick={() => attachModifier(id, index)} disabled={!canAttach}>Attach</button>
             )}
             <button onClick={() => discardGroupFromHand(id, false, 'discarded')}>Discard</button>
           </div>
@@ -1003,7 +1033,7 @@ export default function DeckBuilder({
   }
 
   // Play flow handlers (use pure helpers)
-  function startPlayBase(cardId: string) {
+  function startPlayBase(cardId: string, handIndex: number) {
     if (nullId && cardId === nullId) {
       setOpsError('Null cards can only be discarded.')
       return
@@ -1014,10 +1044,10 @@ export default function DeckBuilder({
     }
     setOpsError(null)
     setAttachWarningId(null)
-    setActivePlay((prev) => startPlaySelection(prev, cardId))
+    setActivePlay((prev) => startPlaySelection(prev, cardId, handIndex))
   }
 
-  function attachModifier(cardId: string) {
+  function attachModifier(cardId: string, handIndex: number) {
     if (nullId && cardId === nullId) {
       setOpsError('Null cards can only be discarded.')
       return
@@ -1032,10 +1062,30 @@ export default function DeckBuilder({
       acc[it.id] = (acc[it.id] ?? 0) + 1
       return acc
     }, {})
+    const alreadyAttached = activePlay.mods.filter((m) => m === cardId).length
+    if ((handCounts[cardId] ?? 0) - alreadyAttached <= 0) return
     const cardCosts = Array.from(cardLookup.values()).reduce<Record<string, number>>((acc, c) => { acc[c.id] = c.cost ?? 0; return acc }, {})
+    const currentCost = activePlay.mods.reduce((s, m) => s + (cardCosts[m] ?? 0), 0)
+    if (currentCost + (cardCosts[cardId] ?? 0) > builderState.modifierCapacity) {
+      setOpsError('Adding this card would exceed modifier capacity.')
+      return
+    }
     setOpsError(null)
     setAttachWarningId(null)
-    setActivePlay((prev) => toggleAttach(prev, cardId, handCounts, cardCosts, builderState.modifierCapacity))
+    setActivePlay((prev) => prev ? { ...prev, mods: [...prev.mods, cardId], modIndices: [...prev.modIndices, handIndex] } : prev)
+  }
+
+  function detachModifier(handIndex: number) {
+    setActivePlay((prev) => {
+      if (!prev) return prev
+      const pos = prev.modIndices.lastIndexOf(handIndex)
+      if (pos === -1) return prev
+      const mods = [...prev.mods]
+      const modIndices = [...prev.modIndices]
+      mods.splice(pos, 1)
+      modIndices.splice(pos, 1)
+      return { ...prev, mods, modIndices }
+    })
   }
 
   function finalizePlay() {
@@ -1200,12 +1250,19 @@ export default function DeckBuilder({
             </div>
             {showModifierCapacity && (
               <div>
-                <div className="muted text-body">Modifier Capacity</div>
-                <div className="counter-inline" role="group" aria-label="Adjust modifier capacity" style={{ marginTop: 4, justifyContent: 'center' }}>
-                  <button className="counter-btn" onClick={() => adjustModifierCapacity(-1)}>-</button>
-                  <div className="counter-value counter-pill">{builderState.modifierCapacity}</div>
-                  <button className="counter-btn" onClick={() => adjustModifierCapacity(1)}>+</button>
-                </div>
+                <div className="muted text-body">Capacity</div>
+                {chudCapacity !== null ? (
+                  <div style={{ marginTop: 4, textAlign: 'center' }}>
+                    <div className="counter-value counter-pill">{builderState.modifierCapacity}</div>
+                    <div className="muted text-body" style={{ marginTop: 4, fontSize: '0.75em' }}>Synced from cHUD</div>
+                  </div>
+                ) : (
+                  <div className="counter-inline" role="group" aria-label="Adjust capacity" style={{ marginTop: 4, justifyContent: 'center' }}>
+                    <button className="counter-btn" onClick={() => adjustModifierCapacity(-1)}>-</button>
+                    <div className="counter-value counter-pill">{builderState.modifierCapacity}</div>
+                    <button className="counter-btn" onClick={() => adjustModifierCapacity(1)}>+</button>
+                  </div>
+                )}
               </div>
             )}
             {showModifierCards && showModifierCardCounter && (
@@ -1274,7 +1331,7 @@ export default function DeckBuilder({
                         key={card.id}
                         className={`card base-card ${isSelectedBase ? 'is-selected' : ''}`}
                         data-touch-blocker-ignore
-                        onContextMenu={(e) => { e.preventDefault(); handleBaseContext(card.id) }}
+                        onContextMenu={(e) => { e.preventDefault(); longPressFired.current = true; handleBaseContext(card.id) }}
                         onPointerDown={startLongPress}
                         onPointerUp={endPress}
                         onPointerLeave={cancelLongPress}
@@ -1297,7 +1354,7 @@ export default function DeckBuilder({
                   <div className="modifier-header-row">
                     <div className="modifier-header-text">
                       <h2 style={{ marginBottom: 4 }}>Modifier Cards</h2>
-                      <p className="muted" style={{ marginTop: 0 }}>Each modifier consumes capacity equal to its card cost. Stay within your Engram Modifier Capacity.</p>
+                      <p className="muted" style={{ marginTop: 0 }}>Each modifier consumes capacity equal to its card cost. Stay within your Engram Capacity.</p>
                     </div>
                     <button
                       type="button"
@@ -1365,7 +1422,7 @@ export default function DeckBuilder({
                           key={card.id}
                           className={`card mod-card ${isAttached ? 'is-selected' : ''}`}
                           data-touch-blocker-ignore
-                          onContextMenu={(e) => { e.preventDefault(); handleModContext(card.id) }}
+                          onContextMenu={(e) => { e.preventDefault(); modLongPressFired.current = true; handleModContext(card.id) }}
                           onPointerDown={startModLongPress}
                           onPointerUp={endModPress}
                           onPointerLeave={cancelModLongPress}
@@ -1511,7 +1568,7 @@ export default function DeckBuilder({
                 </div>
                 <div style={{ marginTop: 12 }}>
                   <div style={{ marginTop: 8 }}>
-                    <label style={{ fontWeight: 600, display: 'block', textAlign: 'center' }}>Hand Draw</label>
+                    <label style={{ fontWeight: 600, display: 'block', textAlign: 'center' }}>Draw</label>
                     <div
                       style={{
                         display: 'flex',
@@ -1522,23 +1579,32 @@ export default function DeckBuilder({
                         textAlign: 'center',
                       }}
                     >
-                      <input
-                        type="number"
-                        min={0}
-                        max={MAX_HAND_LIMIT}
-                        value={builderState.handLimit ?? DEFAULT_HAND_LIMIT}
-                        onChange={(e) => {
-                          const next = Number.parseInt(e.target.value, 10)
-                          setBuilderState((prev) => ({
-                            ...prev,
-                            handLimit: Number.isNaN(next)
-                              ? prev.handLimit ?? DEFAULT_HAND_LIMIT
-                              : clamp(next, 0, MAX_HAND_LIMIT),
-                          }))
-                        }}
-                        style={{ width: 80, maxWidth: '100%', textAlign: 'center' }}
-                      />
-                      <div className="muted text-body">Active cap for hand cards.</div>
+                      {chudDraw !== null ? (
+                        <>
+                          <div style={{ fontWeight: 600, fontSize: '1.1em' }}>{builderState.handLimit ?? DEFAULT_HAND_LIMIT}</div>
+                          <div className="muted text-body" style={{ fontSize: '0.75em' }}>Synced from cHUD</div>
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            type="number"
+                            min={0}
+                            max={MAX_HAND_LIMIT}
+                            value={builderState.handLimit ?? DEFAULT_HAND_LIMIT}
+                            onChange={(e) => {
+                              const next = Number.parseInt(e.target.value, 10)
+                              setBuilderState((prev) => ({
+                                ...prev,
+                                handLimit: Number.isNaN(next)
+                                  ? prev.handLimit ?? DEFAULT_HAND_LIMIT
+                                  : clamp(next, 0, MAX_HAND_LIMIT),
+                              }))
+                            }}
+                            style={{ width: 80, maxWidth: '100%', textAlign: 'center' }}
+                          />
+                          <div className="muted text-body">Active cap for hand cards.</div>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div style={{ marginTop: 12, textAlign: 'center' }} className="text-body">
@@ -1714,32 +1780,7 @@ export default function DeckBuilder({
           </div>
         </div>
       )}
-      {basePrompt && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#0d0b09', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: 16, width: 'min(320px, 90vw)', boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>Adjust {basePrompt.name ?? basePrompt.id}</div>
-            <div style={{ color: 'rgba(255,255,255,0.75)' }}>Current count: {basePrompt.qty}</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="counter-btn" style={{ flex: '1 1 120px' }} onClick={() => handleBaseRemoveAction(false)} disabled={builderState.isLocked}>Remove 1</button>
-              <button className="counter-btn" style={{ flex: '1 1 120px' }} onClick={() => handleBaseRemoveAction(true)} disabled={builderState.isLocked}>Remove All</button>
-              <button className="counter-btn" style={{ flex: '1 1 120px' }} onClick={closeBasePrompt}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {modPrompt && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#0d0b09', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: 16, width: 'min(320px, 90vw)', boxShadow: '0 10px 30px rgba(0,0,0,0.35)', color: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>Adjust {modPrompt.name ?? modPrompt.id}</div>
-            <div style={{ color: 'rgba(255,255,255,0.75)' }}>Current count: {modPrompt.qty}</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="counter-btn" style={{ flex: '1 1 120px' }} onClick={() => handleModRemoveAction(false)} disabled={builderState.isLocked}>Remove 1</button>
-              <button className="counter-btn" style={{ flex: '1 1 120px' }} onClick={() => handleModRemoveAction(true)} disabled={builderState.isLocked}>Remove All</button>
-              <button className="counter-btn" style={{ flex: '1 1 120px' }} onClick={closeModPrompt}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </>
   )
 }

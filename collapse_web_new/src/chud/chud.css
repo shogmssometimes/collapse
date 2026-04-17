@@ -24,6 +24,20 @@ html, body, #root {
   -webkit-user-select: none;
 }
 
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#root {
+  min-height: 100%;
+}
+
 /* ── App shell ───────────────────────────────────────────────────────────── */
 
 .app {

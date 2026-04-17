@@ -141,7 +141,34 @@ class CSGraph {
       else { const tY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         tY.setAttribute('x', (centerX - 12).toString()); const labelY2 = Math.max(this.pad.top + 10, Math.min(y, this.viewBox.h - this.pad.bottom - 10)); tY.setAttribute('y', labelY2); tY.setAttribute('text-anchor', 'end'); tY.setAttribute('dominant-baseline', 'middle'); tY.setAttribute('fill', 'var(--muted)'); tY.textContent = (-i).toString(); try { tY.classList.add('tick'); } catch(e) {} this.svg.appendChild(tY); }
     }
-    // axis title labels removed; axis pills provide those labels outside the SVG
+    // axis labels on all 4 ends
+    const axisFs = Math.round(28 * Math.max(1, this.scale));
+    const axisFsStr = axisFs.toString();
+    const axisPad = 10;
+    const makeAxisLabel = (text, x, y, anchor, baseline) => {
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y);
+      t.setAttribute('text-anchor', anchor);
+      t.setAttribute('dominant-baseline', baseline);
+      t.setAttribute('font-size', axisFsStr);
+      t.setAttribute('font-weight', '600');
+      t.setAttribute('letter-spacing', '0.06em');
+      t.setAttribute('fill', 'var(--muted)');
+      t.setAttribute('pointer-events', 'none');
+      t.textContent = text;
+      try { t.classList.add('axis-label'); } catch(e) {}
+      this.svg.appendChild(t);
+    };
+    const graphLeft   = this.pad.left;
+    const graphRight  = this.viewBox.w - this.pad.right;
+    const graphTop    = this.pad.top;
+    const graphBottom = this.viewBox.h - this.pad.bottom;
+    // X-axis: Trust (left) ← → Distrust (right)
+    makeAxisLabel('Trust',       graphLeft  + axisPad, centerY, 'start',  'middle');
+    makeAxisLabel('Distrust',    graphRight - axisPad, centerY, 'end',    'middle');
+    // Y-axis: Carte Blanche (top) ↑ ↓ Surveillance (bottom)
+    makeAxisLabel('Carte Blanche', centerX, graphTop    + axisPad, 'middle', 'hanging');
+    makeAxisLabel('Surveillance',  centerX, graphBottom - axisPad, 'middle', 'auto');
     // nodes
     this.nodes.forEach(n => {
       const p = this.gridToPixel(n.gx, n.gy);
@@ -200,7 +227,7 @@ class CSGraph {
     this.nodes = (j.nodes || []).map(n => {
       let gx = (typeof n.gx === 'number') ? n.gx : (typeof n.x === 'number' ? this.pixelToGrid(n.x, n.y).gx : 0);
       let gy = (typeof n.gy === 'number') ? n.gy : (typeof n.y === 'number' ? this.pixelToGrid(n.x, n.y).gy : 0);
-      return { id: n.id || `n${Date.now()}`, name: n.name, gx, gy, color: n.color };
+      return { id: n.id || `n${Date.now()}`, name: n.name, gx, gy, color: n.color, notes: n.notes || '' };
     });
     this.render();
   }
@@ -211,7 +238,7 @@ class CSGraph {
   }
   toJSON() {
     return {
-      nodes: this.nodes.map(n => ({ id: n.id, name: n.name, gx: n.gx, gy: n.gy, color: n.color })),
+      nodes: this.nodes.map(n => ({ id: n.id, name: n.name, gx: n.gx, gy: n.gy, color: n.color, notes: n.notes || '' })),
       edges: [],
     };
   }

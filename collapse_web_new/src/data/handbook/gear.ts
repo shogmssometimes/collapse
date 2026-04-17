@@ -1,9 +1,16 @@
-import { Card } from '../../domain/decks/DeckEngine'
+export type GearRarity = 'Common' | 'Uncommon' | 'Rare' | 'Unique'
+export type GearSlot = 'Head' | 'Body' | 'Hands' | 'Feet' | 'Accessory' | 'Weapon' | 'Misc'
 
-// Gear is often updated and may be treated separately from engram cards.
-export const gear: Card[] = [
-  // Example gear entries; treat as updatable content
-  { id: 'g1', name: 'Tattered Jacket', type: 'Gear', text: 'Provides 1 protection.' },
-]
+export interface GearItem {
+  id: string
+  name: string
+  slot: GearSlot
+  rarity: GearRarity
+  description: string
+  effect?: string
+  cost?: number | string
+}
+
+export const gear: GearItem[] = []
 
 export default gear
