@@ -671,13 +671,13 @@ export default function GearPage() {
         </h2>
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr',
+            display: 'flex',
             gap: 8,
+            flexWrap: 'wrap',
           }}
         >
           {/* Name */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
             <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
               Name
             </label>
@@ -690,7 +690,7 @@ export default function GearPage() {
           </div>
 
           {/* Approach */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
             <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
               Approach
             </label>
@@ -704,6 +704,7 @@ export default function GearPage() {
                   WebkitAppearance: 'none',
                   paddingRight: '2rem',
                   cursor: 'pointer',
+                  width: '100%',
                 }}
               >
                 <option value="">—</option>
@@ -731,7 +732,7 @@ export default function GearPage() {
           </div>
 
           {/* Quality */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
             <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
               Quality
             </label>
@@ -745,6 +746,7 @@ export default function GearPage() {
                   WebkitAppearance: 'none',
                   paddingRight: '2rem',
                   cursor: 'pointer',
+                  width: '100%',
                 }}
               >
                 <option value="">—</option>
