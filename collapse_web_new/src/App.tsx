@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DeckBuilder from "./pages/DeckBuilder";
+import GearPage from "./pages/Gear";
+import CombatPage from "./pages/Combat";
+import NotesPage from "./pages/Notes";
 import { Card } from "./domain/decks/DeckEngine";
 
 type Mode = "player" | "gm";
-type Route = "hub" | "player" | "player-ops" | "gm" | "gm-ops" | "chud" | "csmatrix";
+type Route = "hub" | "player" | "player-ops" | "gm" | "gm-ops" | "chud" | "csmatrix" | "gear" | "combat" | "notes";
 type HubCard = {
   id: Route;
   title: string;
@@ -29,6 +32,9 @@ const deriveRoute = (): Route => {
   }
   if (segment === "chud") return "chud";
   if (segment === "csmatrix") return "csmatrix";
+  if (segment === "gear") return "gear";
+  if (segment === "combat") return "combat";
+  if (segment === "notes") return "notes";
   return "hub";
 };
 
@@ -37,7 +43,7 @@ const deriveMode = (): Mode => {
   const saved = window.localStorage.getItem(MODE_KEY) as Mode | null;
   const route = deriveRoute();
   if (route === "gm" || route === "gm-ops") return "gm";
-  if (route === "player" || route === "player-ops" || route === "chud" || route === "csmatrix") return "player";
+  if (route === "player" || route === "player-ops" || route === "chud" || route === "csmatrix" || route === "notes") return "player";
   return saved ?? "player";
 };
 
@@ -154,6 +160,21 @@ const ChudDock: React.FC<{ basePath: string }> = ({ basePath }) => {
     window.addEventListener("chud-open", handler as EventListener);
     return () => window.removeEventListener("chud-open", handler as EventListener);
   }, []);
+  React.useEffect(() => {
+    if (!open) return;
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
   return (
     <>
       <button className="chud-fab" onClick={() => setOpen(true)} aria-label="Open cHUD overlay">
@@ -218,6 +239,24 @@ const HubLanding: React.FC<{
         id: "csmatrix",
         title: "CS Matrix",
         description: "Campaign Support Matrix with draggable nodes.",
+        audience: "player",
+      },
+      {
+        id: "gear",
+        title: "Wardrobe & Gear",
+        description: "Browse equipment and items.",
+        audience: "player",
+      },
+      {
+        id: "combat",
+        title: "Combat",
+        description: "Combat tools and tracking.",
+        audience: "player",
+      },
+      {
+        id: "notes",
+        title: "Notes",
+        description: "Campaign notes and reminders.",
         audience: "player",
       },
       {
@@ -336,11 +375,16 @@ export default function App() {
     const handleMessage = (event: MessageEvent) => {
       if (expectedOrigin !== "*" && event.origin !== expectedOrigin) return;
       const data = event.data;
-      if (!data || data.type !== "collapse-csmatrix-state") return;
-      setMatrixState({
-        controlsOpen: Boolean(data.controlsOpen),
-        nodesOpen: Boolean(data.nodesOpen),
-      });
+      if (!data) return;
+      if (data.type === "collapse-csmatrix-state") {
+        setMatrixState({
+          controlsOpen: Boolean(data.controlsOpen),
+          nodesOpen: Boolean(data.nodesOpen),
+        });
+      }
+      if (data.type === "collapse-navigate" && typeof data.route === "string") {
+        setRoute(data.route as Route);
+      }
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
@@ -374,6 +418,10 @@ export default function App() {
           return "#/chud";
         case "csmatrix":
           return "#/csmatrix";
+        case "gear":
+          return "#/gear";
+        case "combat":
+          return "#/combat";
         default:
           return "#/hub";
       }
@@ -502,18 +550,35 @@ export default function App() {
             >
               {matrixState.controlsOpen ? "Hide Controls" : "Show Controls"}
             </button>
-            <button
-              className="topbar-pill"
-              onClick={() => postToMatrix("toggle-nodes")}
-              aria-pressed={matrixState.nodesOpen}
-            >
-              {matrixState.nodesOpen ? "Hide Nodes" : "Show Nodes"}
-            </button>
           </>
         }
         frameRef={matrixFrameRef}
         onFrameLoad={requestMatrixState}
       />
+    );
+  }
+
+  if (route === "notes") {
+    return (
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+        <NotesPage />
+      </PlayerShell>
+    );
+  }
+
+  if (route === "gear") {
+    return (
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+        <GearPage />
+      </PlayerShell>
+    );
+  }
+
+  if (route === "combat") {
+    return (
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+        <CombatPage />
+      </PlayerShell>
     );
   }
 
