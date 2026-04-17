@@ -690,15 +690,6 @@ export default function GearPage() {
         </h2>
         {wardrobe.map((row, index) => (
           <div key={index} style={{ marginBottom: 16 }}>
-            <div style={{
-              fontSize: '0.72rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--muted)',
-              marginBottom: 8,
-            }}>
-              Look {index + 1}
-            </div>
             <div
               style={{
                 display: 'flex',
