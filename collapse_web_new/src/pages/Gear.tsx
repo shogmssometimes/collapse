@@ -261,6 +261,76 @@ function InventoryEntries({ count, entries, onEntryChange }: {
   )
 }
 
+function GearSummaryCard({
+  entries,
+  count,
+  isOverEncumbered,
+}: {
+  entries: SlotEntry[]
+  count: number
+  isOverEncumbered: boolean
+}) {
+  const activeEntries = entries.slice(0, count).filter((e) => {
+    const q = parseFloat(e.qty)
+    return !isNaN(q) && q > 0
+  })
+  const entry = activeEntries[0]
+  const nameText = entry?.name.trim() || '—'
+  const qtyText = entry?.qty.trim() || '0'
+
+  return (
+    <div
+      style={{
+        flex: '2 1 0',
+        minWidth: 0,
+        padding: '12px 14px',
+        borderRadius: 8,
+        background: isOverEncumbered
+          ? 'linear-gradient(135deg, rgba(212,43,43,0.18), rgba(180,20,20,0.10))'
+          : 'rgba(8,13,23,0.92)',
+        border: '1px solid rgba(255,255,255,0.1)',
+      }}
+    >
+      <div
+        style={{
+          fontSize: '0.58rem',
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: isOverEncumbered ? 'rgba(255,100,100,0.9)' : 'var(--muted, #9aa0a6)',
+          textAlign: 'center',
+          marginBottom: 8,
+        }}
+      >
+        {isOverEncumbered ? '⚠ Over-Encumbered' : 'In Brief'}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            fontSize: '0.95rem',
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.95)',
+            minWidth: 0,
+          }}
+        >
+          {nameText}
+        </span>
+        <span
+          style={{
+            fontSize: '0.82rem',
+            color: 'var(--accent, #0ff6ff)',
+            flexShrink: 0,
+          }}
+        >
+          ×{qtyText}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function InventoryGrid({
   slots,
   synced,
@@ -549,17 +619,19 @@ export default function GearPage() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap' }}>
         <InventoryGrid
           slots={inventorySlots}
           synced={chudSlots !== null}
           slotsUsed={slotsUsed}
         />
+        <GearSummaryCard entries={entries} count={inventorySlots} isOverEncumbered={isOverEncumbered} />
 
         {isOverEncumbered && (
           <div
             style={{
               flex: '1 1 0',
+              minWidth: 220,
               padding: '10px 14px',
               borderRadius: 8,
               border: '1px solid rgba(212,43,43,0.6)',
