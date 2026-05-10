@@ -3,10 +3,20 @@ import DeckBuilder from "./pages/DeckBuilder";
 import GearPage from "./pages/Gear";
 import CombatPage from "./pages/Combat";
 import NotesPage from "./pages/Notes";
+import CharMgmt, { CHAR_SWITCH_EVENT } from "./pages/CharMgmt";
+import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey } from "./utils/slotKeys";
 import { Card } from "./domain/decks/DeckEngine";
 
+const CHAR_ACTIVE_KEY = 'collapse.char.active';
+function readActiveCharSlot(): number {
+  if (typeof window === 'undefined') return 1;
+  const raw = window.localStorage.getItem(CHAR_ACTIVE_KEY);
+  const n = raw ? parseInt(raw, 10) : 1;
+  return isNaN(n) || n < 1 || n > 3 ? 1 : n;
+}
+
 type Mode = "player" | "gm";
-type Route = "hub" | "player" | "player-ops" | "gm" | "gm-ops" | "chud" | "csmatrix" | "gear" | "combat" | "notes";
+type Route = "hub" | "player" | "player-ops" | "gm" | "gm-ops" | "chud" | "csmatrix" | "gear" | "combat" | "notes" | "char-mgmt";
 type HubCard = {
   id: Route;
   title: string;
@@ -35,6 +45,7 @@ const deriveRoute = (): Route => {
   if (segment === "gear") return "gear";
   if (segment === "combat") return "combat";
   if (segment === "notes") return "notes";
+  if (segment === "char-mgmt") return "char-mgmt";
   return "hub";
 };
 
@@ -153,7 +164,7 @@ const CompanionIntro: React.FC<{ eyebrow: string; title: string; description: st
   </div>
 );
 
-const ChudDock: React.FC<{ basePath: string }> = ({ basePath }) => {
+const ChudDock: React.FC<{ basePath: string; charSlot?: number }> = ({ basePath, charSlot = 1 }) => {
   const [open, setOpen] = React.useState(false);
   const vibrate = (pattern: number = 10) => {
     if (typeof navigator !== "undefined" && typeof (navigator as any).vibrate === "function") {
@@ -215,7 +226,7 @@ const ChudDock: React.FC<{ basePath: string }> = ({ basePath }) => {
             <div className="chud-sheet-body">
               <iframe
                 title="cHUD"
-                src={`${basePath}chud/index.html`}
+                src={`${basePath}chud/index.html?slot=${charSlot}`}
                 allow="fullscreen"
                 sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-pointer-lock"
               />
@@ -290,6 +301,12 @@ const HubLanding: React.FC<{
         description: "Compact HUD for derived stats.",
         audience: "player",
       },
+      {
+        id: "char-mgmt",
+        title: "Character Management",
+        description: "Manage up to 3 characters. Hot swap decks and export or import saves.",
+        audience: "player",
+      },
     ];
     return base.filter((c) => c.audience === mode);
   }, [mode]);
@@ -360,10 +377,21 @@ const HubLanding: React.FC<{
 export default function App() {
   const [route, setRoute] = useState<Route>(() => deriveRoute());
   const [mode, setMode] = useState<Mode>(() => deriveMode());
+  const [charSlot, setCharSlot] = useState<number>(() => readActiveCharSlot());
   const matrixFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [matrixState, setMatrixState] = useState({ controlsOpen: false, nodesOpen: false });
 
-  const chudDock = route !== "chud" ? <ChudDock basePath={buildPath("")} /> : null;
+  const chudDock = route !== "chud" ? <ChudDock basePath={buildPath("")} charSlot={charSlot} /> : null;
+  const deckStorageKey = deckBuilderKey(charSlot);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const slot = (e as CustomEvent<number>).detail;
+      if (typeof slot === 'number') setCharSlot(slot);
+    };
+    window.addEventListener(CHAR_SWITCH_EVENT, handler);
+    return () => window.removeEventListener(CHAR_SWITCH_EVENT, handler);
+  }, []);
 
   useEffect(() => {
     const syncRoute = () => {
@@ -447,6 +475,8 @@ export default function App() {
           return "#/gear";
         case "combat":
           return "#/combat";
+        case "char-mgmt":
+          return "#/char-mgmt";
         default:
           return "#/hub";
       }
@@ -465,6 +495,9 @@ export default function App() {
     return (
       <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
         <DeckBuilder
+          key={`player-${charSlot}`}
+          storageKey={deckStorageKey}
+          chudStateStorageKey={chudStateKey(charSlot)}
           showOpsSections={false}
           showModifierCards={true}
           showModifierCardCounter={false}
@@ -480,7 +513,9 @@ export default function App() {
     return (
       <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
         <DeckBuilder
-          storageKey="collapse.deck-builder.v2"
+          key={`player-ops-${charSlot}`}
+          storageKey={deckStorageKey}
+          chudStateStorageKey={chudStateKey(charSlot)}
           showBuilderSections={false}
           showOpsSections={true}
           lockControlsInOps={false}
@@ -552,7 +587,7 @@ export default function App() {
       <SubAppFrame
         key={route}
         title="cHUD — Compact HUD"
-        src={`${buildPath("")}chud/index.html`}
+        src={`${buildPath("")}chud/index.html?slot=${charSlot}`}
         onBack={() => setRoute("hub")}
       />
     );
@@ -586,7 +621,7 @@ export default function App() {
   if (route === "notes") {
     return (
       <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
-        <NotesPage />
+        <NotesPage key={`notes-${charSlot}`} storageKey={notesKey(charSlot)} />
       </PlayerShell>
     );
   }
@@ -594,7 +629,12 @@ export default function App() {
   if (route === "gear") {
     return (
       <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
-        <GearPage />
+        <GearPage
+          key={`gear-${charSlot}`}
+          gearSlotsStorageKey={gearSlotsKey(charSlot)}
+          wardrobeStorageKey={wardrobeKey(charSlot)}
+          chudStateStorageKey={chudStateKey(charSlot)}
+        />
       </PlayerShell>
     );
   }
@@ -603,6 +643,14 @@ export default function App() {
     return (
       <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
         <CombatPage />
+      </PlayerShell>
+    );
+  }
+
+  if (route === "char-mgmt") {
+    return (
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+        <CharMgmt />
       </PlayerShell>
     );
   }

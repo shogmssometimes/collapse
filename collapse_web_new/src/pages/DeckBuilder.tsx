@@ -10,11 +10,11 @@ const DEFAULT_BASE_TARGET = 26
 const DEFAULT_MIN_NULLS = 5
 const DEFAULT_STORAGE_KEY = 'collapse.deck-builder.v2'
 const DEFAULT_MODIFIER_CAPACITY = 10
-const CHUD_STATE_KEY = 'chud.state.v1'
+const DEFAULT_CHUD_STATE_KEY = 'chud.state.v1'
 
-function readChudCapacity(): number | null {
+function readChudCapacity(key: string): number | null {
   try {
-    const raw = window.localStorage.getItem(CHUD_STATE_KEY)
+    const raw = window.localStorage.getItem(key)
     if (!raw) return null
     const s = JSON.parse(raw)
     if (typeof s?.core?.inference === 'number') return s.core.inference + 10
@@ -22,9 +22,9 @@ function readChudCapacity(): number | null {
   } catch { return null }
 }
 
-function readChudDraw(): number | null {
+function readChudDraw(key: string): number | null {
   try {
-    const raw = window.localStorage.getItem(CHUD_STATE_KEY)
+    const raw = window.localStorage.getItem(key)
     if (!raw) return null
     const s = JSON.parse(raw)
     if (typeof s?.draw === 'number') return s.draw
@@ -151,6 +151,7 @@ type DeckBuilderProps = {
   showBaseCounters?: boolean
   showBaseAdjusters?: boolean
   lockControlsInOps?: boolean
+  chudStateStorageKey?: string
 }
 
 export default function DeckBuilder({
@@ -175,6 +176,7 @@ export default function DeckBuilder({
   showBaseCounters = true,
   showBaseAdjusters = true,
   lockControlsInOps = true,
+  chudStateStorageKey = DEFAULT_CHUD_STATE_KEY,
 }: DeckBuilderProps){
   const baseCards = baseCardsOverride ?? (Handbook.baseCards ?? [])
   const modCards = modCardsOverride ?? (Handbook.modCards ?? [])
@@ -228,10 +230,10 @@ export default function DeckBuilder({
   const modLongPressFired = useRef(false)
 
   const [chudCapacity, setChudCapacity] = useState<number | null>(() =>
-    typeof window !== 'undefined' ? readChudCapacity() : null
+    typeof window !== 'undefined' ? readChudCapacity(chudStateStorageKey) : null
   )
   const [chudDraw, setChudDraw] = useState<number | null>(() =>
-    typeof window !== 'undefined' ? readChudDraw() : null
+    typeof window !== 'undefined' ? readChudDraw(chudStateStorageKey) : null
   )
 
   useEffect(() => {
@@ -246,13 +248,13 @@ export default function DeckBuilder({
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key !== CHUD_STATE_KEY) return
-      setChudCapacity(readChudCapacity())
-      setChudDraw(readChudDraw())
+      if (e.key !== chudStateStorageKey) return
+      setChudCapacity(readChudCapacity(chudStateStorageKey))
+      setChudDraw(readChudDraw(chudStateStorageKey))
     }
     window.addEventListener('storage', handler)
     return () => window.removeEventListener('storage', handler)
-  }, [])
+  }, [chudStateStorageKey])
 
   useEffect(() => {
     if (typeof window === 'undefined') return

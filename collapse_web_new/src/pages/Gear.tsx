@@ -5,9 +5,9 @@ const CHUD_STATE_KEY = 'chud.state.v1'
 const GEAR_SLOTS_KEY = 'gear.slots.v1'
 const MAX_INVENTORY_SLOTS = 18
 
-function readChudInventorySlots(): number | null {
+function readChudInventorySlots(key: string = CHUD_STATE_KEY): number | null {
   try {
-    const raw = localStorage.getItem(CHUD_STATE_KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return null
     const s = JSON.parse(raw)
     return typeof s.inventorySlots === 'number' ? s.inventorySlots : null
@@ -33,9 +33,9 @@ export type EquippedItem = { itemId: string } | null
 
 const EMPTY_ENTRY: SlotEntry = { name: '', units: '', qty: '' }
 
-function loadGearEntries(): SlotEntry[] {
+function loadGearEntries(key: string = GEAR_SLOTS_KEY): SlotEntry[] {
   try {
-    const raw = localStorage.getItem(GEAR_SLOTS_KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return Array.from({ length: MAX_INVENTORY_SLOTS }, () => ({ ...EMPTY_ENTRY }))
     const parsed = JSON.parse(raw)
     // support both legacy array format and new object format
@@ -58,9 +58,9 @@ export type WardrobeEntry = { name: string; approach: string; quality: string }
 const WARDROBE_KEY = 'wardrobe.v1'
 const EMPTY_WARDROBE_ENTRY: WardrobeEntry = { name: '', approach: '', quality: '' }
 const WARDROBE_ROW_COUNT = 3
-function loadWardrobe(): WardrobeEntry[] {
+function loadWardrobe(key: string = WARDROBE_KEY): WardrobeEntry[] {
   try {
-    const raw = localStorage.getItem(WARDROBE_KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return Array.from({ length: WARDROBE_ROW_COUNT }, () => ({ ...EMPTY_WARDROBE_ENTRY }))
     const p = JSON.parse(raw)
     if (Array.isArray(p)) {
@@ -437,13 +437,21 @@ function GearCard({ item }: { item: GearItem }) {
   )
 }
 
-export default function GearPage() {
+export default function GearPage({
+  gearSlotsStorageKey = GEAR_SLOTS_KEY,
+  wardrobeStorageKey = WARDROBE_KEY,
+  chudStateStorageKey = CHUD_STATE_KEY,
+}: {
+  gearSlotsStorageKey?: string
+  wardrobeStorageKey?: string
+  chudStateStorageKey?: string
+} = {}) {
   const [slotFilter, setSlotFilter] = useState<GearSlot | null>(null)
   const [rarityFilter, setRarityFilter] = useState<GearRarity | null>(null)
   const [search, setSearch] = useState('')
-  const [chudSlots, setChudSlots] = useState<number | null>(readChudInventorySlots)
-  const [entries, setEntries] = useState<SlotEntry[]>(loadGearEntries)
-  const [wardrobe, setWardrobe] = useState<WardrobeEntry[]>(loadWardrobe)
+  const [chudSlots, setChudSlots] = useState<number | null>(() => readChudInventorySlots(chudStateStorageKey))
+  const [entries, setEntries] = useState<SlotEntry[]>(() => loadGearEntries(gearSlotsStorageKey))
+  const [wardrobe, setWardrobe] = useState<WardrobeEntry[]>(() => loadWardrobe(wardrobeStorageKey))
   // Inventory assignment backbone (search UI not yet deployed)
   const [equippedItems, setEquippedItems] = useState<EquippedItem[]>(
     () => Array.from({ length: MAX_INVENTORY_SLOTS }, () => null)
@@ -479,12 +487,12 @@ export default function GearPage() {
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key === CHUD_STATE_KEY) setChudSlots(readChudInventorySlots())
-      if (e.key === GEAR_SLOTS_KEY) setEntries(loadGearEntries())
+      if (e.key === chudStateStorageKey) setChudSlots(readChudInventorySlots(chudStateStorageKey))
+      if (e.key === gearSlotsStorageKey) setEntries(loadGearEntries(gearSlotsStorageKey))
     }
     window.addEventListener('storage', handler)
     return () => window.removeEventListener('storage', handler)
-  }, [])
+  }, [chudStateStorageKey, gearSlotsStorageKey])
 
   const handleEntryChange = (index: number, entry: SlotEntry) => {
     setEntries(prev => {
@@ -509,12 +517,12 @@ export default function GearPage() {
   }, [entries, inventorySlots])
 
   useEffect(() => {
-    localStorage.setItem(GEAR_SLOTS_KEY, JSON.stringify({ entries, slotsUsed }))
-  }, [entries, slotsUsed])
+    localStorage.setItem(gearSlotsStorageKey, JSON.stringify({ entries, slotsUsed }))
+  }, [entries, slotsUsed, gearSlotsStorageKey])
 
   useEffect(() => {
-    localStorage.setItem(WARDROBE_KEY, JSON.stringify(wardrobe))
-  }, [wardrobe])
+    localStorage.setItem(wardrobeStorageKey, JSON.stringify(wardrobe))
+  }, [wardrobe, wardrobeStorageKey])
 
   const handleWardrobeChange = (index: number, field: keyof WardrobeEntry, value: string) =>
     setWardrobe(prev => {

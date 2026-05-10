@@ -17,10 +17,10 @@ const createModule = (overrides?: Partial<NoteModule>): NoteModule => ({
   ...overrides,
 });
 
-function loadSavedNotes(): NoteModule[] {
+function loadSavedNotes(key: string = NOTES_STORAGE_KEY): NoteModule[] {
   if (typeof window === 'undefined') return [createModule({ title: 'Notes' })];
   try {
-    const raw = window.localStorage.getItem(NOTES_STORAGE_KEY);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return [createModule({ title: 'Notes' })];
     try {
       const parsed = JSON.parse(raw);
@@ -41,17 +41,17 @@ function loadSavedNotes(): NoteModule[] {
   }
 }
 
-export default function NotesPage() {
-  const [modules, setModules] = useState<NoteModule[]>(() => loadSavedNotes());
+export default function NotesPage({ storageKey = NOTES_STORAGE_KEY }: { storageKey?: string } = {}) {
+  const [modules, setModules] = useState<NoteModule[]>(() => loadSavedNotes(storageKey));
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(modules));
+      window.localStorage.setItem(storageKey, JSON.stringify(modules));
     } catch {
       // ignore write failures
     }
-  }, [modules]);
+  }, [modules, storageKey]);
 
   const updateModule = (id: string, updates: Partial<NoteModule>) => {
     setModules((prev) => prev.map((module) => (module.id === id ? { ...module, ...updates } : module)));

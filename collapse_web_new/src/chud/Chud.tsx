@@ -47,9 +47,17 @@ interface SaveState {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "chud.state.v1";
-const UI_KEY = "chud.ui.v1";
-const GEAR_SLOTS_KEY = "gear.slots.v1";
+// Each character slot gets its own isolated storage.
+// The main app passes ?slot=N in the iframe src; defaults to 1 for backward compat.
+const _chudSlot = (() => {
+  if (typeof window === 'undefined') return 1;
+  const n = parseInt(new URLSearchParams(window.location.search).get('slot') ?? '1', 10);
+  return isNaN(n) || n < 1 || n > 3 ? 1 : n;
+})();
+
+const STORAGE_KEY = _chudSlot === 1 ? "chud.state.v1" : `chud.state.slot.${_chudSlot}`;
+const UI_KEY = _chudSlot === 1 ? "chud.ui.v1" : `chud.ui.slot.${_chudSlot}`;
+const GEAR_SLOTS_KEY = _chudSlot === 1 ? "gear.slots.v1" : `gear.slots.slot.${_chudSlot}`;
 
 const DEFAULT_CORE: CoreStats = { vigor: 3, inference: 2, personality: 2 };
 const DEFAULT_DRAW = 5;
@@ -685,6 +693,108 @@ function StatCard({
   );
 }
 
+// ── Vibrate utility ───────────────────────────────────────────────────────────
+
+function vibrate(pattern: number = 10) {
+  if (typeof navigator !== 'undefined' && typeof (navigator as any).vibrate === 'function') {
+    (navigator as any).vibrate(pattern);
+  }
+}
+
+// ── useSemiLongPress ──────────────────────────────────────────────────────────
+// Tap = callback immediately. Hold ~260 ms = callback. Moved finger = cancel.
+
+function useSemiLongPress(callback: () => void) {
+  const state = useRef({
+    timer: null as number | null,
+    moved: false,
+    fired: false,
+    startX: 0,
+    startY: 0,
+    ignoreClick: false,
+  });
+
+  const cancel = useCallback(() => {
+    if (state.current.timer) {
+      clearTimeout(state.current.timer);
+      state.current.timer = null;
+    }
+    state.current.moved = false;
+    state.current.fired = false;
+  }, []);
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (e.pointerType && e.pointerType !== 'touch' && e.pointerType !== 'mouse') return;
+      state.current.startX = e.clientX;
+      state.current.startY = e.clientY;
+      state.current.moved = false;
+      state.current.fired = false;
+      if (e.currentTarget.setPointerCapture) {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }
+      cancel();
+      state.current.timer = window.setTimeout(() => {
+        state.current.fired = true;
+        callback();
+        vibrate(10);
+        state.current.timer = null;
+      }, 260);
+    },
+    [callback, cancel]
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (!state.current.timer) return;
+      if (
+        Math.abs(e.clientX - state.current.startX) > 10 ||
+        Math.abs(e.clientY - state.current.startY) > 10
+      ) {
+        state.current.moved = true;
+        cancel();
+      }
+    },
+    [cancel]
+  );
+
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (state.current.timer) {
+        clearTimeout(state.current.timer);
+        state.current.timer = null;
+        if (!state.current.moved && !state.current.fired) {
+          callback();
+          vibrate(10);
+          state.current.ignoreClick = true;
+        }
+      }
+      state.current.fired = false;
+    },
+    [callback]
+  );
+
+  const onClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (state.current.ignoreClick) {
+        state.current.ignoreClick = false;
+        e.preventDefault();
+        return;
+      }
+      callback();
+    },
+    [callback]
+  );
+
+  return {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel: cancel,
+    onClick,
+  };
+}
+
 // ── Chud root ─────────────────────────────────────────────────────────────────
 
 export default function Chud() {
@@ -716,102 +826,6 @@ export default function Chud() {
   const [statsOpen, setStatsOpen] = useState(() => readSavedUI().statsOpen ?? true);
   const [hpVivOpen, setHpVivOpen] = useState(() => readSavedUI().hpVivOpen ?? true);
 
-  const vibrate = (pattern: number = 10) => {
-    if (typeof navigator !== 'undefined' && typeof (navigator as any).vibrate === 'function') {
-      (navigator as any).vibrate(pattern);
-    }
-  };
-
-  const useSemiLongPress = (callback: () => void) => {
-    const state = useRef({
-      timer: null as number | null,
-      moved: false,
-      fired: false,
-      startX: 0,
-      startY: 0,
-      ignoreClick: false,
-    });
-
-    const cancel = useCallback(() => {
-      if (state.current.timer) {
-        clearTimeout(state.current.timer);
-        state.current.timer = null;
-      }
-      state.current.moved = false;
-      state.current.fired = false;
-    }, []);
-
-    const onPointerDown = useCallback(
-      (e: React.PointerEvent<HTMLButtonElement>) => {
-        if (e.pointerType && e.pointerType !== 'touch' && e.pointerType !== 'mouse') return;
-        state.current.startX = e.clientX;
-        state.current.startY = e.clientY;
-        state.current.moved = false;
-        state.current.fired = false;
-        if (e.currentTarget.setPointerCapture) {
-          e.currentTarget.setPointerCapture(e.pointerId);
-        }
-        cancel();
-        state.current.timer = window.setTimeout(() => {
-          state.current.fired = true;
-          callback();
-          vibrate(10);
-          state.current.timer = null;
-        }, 260);
-      },
-      [callback, cancel]
-    );
-
-    const onPointerMove = useCallback(
-      (e: React.PointerEvent<HTMLButtonElement>) => {
-        if (!state.current.timer) return;
-        if (
-          Math.abs(e.clientX - state.current.startX) > 10 ||
-          Math.abs(e.clientY - state.current.startY) > 10
-        ) {
-          state.current.moved = true;
-          cancel();
-        }
-      },
-      [cancel]
-    );
-
-    const onPointerUp = useCallback(
-      (e: React.PointerEvent<HTMLButtonElement>) => {
-        if (state.current.timer) {
-          clearTimeout(state.current.timer);
-          state.current.timer = null;
-          if (!state.current.moved && !state.current.fired) {
-            callback();
-            vibrate(10);
-            state.current.ignoreClick = true;
-          }
-        }
-        state.current.fired = false;
-      },
-      [callback]
-    );
-
-    const onClick = useCallback(
-      (e: React.MouseEvent<HTMLButtonElement>) => {
-        if (state.current.ignoreClick) {
-          state.current.ignoreClick = false;
-          e.preventDefault();
-          return;
-        }
-        callback();
-      },
-      [callback]
-    );
-
-    return {
-      onPointerDown,
-      onPointerMove,
-      onPointerUp,
-      onPointerCancel: cancel,
-      onClick,
-    };
-  };
   const [levelUpReady, setLevelUpReady] = useState<Record<keyof SecondaryStats, boolean>>({
     vigor: false, inference: false, personality: false,
   });
