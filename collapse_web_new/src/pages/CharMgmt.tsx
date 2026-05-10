@@ -65,6 +65,26 @@ const CharMgmt: React.FC = () => {
     localStorage.setItem(charSlotKey(slotNum), JSON.stringify({ name }))
   }
 
+  const deleteSlot = (slotNum: number) => {
+    const name = slotMeta[slotNum - 1].name || `Character ${slotNum}`
+    if (!window.confirm(`Delete "${name}"? All save data for this slot will be permanently removed.`)) return
+    localStorage.removeItem(deckBuilderKey(slotNum))
+    localStorage.removeItem(gearSlotsKey(slotNum))
+    localStorage.removeItem(wardrobeKey(slotNum))
+    localStorage.removeItem(chudStateKey(slotNum))
+    localStorage.removeItem(notesKey(slotNum))
+    localStorage.removeItem(charSlotKey(slotNum))
+    const updatedMeta = [...slotMeta]
+    updatedMeta[slotNum - 1] = { name: '' }
+    setSlotMeta(updatedMeta)
+    const updatedHasData = [...slotHasData]
+    updatedHasData[slotNum - 1] = false
+    setSlotHasData(updatedHasData)
+    if (slotNum === activeSlot) {
+      window.dispatchEvent(new CustomEvent(CHAR_SWITCH_EVENT, { detail: slotNum }))
+    }
+  }
+
   const exportSlot = (slotNum: number) => {
     const meta = slotMeta[slotNum - 1]
     const exportData = {
@@ -230,7 +250,7 @@ const CharMgmt: React.FC = () => {
                 }}
               />
 
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 {!isActive && (
                   <button onClick={() => activateSlot(slotNum)}>Load Character</button>
                 )}
@@ -265,6 +285,15 @@ const CharMgmt: React.FC = () => {
                     Import
                   </span>
                 </label>
+                <div style={{ marginLeft: 'auto' }}>
+                  <button
+                    onClick={() => deleteSlot(slotNum)}
+                    disabled={!hasData}
+                    style={{ color: 'var(--error, #f66)', borderColor: 'var(--error, #f66)' }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           )

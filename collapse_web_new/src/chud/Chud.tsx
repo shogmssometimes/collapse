@@ -800,18 +800,16 @@ function useSemiLongPress(callback: () => void) {
 export default function Chud() {
   const saved = loadState();
 
-  const [core, setCore] = useState<CoreStats>(saved?.core ?? DEFAULT_CORE);
-  const [hpCounter, setHpCounterRaw] = useState<number>(
-    saved?.hpCounter ?? 8 + DEFAULT_CORE.vigor * 2
-  );
-  const [viv, setVivRaw] = useState<number>(saved?.viv ?? 1);
+  const [core, setCore] = useState<CoreStats>(saved?.core ?? { vigor: 0, inference: 0, personality: 0 });
+  const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? 0);
+  const [viv, setVivRaw] = useState<number>(saved?.viv ?? 0);
   const [approach, setApproach] = useState<ApproachStats>(
     saved?.approach ?? DEFAULT_APPROACH
   );
-  const [wt, setWtRaw] = useState<number>(saved?.wt ?? 4);
-  const [ap, setApRaw] = useState<number>(saved?.ap ?? 4);
-  const [draw, setDrawRaw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
-  const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? 6);
+  const [wt, setWtRaw] = useState<number>(saved?.wt ?? 0);
+  const [ap, setApRaw] = useState<number>(saved?.ap ?? 0);
+  const [draw, setDrawRaw] = useState<number>(saved?.draw ?? 0);
+  const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? 0);
   const [gearEntries, setGearEntries] = useState<GearSlotEntry[] | null>(() =>
     typeof window !== "undefined" ? (readGearData()?.entries ?? null) : null
   );
