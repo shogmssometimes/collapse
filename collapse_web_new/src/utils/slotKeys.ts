@@ -16,3 +16,6 @@ export const chudUiKey = (slot: number): string =>
 
 export const notesKey = (slot: number): string =>
   slot === 1 ? 'collapse.notes.v1' : `collapse.notes.slot.${slot}`
+
+export const profileKey = (slot: number): string =>
+  slot === 1 ? 'collapse.profile.v1' : `collapse.profile.slot.${slot}`

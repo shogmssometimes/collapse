@@ -4,8 +4,8 @@ import GearPage from "./pages/Gear";
 import CombatPage from "./pages/Combat";
 import NotesPage from "./pages/Notes";
 import CharMgmt, { CHAR_SWITCH_EVENT } from "./pages/CharMgmt";
-import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey } from "./utils/slotKeys";
-import { Card } from "./domain/decks/DeckEngine";
+import ProfilePage from "./pages/Profile";
+import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey, profileKey } from "./utils/slotKeys";
 
 const CHAR_ACTIVE_KEY = 'collapse.char.active';
 function readActiveCharSlot(): number {
@@ -15,17 +15,13 @@ function readActiveCharSlot(): number {
   return isNaN(n) || n < 1 || n > 3 ? 1 : n;
 }
 
-type Mode = "player" | "gm";
-type Route = "hub" | "player" | "player-ops" | "gm" | "gm-ops" | "chud" | "csmatrix" | "gear" | "combat" | "notes" | "char-mgmt";
+type Route = "hub" | "player" | "player-ops" | "chud" | "csmatrix" | "gear" | "combat" | "notes" | "char-mgmt" | "profile";
 type HubCard = {
   id: Route;
   title: string;
   description: string;
-  audience: Mode;
-  subtitle?: string;
 };
 
-const MODE_KEY = "collapse.mode";
 const buildPath = (path: string) => `${import.meta.env.BASE_URL}${path}`;
 
 const deriveRoute = (): Route => {
@@ -36,26 +32,14 @@ const deriveRoute = (): Route => {
     if (sub === "ops") return "player-ops";
     return "player";
   }
-  if (segment === "gm") {
-    if (sub === "ops") return "gm-ops";
-    return "gm";
-  }
   if (segment === "chud") return "chud";
   if (segment === "csmatrix") return "csmatrix";
   if (segment === "gear") return "gear";
   if (segment === "combat") return "combat";
   if (segment === "notes") return "notes";
   if (segment === "char-mgmt") return "char-mgmt";
+  if (segment === "profile") return "profile";
   return "hub";
-};
-
-const deriveMode = (): Mode => {
-  if (typeof window === "undefined") return "player";
-  const saved = window.localStorage.getItem(MODE_KEY) as Mode | null;
-  const route = deriveRoute();
-  if (route === "gm" || route === "gm-ops") return "gm";
-  if (route === "player" || route === "player-ops" || route === "chud" || route === "csmatrix" || route === "notes") return "player";
-  return saved ?? "player";
 };
 
 const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; actions?: React.ReactNode; actionsClassName?: string; frameRef?: React.Ref<HTMLIFrameElement>; onFrameLoad?: () => void }> = ({
@@ -115,54 +99,6 @@ const PlayerShell: React.FC<{ onBack: () => void; children: React.ReactNode; chu
   </div>
   );
 };
-
-const GMShell: React.FC<{ onBack: () => void; children: React.ReactNode; chudDock?: React.ReactNode; style?: React.CSSProperties }> = ({ onBack, children, chudDock, style }) => {
-  const openChud = () => {
-    if (typeof window !== "undefined") window.dispatchEvent(new Event("chud-open"));
-  };
-  return (
-  <div className="gm-shell" style={{ minHeight: "100vh", background: "var(--bg-dark)", ...style }}>
-    <header className="topbar">
-      <button className="ghost-btn ghost-btn-icon" onClick={onBack} aria-label="Back to hub">
-        <span aria-hidden="true">←</span>
-      </button>
-      <div className="topbar-title">
-        <div className="muted" style={{ fontSize: "0.85rem" }}>Collapse GM Companion</div>
-        <strong>GM Tools</strong>
-      </div>
-      <div className="topbar-actions">
-        <button className="chud-top-btn" onClick={openChud} aria-label="Open cHUD overlay">cHUD</button>
-      </div>
-    </header>
-    {chudDock}
-    {children}
-  </div>
-  );
-};
-
-const CompanionIntro: React.FC<{ eyebrow: string; title: string; description: string; helper?: string }> = ({
-  eyebrow,
-  title,
-  description,
-  helper,
-}) => (
-  <div className="page">
-    <div className="page-header">
-      <div>
-        <div className="muted" style={{ fontSize: "0.9rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          {eyebrow}
-        </div>
-        <h1 style={{ margin: "0.15rem 0 0.35rem 0" }}>{title}</h1>
-        <p className="muted" style={{ margin: 0 }}>{description}</p>
-      </div>
-      {helper && (
-        <div className="muted text-body" style={{ maxWidth: 320, textAlign: "right" }}>
-          {helper}
-        </div>
-      )}
-    </div>
-  </div>
-);
 
 const ChudDock: React.FC<{ basePath: string; charSlot?: number }> = ({ basePath, charSlot = 1 }) => {
   const [open, setOpen] = React.useState(false);
@@ -239,105 +175,73 @@ const ChudDock: React.FC<{ basePath: string; charSlot?: number }> = ({ basePath,
 };
 
 const HubLanding: React.FC<{
-  mode: Mode;
-  onModeChange: (mode: Mode) => void;
   onNavigate: (route: Route) => void;
-}> = ({ mode, onModeChange, onNavigate }) => {
-  const cards = useMemo<HubCard[]>(() => {
-    const base: HubCard[] = [
-      {
-        id: "player",
-        title: "Deck Builder",
-        description: "Player-facing tools with deck builder and ops.",
-        audience: "player",
-      },
-      {
-        id: "player-ops",
-        title: "Deck Ops",
-        description: "Standalone deck operations for the player deck.",
-        audience: "player",
-      },
-      {
-        id: "gm",
-        title: "Companion — GM",
-        description: "GM-only deck tools with pure counts.",
-        audience: "gm",
-        subtitle: "GM",
-      },
-      {
-        id: "gm-ops",
-        title: "Deck Ops — GM",
-        description: "Standalone deck operations for the GM deck.",
-        audience: "gm",
-        subtitle: "GM",
-      },
-      {
-        id: "csmatrix",
-        title: "CS Matrix",
-        description: "Campaign Support Matrix with draggable nodes.",
-        audience: "player",
-      },
-      {
-        id: "gear",
-        title: "Wardrobe & Gear",
-        description: "Browse equipment and items.",
-        audience: "player",
-      },
-      {
-        id: "combat",
-        title: "Combat",
-        description: "Combat tools and tracking.",
-        audience: "player",
-      },
-      {
-        id: "notes",
-        title: "Notes",
-        description: "Campaign notes and reminders.",
-        audience: "player",
-      },
-      {
-        id: "chud",
-        title: "cHUD",
-        description: "Compact HUD for derived stats.",
-        audience: "player",
-      },
-      {
-        id: "char-mgmt",
-        title: "Character Management",
-        description: "Manage up to 3 characters. Hot swap decks and export or import saves.",
-        audience: "player",
-      },
-    ];
-    return base.filter((c) => c.audience === mode);
-  }, [mode]);
+}> = ({ onNavigate }) => {
+  const cards = useMemo<HubCard[]>(() => [
+    {
+      id: "player",
+      title: "Deck Builder",
+      description: "Player-facing tools with deck builder and ops.",
+    },
+    {
+      id: "player-ops",
+      title: "Deck Ops",
+      description: "Standalone deck operations for the player deck.",
+    },
+    {
+      id: "csmatrix",
+      title: "CS Matrix",
+      description: "Campaign Support Matrix with draggable nodes.",
+    },
+    {
+      id: "gear",
+      title: "Wardrobe & Gear",
+      description: "Browse equipment and items.",
+    },
+    {
+      id: "combat",
+      title: "Combat",
+      description: "Combat tools and tracking.",
+    },
+    {
+      id: "notes",
+      title: "Notes",
+      description: "Campaign notes and reminders.",
+    },
+    {
+      id: "chud",
+      title: "cHUD",
+      description: "Compact HUD for derived stats.",
+    },
+    {
+      id: "char-mgmt",
+      title: "Character Management",
+      description: "Manage up to 3 characters. Hot swap decks and export or import saves.",
+    },
+    {
+      id: "profile",
+      title: "Profile",
+      description: "Character profile and background.",
+    },
+  ], []);
 
   return (
     <main className="hub-landing">
       <div className="hub-landing-content" style={{ width: "min(1100px, 100%)", padding: "1.25rem 1rem" }}>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              className={`mode-toggle ${mode === "player" ? "active" : ""}`}
-              onClick={() => onModeChange("player")}
-              aria-pressed={mode === "player"}
-            >
-              Player
-            </button>
-            <button
-              className={`mode-toggle ${mode === "gm" ? "active" : ""}`}
-              onClick={() => onModeChange("gm")}
-              aria-pressed={mode === "gm"}
-            >
-              GM
-            </button>
-          </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }}>
+          <a
+            href={`${import.meta.env.BASE_URL}gm.html`}
+            style={{ color: "var(--muted)", fontSize: "0.85rem", textDecoration: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "0.3rem 0.75rem" }}
+          >
+            Switch to GM →
+          </a>
         </div>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: "1rem",
-            marginTop: "1.1rem",
+            marginTop: "0.6rem",
           }}
         >
           {cards.map((card, index) => (
@@ -362,9 +266,6 @@ const HubLanding: React.FC<{
               onClick={() => onNavigate(card.id)}
             >
               <h2 style={{ margin: 0 }}>{card.title}</h2>
-              {card.subtitle ? (
-                <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>{card.subtitle}</span>
-              ) : null}
               <p style={{ color: "var(--muted)", margin: "0.25rem 0" }}>{card.description}</p>
             </button>
           ))}
@@ -376,7 +277,6 @@ const HubLanding: React.FC<{
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => deriveRoute());
-  const [mode, setMode] = useState<Mode>(() => deriveMode());
   const [charSlot, setCharSlot] = useState<number>(() => readActiveCharSlot());
   const matrixFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [matrixState, setMatrixState] = useState({ controlsOpen: false, nodesOpen: false });
@@ -394,20 +294,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const syncRoute = () => {
-      const nextRoute = deriveRoute();
-      setRoute(nextRoute);
-      if (nextRoute === "gm" || nextRoute === "gm-ops") {
-        setMode("gm");
-      } else if (nextRoute === "player" || nextRoute === "player-ops") {
-        setMode("player");
-      } else {
-        const stored = (typeof window !== "undefined"
-          ? (window.localStorage.getItem(MODE_KEY) as Mode | null)
-          : null);
-        if (stored) setMode(stored);
-      }
-    };
+    const syncRoute = () => setRoute(deriveRoute());
     syncRoute();
     window.addEventListener("hashchange", syncRoute);
     window.addEventListener("popstate", syncRoute);
@@ -416,11 +303,6 @@ export default function App() {
       window.removeEventListener("popstate", syncRoute);
     };
   }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(MODE_KEY, mode);
-  }, [mode]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -459,37 +341,21 @@ export default function App() {
     if (typeof window === "undefined") return;
     const desiredHash = (() => {
       switch (route) {
-        case "player":
-          return "#/player";
-        case "player-ops":
-          return "#/player/ops";
-        case "gm":
-          return "#/gm";
-        case "gm-ops":
-          return "#/gm/ops";
-        case "chud":
-          return "#/chud";
-        case "csmatrix":
-          return "#/csmatrix";
-        case "gear":
-          return "#/gear";
-        case "combat":
-          return "#/combat";
-        case "char-mgmt":
-          return "#/char-mgmt";
-        default:
-          return "#/hub";
+        case "player":    return "#/player";
+        case "player-ops": return "#/player/ops";
+        case "chud":      return "#/chud";
+        case "csmatrix":  return "#/csmatrix";
+        case "gear":      return "#/gear";
+        case "combat":    return "#/combat";
+        case "char-mgmt": return "#/char-mgmt";
+        case "profile":   return "#/profile";
+        default:          return "#/hub";
       }
     })();
     if (window.location.hash !== desiredHash) {
       window.location.hash = desiredHash;
     }
   }, [route]);
-
-  // GM deck overrides (simple counts)
-  const gmBaseCards = useMemo<Card[]>(() => [{ id: "gm-base-1", name: "Base", type: "Base" }], []);
-  const gmModCards = useMemo<Card[]>(() => [{ id: "gm-mod-1", name: "Mod", type: "Modifier", cost: 1 }], []);
-  const gmNullCard = useMemo<Card>(() => ({ id: "gm-null", name: "Null", type: "Null" }), []);
 
   if (route === "player") {
     return (
@@ -521,64 +387,6 @@ export default function App() {
           lockControlsInOps={false}
         />
       </PlayerShell>
-    );
-  }
-
-  if (route === "gm") {
-    return (
-      <GMShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
-        <CompanionIntro
-          eyebrow="GM Companion"
-          title="GM Deck & Table Tools"
-          description="Pure-count GM deck controls with offline storage, separate from player data."
-          helper="Use this to prep encounters, lock decks, and keep the GM pool isolated."
-        />
-        <DeckBuilder
-          storageKey="collapse.deck-builder.gm.v1"
-          exportPrefix="collapse-gm-deck"
-          baseCardsOverride={gmBaseCards}
-          modCardsOverride={gmModCards}
-          nullCardOverride={gmNullCard}
-          baseTarget={15}
-          minNulls={5}
-          modifierCapacityDefault={10}
-          showCardDetails={false}
-          simpleCounters={true}
-          modCapacityAsCount={true}
-          showOpsSections={false}
-          showModifierCards={true}
-          showModifierCapacity={false}
-        />
-      </GMShell>
-    );
-  }
-
-  if (route === "gm-ops") {
-    return (
-      <GMShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
-        <CompanionIntro
-          eyebrow="GM Deck Ops"
-          title="Operational View"
-          description="Minimal deck operations for live sessions, keeping the GM pool locked and quick to reach."
-          helper="Builder sections stay hidden; use the dock to draw, shuffle, and manage discard."
-        />
-        <DeckBuilder
-          storageKey="collapse.deck-builder.gm.v1"
-          exportPrefix="collapse-gm-deck"
-          baseCardsOverride={gmBaseCards}
-          modCardsOverride={gmModCards}
-          nullCardOverride={gmNullCard}
-          baseTarget={15}
-          minNulls={5}
-          modifierCapacityDefault={10}
-          showCardDetails={false}
-          simpleCounters={true}
-          modCapacityAsCount={true}
-          showBuilderSections={false}
-          showOpsSections={true}
-          lockControlsInOps={false}
-        />
-      </GMShell>
     );
   }
 
@@ -655,20 +463,18 @@ export default function App() {
     );
   }
 
+  if (route === "profile") {
+    return (
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+        <ProfilePage key={`profile-${charSlot}`} storageKey={profileKey(charSlot)} charSlot={charSlot} />
+      </PlayerShell>
+    );
+  }
+
   return (
     <>
       {chudDock}
-      <HubLanding
-        mode={mode}
-        onModeChange={(next) => {
-          setMode(next);
-          setRoute("hub");
-        }}
-        onNavigate={(next) => {
-          setRoute(next);
-          setMode(next === "gm" || next === "gm-ops" ? "gm" : "player");
-        }}
-      />
+      <HubLanding onNavigate={(next) => setRoute(next)} />
     </>
   );
 }

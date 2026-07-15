@@ -51,6 +51,15 @@ try {
 		document.body.classList.add('hosted-toolbar');
 	}
 } catch (err) { /* ignore */ }
+const isMiniMode = (() => {
+	try { return new URLSearchParams(window.location.search).get('mini') === '1'; }
+	catch (e) { return false; }
+})();
+try {
+	if (isMiniMode && document && document.body) {
+		document.body.classList.add('cs-mini-mode');
+	}
+} catch (err) { /* ignore */ }
 // graph.globalMeters will be set after globalMeters is declared (below)
 // persist changes to localStorage
 // global meters (not node dependent)
