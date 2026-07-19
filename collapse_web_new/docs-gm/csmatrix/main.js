@@ -324,7 +324,7 @@ function openNewNodeMetersPopup(onConfirm) {
     };
 		const setVal = (v, shouldRefresh = true) => {
       live[key] = v;
-      const pct = (v - MIN) / (MAX - MIN) * 100;
+			const pct = (safeVal - MIN) / (MAX - MIN) * 100;
       thumb.style.left = `${pct}%`;
       valDisplay.textContent = `${v}`;
       updateValColor(v);
@@ -740,9 +740,24 @@ function openGlobalMetersPopup() {
 	const persistFactionState = () => saveFactionMeters({ currentFaction: selectedFaction, metersByFaction });
 	// Normalize and persist structure immediately so refresh always has a valid per-faction payload.
 	persistFactionState();
-  // live values while popup is open
-  const live = {};
-	FACTION_METER_FIELDS.forEach(({ key }) => { live[key] = typeof metersByFaction[selectedFaction][key] === 'number' ? Math.max(0, metersByFaction[selectedFaction][key]) : 0; });
+
+	const readAxesFromFaction = () => {
+		const src = metersByFaction[selectedFaction] || createEmptyMeters();
+		const axisX = Math.max(-6, Math.min(6, (src.distrust || 0) - (src.trust || 0)));
+		const axisY = Math.max(-6, Math.min(6, (src.carteBlanche || 0) - (src.surveillance || 0)));
+		return { axisX, axisY };
+	};
+
+	const writeAxesToFaction = (axisX, axisY) => {
+		metersByFaction[selectedFaction] = {
+			trust: axisX < 0 ? Math.abs(axisX) : 0,
+			distrust: axisX > 0 ? axisX : 0,
+			carteBlanche: axisY > 0 ? axisY : 0,
+			surveillance: axisY < 0 ? Math.abs(axisY) : 0,
+		};
+	};
+
+	let { axisX, axisY } = readAxesFromFaction();
 
   const overlay = document.createElement('div');
   overlay.id = 'global-meters-popup-overlay';
@@ -767,12 +782,12 @@ function openGlobalMetersPopup() {
 	});
 	card.appendChild(factionSelect);
 
-  const STEPS = 7; // 0 … +6
-  const MIN = 0; const MAX = 6;
+	const STEPS = 13; // -6 … +6
+	const MIN = -6; const MAX = 6;
 
-	const sliderSetters = {};
+	const axisSetters = {};
 
-  const makeSlider = ({ key, label }) => {
+	const makeAxisSlider = ({ axisKey, label, negativeLabel, positiveLabel }) => {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
 
@@ -784,10 +799,13 @@ function openGlobalMetersPopup() {
     lbl.textContent = label;
     const valDisplay = document.createElement('span');
     valDisplay.style.cssText = 'font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums;min-width:28px;text-align:right;transition:color 0.15s;';
-    const updateValColor = (v) => { valDisplay.style.color = v > 0 ? '#6ac7ff' : 'rgba(255,255,255,0.5)'; };
-    const initVal = Math.max(0, typeof live[key] === 'number' ? live[key] : 0);
-    live[key] = initVal;
-    valDisplay.textContent = `${initVal}`;
+		const updateValColor = (v) => {
+			if (v > 0) valDisplay.style.color = '#6ac7ff';
+			else if (v < 0) valDisplay.style.color = '#ffdf7e';
+			else valDisplay.style.color = 'rgba(255,255,255,0.5)';
+		};
+		const initVal = axisKey === 'axisX' ? axisX : axisY;
+		valDisplay.textContent = initVal > 0 ? `+${initVal}` : `${initVal}`;
     updateValColor(initVal);
     header.appendChild(lbl); header.appendChild(valDisplay);
     wrap.appendChild(header);
@@ -806,9 +824,9 @@ function openGlobalMetersPopup() {
       const v = MIN + i;
       const pct = i / (STEPS - 1) * 100;
       const tick = document.createElement('div');
-      const isLeft = v === 0;
-      const isMajor = v % 3 === 0;
-      tick.style.cssText = `position:absolute;top:50%;left:${pct}%;transform:translate(-50%,-50%);width:${isLeft ? 3 : isMajor ? 2 : 1}px;height:${isLeft ? 14 : isMajor ? 10 : 6}px;background:${isLeft ? 'rgba(255,255,255,0.5)' : isMajor ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)'};border-radius:1px;pointer-events:none;`;
+			const isCenter = v === 0;
+			const isMajor = v % 3 === 0;
+			tick.style.cssText = `position:absolute;top:50%;left:${pct}%;transform:translate(-50%,-50%);width:${isCenter ? 3 : isMajor ? 2 : 1}px;height:${isCenter ? 14 : isMajor ? 10 : 6}px;background:${isCenter ? 'rgba(255,255,255,0.5)' : isMajor ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)'};border-radius:1px;pointer-events:none;`;
       trackWrap.appendChild(tick);
     }
 
@@ -821,10 +839,10 @@ function openGlobalMetersPopup() {
     // label hints
     const hints = document.createElement('div');
     hints.style.cssText = 'display:flex;justify-content:space-between;';
-    [0, 3, 6].forEach((v, i) => {
+		[MIN, 0, MAX].forEach((v, i) => {
       const h = document.createElement('span');
       h.style.cssText = 'font-size:0.6rem;color:rgba(255,255,255,0.25);font-variant-numeric:tabular-nums;';
-      h.textContent = `${v}`;
+			h.textContent = v > 0 ? `+${v}` : `${v}`;
       if (i === 1) h.style.textAlign = 'center';
       if (i === 2) h.style.textAlign = 'right';
       hints.appendChild(h);
@@ -839,18 +857,20 @@ function openGlobalMetersPopup() {
       return Math.round(MIN + pct * (MAX - MIN));
     };
 		const setVal = (v, shouldPersist = true) => {
-      live[key] = v;
+			const safeVal = Math.max(MIN, Math.min(MAX, Number.isFinite(v) ? v : 0));
+			if (axisKey === 'axisX') axisX = safeVal;
+			else axisY = safeVal;
       const pct = (v - MIN) / (MAX - MIN) * 100;
       thumb.style.transition = 'none';
       thumb.style.left = `${pct}%`;
-      valDisplay.textContent = `${v}`;
-      updateValColor(v);
+			valDisplay.textContent = safeVal > 0 ? `+${safeVal}` : `${safeVal}`;
+			updateValColor(safeVal);
 			if (shouldPersist) {
-				metersByFaction[selectedFaction][key] = v;
+				writeAxesToFaction(axisX, axisY);
 				persistFactionState();
 			}
     };
-		sliderSetters[key] = setVal;
+		axisSetters[axisKey] = setVal;
 
     trackWrap.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -862,18 +882,30 @@ function openGlobalMetersPopup() {
       trackWrap.addEventListener('pointerup', onUp);
     });
 
-    card.appendChild(wrap);
+		const legends = document.createElement('div');
+		legends.style.cssText = 'display:flex;justify-content:space-between;font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.42);';
+		const left = document.createElement('span');
+		left.textContent = negativeLabel;
+		const right = document.createElement('span');
+		right.textContent = positiveLabel;
+		legends.appendChild(left);
+		legends.appendChild(right);
+
+		wrap.appendChild(legends);
+		card.appendChild(wrap);
   };
 
-  FACTION_METER_FIELDS.forEach(makeSlider);
+	makeAxisSlider({ axisKey: 'axisX', label: 'Trust / Distrust Axis', negativeLabel: 'Trust (-)', positiveLabel: 'Distrust (+)' });
+	makeAxisSlider({ axisKey: 'axisY', label: 'Surveillance / Carte Blanche Axis', negativeLabel: 'Surveillance (-)', positiveLabel: 'Carte Blanche (+)' });
 
 	factionSelect.addEventListener('change', () => {
 		selectedFaction = FACTION_OPTIONS.includes(factionSelect.value) ? factionSelect.value : 'Corporate';
 		if (!metersByFaction[selectedFaction]) metersByFaction[selectedFaction] = createEmptyMeters();
-		FACTION_METER_FIELDS.forEach(({ key }) => {
-			const v = Math.max(0, Math.min(6, metersByFaction[selectedFaction][key] || 0));
-			if (sliderSetters[key]) sliderSetters[key](v, false);
-		});
+		const nextAxes = readAxesFromFaction();
+		axisX = nextAxes.axisX;
+		axisY = nextAxes.axisY;
+		if (axisSetters.axisX) axisSetters.axisX(axisX, false);
+		if (axisSetters.axisY) axisSetters.axisY(axisY, false);
 		persistFactionState();
 	});
 
