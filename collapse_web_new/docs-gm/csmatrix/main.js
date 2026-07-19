@@ -51,6 +51,15 @@ try {
 		document.body.classList.add('hosted-toolbar');
 	}
 } catch (err) { /* ignore */ }
+const isMiniMode = (() => {
+	try { return new URLSearchParams(window.location.search).get('mini') === '1'; }
+	catch (e) { return false; }
+})();
+try {
+	if (isMiniMode && document && document.body) {
+		document.body.classList.add('cs-mini-mode');
+	}
+} catch (err) { /* ignore */ }
 // graph.globalMeters will be set after globalMeters is declared (below)
 // persist changes to localStorage
 // global meters (not node dependent)
@@ -174,17 +183,28 @@ function hslToHex(hsl) {
 function openNewNodeMetersPopup(onConfirm) {
   const existing = document.getElementById('new-node-meters-overlay');
   if (existing) { existing.remove(); return; }
-  const globalData = loadFactionMeters();
-  const g = {};
-  FACTION_METER_FIELDS.forEach(({ key }) => { g[key] = typeof globalData[key] === 'number' ? Math.max(0, globalData[key]) : 0; });
+	const factionState = loadFactionMeters();
+	const metersByFaction = factionState && factionState.metersByFaction ? factionState.metersByFaction : {};
+	let selectedFaction = FACTION_OPTIONS.includes(factionState?.currentFaction) ? factionState.currentFaction : 'Corporate';
+	if (!metersByFaction[selectedFaction]) metersByFaction[selectedFaction] = createEmptyMeters();
 
-  const live = { trust: 0, distrust: 0, carteBlanche: 0, surveillance: 0 };
+	const g = createEmptyMeters();
+	const applyFactionGlobalMeters = () => {
+		const src = metersByFaction[selectedFaction] || createEmptyMeters();
+		FACTION_METER_FIELDS.forEach(({ key }) => {
+			g[key] = typeof src[key] === 'number' ? Math.max(0, Math.min(6, src[key])) : 0;
+		});
+	};
+	applyFactionGlobalMeters();
+
+	const live = createEmptyMeters();
+	FACTION_METER_FIELDS.forEach(({ key }) => { live[key] = g[key]; });
 
   const clamp6 = (v) => Math.max(-6, Math.min(6, v));
-  const computeResult = () => ({
-    gx: clamp6((live.trust + g.trust) - (live.distrust + g.distrust)),
-    gy: clamp6((live.carteBlanche + g.carteBlanche) - (live.surveillance + g.surveillance)),
-  });
+	const computeResult = () => ({
+		gx: clamp6(live.trust - live.distrust),
+		gy: clamp6(live.carteBlanche - live.surveillance),
+	});
 
   const overlay = document.createElement('div');
   overlay.id = 'new-node-meters-overlay';
@@ -206,24 +226,45 @@ function openNewNodeMetersPopup(onConfirm) {
 	titleRow.appendChild(subtitleEl);
 	card.appendChild(titleRow);
 
-	// Name field
-	const nameRow = document.createElement('div');
-	nameRow.style.cssText = 'display:flex;flex-direction:column;gap:2px;margin:10px 0 2px 0;';
-	const nameLabel = document.createElement('label');
-	nameLabel.textContent = 'Name (optional)';
-	nameLabel.style.cssText = 'font-size:0.82rem;color:rgba(255,255,255,0.55);margin-bottom:2px;letter-spacing:0.01em;';
-	const nameInput = document.createElement('input');
-	nameInput.type = 'text';
-	nameInput.placeholder = 'New Node';
-	nameInput.style.cssText = 'padding:7px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.13);background:#181c22;color:#e8eef3;font-size:1rem;outline:none;transition:border 0.15s;width:100%;';
-	nameInput.autocomplete = 'off';
-	nameRow.appendChild(nameLabel);
-	nameRow.appendChild(nameInput);
-	card.appendChild(nameRow);
+	// Faction picker for global meter contribution
+	const factionRow = document.createElement('div');
+	factionRow.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin:0 0 4px 0;';
+	const factionLabel = document.createElement('label');
+	factionLabel.textContent = 'Faction (applies Global Meters)';
+	factionLabel.style.cssText = 'font-size:0.78rem;color:rgba(255,255,255,0.55);letter-spacing:0.01em;';
+	const factionSelect = document.createElement('select');
+	factionSelect.style.cssText = 'width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.05);color:#e9f0ff;font-size:0.9rem;';
+	FACTION_OPTIONS.forEach((name) => {
+		const opt = document.createElement('option');
+		opt.value = name;
+		opt.textContent = name;
+		if (name === selectedFaction) opt.selected = true;
+		factionSelect.appendChild(opt);
+	});
+	factionRow.appendChild(factionLabel);
+	factionRow.appendChild(factionSelect);
+	card.appendChild(factionRow);
+
+		// Name field
+		const nameRow = document.createElement('div');
+		nameRow.style.cssText = 'display:flex;flex-direction:column;gap:2px;margin:10px 0 2px 0;';
+		const nameLabel = document.createElement('label');
+		nameLabel.textContent = 'Name (optional)';
+		nameLabel.style.cssText = 'font-size:0.82rem;color:rgba(255,255,255,0.55);margin-bottom:2px;letter-spacing:0.01em;';
+		const nameInput = document.createElement('input');
+		nameInput.type = 'text';
+		nameInput.placeholder = 'New Node';
+		nameInput.style.cssText = 'padding:7px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.13);background:#181c22;color:#e8eef3;font-size:1rem;outline:none;transition:border 0.15s;width:100%;';
+		nameInput.autocomplete = 'off';
+		nameRow.appendChild(nameLabel);
+		nameRow.appendChild(nameInput);
+		card.appendChild(nameRow);
 
   const STEPS = 7; const MIN = 0; const MAX = 6;
 
-  const makeSlider = ({ key, label }) => {
+	const sliderSetters = {};
+
+	const makeSlider = ({ key, label }) => {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
 
@@ -235,8 +276,9 @@ function openNewNodeMetersPopup(onConfirm) {
     const valDisplay = document.createElement('span');
     valDisplay.style.cssText = 'font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums;min-width:28px;text-align:right;transition:color 0.15s;';
     const updateValColor = (v) => { valDisplay.style.color = v > 0 ? '#6ac7ff' : 'rgba(255,255,255,0.5)'; };
-    valDisplay.textContent = '0';
-    updateValColor(0);
+	const initVal = Math.max(0, Math.min(6, Number(live[key] || 0)));
+	valDisplay.textContent = `${initVal}`;
+	updateValColor(initVal);
     header.appendChild(lbl); header.appendChild(valDisplay);
     wrap.appendChild(header);
 
@@ -256,8 +298,9 @@ function openNewNodeMetersPopup(onConfirm) {
       trackWrap.appendChild(tick);
     }
 
-    const thumb = document.createElement('div');
-    thumb.style.cssText = 'position:absolute;top:50%;left:0%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#f5fbff;box-shadow:0 0 8px rgba(255,255,255,0.4);pointer-events:none;';
+	const thumb = document.createElement('div');
+	const initPct = (initVal - MIN) / (MAX - MIN) * 100;
+	thumb.style.cssText = `position:absolute;top:50%;left:${initPct}%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#f5fbff;box-shadow:0 0 8px rgba(255,255,255,0.4);pointer-events:none;`;
     trackWrap.appendChild(thumb);
 
     const hints = document.createElement('div');
@@ -279,14 +322,15 @@ function openNewNodeMetersPopup(onConfirm) {
       const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       return Math.round(MIN + pct * (MAX - MIN));
     };
-    const setVal = (v) => {
+		const setVal = (v, shouldRefresh = true) => {
       live[key] = v;
       const pct = (v - MIN) / (MAX - MIN) * 100;
       thumb.style.left = `${pct}%`;
       valDisplay.textContent = `${v}`;
       updateValColor(v);
-      refreshResult();
+			if (shouldRefresh) refreshResult();
     };
+		sliderSetters[key] = setVal;
 
     trackWrap.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -386,6 +430,9 @@ function openNewNodeMetersPopup(onConfirm) {
   const resultVals = document.createElement('div');
   resultVals.style.cssText = 'display:flex;gap:24px;';
 
+	const globalVals = document.createElement('div');
+	globalVals.style.cssText = 'font-size:0.72rem;color:rgba(255,255,255,0.45);line-height:1.45;margin-top:2px;';
+
   const makeResultCell = (axisLabel) => {
     const cell = document.createElement('div');
     cell.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
@@ -404,6 +451,7 @@ function openNewNodeMetersPopup(onConfirm) {
   resultVals.appendChild(yCell.cell);
   resultRow.appendChild(resultLabel);
   resultRow.appendChild(resultVals);
+	resultRow.appendChild(globalVals);
   card.appendChild(resultRow);
 
   const colorForVal = (v) => v > 0 ? '#6ac7ff' : v < 0 ? '#ffdf7e' : 'rgba(255,255,255,0.5)';
@@ -415,8 +463,21 @@ function openNewNodeMetersPopup(onConfirm) {
     xCell.val.style.color = colorForVal(r.gx);
     yCell.val.textContent = fmtVal(r.gy);
     yCell.val.style.color = colorForVal(r.gy);
+		globalVals.textContent = `Global (${selectedFaction}): Trust ${g.trust} | Distrust ${g.distrust} | Carte Blanche ${g.carteBlanche} | Surveillance ${g.surveillance}`;
   }
   refreshResult();
+
+	factionSelect.addEventListener('change', () => {
+		selectedFaction = FACTION_OPTIONS.includes(factionSelect.value) ? factionSelect.value : 'Corporate';
+		if (!metersByFaction[selectedFaction]) metersByFaction[selectedFaction] = createEmptyMeters();
+		applyFactionGlobalMeters();
+		FACTION_METER_FIELDS.forEach(({ key }) => {
+			const nextVal = Math.max(0, Math.min(6, Number(g[key] || 0)));
+			if (sliderSetters[key]) sliderSetters[key](nextVal, false);
+		});
+		refreshResult();
+		updateDot();
+	});
 
   const btnRow = document.createElement('div');
   btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;margin-top:2px;';
@@ -617,14 +678,55 @@ setupMeterTapTargets();
 // wire toggle for showing controls on mobile
 // ── Global Meters popup ──────────────────────────────────────────────────────
 const GLOBAL_METERS_KEY = 'csmatrix.globalMeters.faction';
+const FACTION_OPTIONS = [
+	'Corporate',
+	'Governmental',
+	'Law Enforcement',
+	'Local Power',
+	'Civilian',
+	'Syndicate',
+];
 const FACTION_METER_FIELDS = [
   { key: 'trust',        label: 'Trust' },
   { key: 'distrust',     label: 'Distrust' },
   { key: 'carteBlanche', label: 'Carte Blanche' },
   { key: 'surveillance', label: 'Surveillance' },
 ];
+const createEmptyMeters = () => ({ trust: 0, distrust: 0, carteBlanche: 0, surveillance: 0 });
 function loadFactionMeters() {
-  try { const r = localStorage.getItem(GLOBAL_METERS_KEY); return r ? JSON.parse(r) : {}; } catch { return {}; }
+	try {
+		const raw = localStorage.getItem(GLOBAL_METERS_KEY);
+		const parsed = raw ? JSON.parse(raw) : {};
+		// Back-compat: old format was a flat meter object.
+		const looksLegacy = parsed && typeof parsed === 'object' && ('trust' in parsed || 'distrust' in parsed || 'carteBlanche' in parsed || 'surveillance' in parsed);
+		const metersByFaction = {};
+		FACTION_OPTIONS.forEach((name) => { metersByFaction[name] = createEmptyMeters(); });
+		if (looksLegacy) {
+			metersByFaction.Corporate = {
+				trust: Math.max(0, parsed.trust || 0),
+				distrust: Math.max(0, parsed.distrust || 0),
+				carteBlanche: Math.max(0, parsed.carteBlanche || 0),
+				surveillance: Math.max(0, parsed.surveillance || 0),
+			};
+			return { currentFaction: 'Corporate', metersByFaction };
+		}
+		const fromStorage = parsed && parsed.metersByFaction ? parsed.metersByFaction : {};
+		FACTION_OPTIONS.forEach((name) => {
+			const src = fromStorage[name] || {};
+			metersByFaction[name] = {
+				trust: Math.max(0, src.trust || 0),
+				distrust: Math.max(0, src.distrust || 0),
+				carteBlanche: Math.max(0, src.carteBlanche || 0),
+				surveillance: Math.max(0, src.surveillance || 0),
+			};
+		});
+		const currentFaction = FACTION_OPTIONS.includes(parsed.currentFaction) ? parsed.currentFaction : 'Corporate';
+		return { currentFaction, metersByFaction };
+	} catch {
+		const metersByFaction = {};
+		FACTION_OPTIONS.forEach((name) => { metersByFaction[name] = createEmptyMeters(); });
+		return { currentFaction: 'Corporate', metersByFaction };
+	}
 }
 function saveFactionMeters(data) {
   try { localStorage.setItem(GLOBAL_METERS_KEY, JSON.stringify(data)); } catch {}
@@ -632,10 +734,15 @@ function saveFactionMeters(data) {
 function openGlobalMetersPopup() {
   const existing = document.getElementById('global-meters-popup-overlay');
   if (existing) { existing.remove(); return; }
-  const data = loadFactionMeters();
+	const state = loadFactionMeters();
+	const metersByFaction = state.metersByFaction;
+	let selectedFaction = state.currentFaction;
+	const persistFactionState = () => saveFactionMeters({ currentFaction: selectedFaction, metersByFaction });
+	// Normalize and persist structure immediately so refresh always has a valid per-faction payload.
+	persistFactionState();
   // live values while popup is open
   const live = {};
-  FACTION_METER_FIELDS.forEach(({ key }) => { live[key] = typeof data[key] === 'number' ? Math.max(0, data[key]) : 0; });
+	FACTION_METER_FIELDS.forEach(({ key }) => { live[key] = typeof metersByFaction[selectedFaction][key] === 'number' ? Math.max(0, metersByFaction[selectedFaction][key]) : 0; });
 
   const overlay = document.createElement('div');
   overlay.id = 'global-meters-popup-overlay';
@@ -649,10 +756,21 @@ function openGlobalMetersPopup() {
   title.textContent = 'Global Meters';
   card.appendChild(title);
 
+	const factionSelect = document.createElement('select');
+	factionSelect.style.cssText = 'width:100%;padding:9px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.05);color:#e9f0ff;font-size:0.85rem;';
+	FACTION_OPTIONS.forEach((name) => {
+		const opt = document.createElement('option');
+		opt.value = name;
+		opt.textContent = name;
+		if (name === selectedFaction) opt.selected = true;
+		factionSelect.appendChild(opt);
+	});
+	card.appendChild(factionSelect);
+
   const STEPS = 7; // 0 … +6
   const MIN = 0; const MAX = 6;
 
-  const thumbEls = {};
+	const sliderSetters = {};
 
   const makeSlider = ({ key, label }) => {
     const wrap = document.createElement('div');
@@ -699,7 +817,6 @@ function openGlobalMetersPopup() {
     const pctInit = (initVal - MIN) / (MAX - MIN) * 100;
     thumb.style.cssText = `position:absolute;top:50%;left:${pctInit}%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#f5fbff;box-shadow:0 0 8px rgba(255,255,255,0.4);pointer-events:none;transition:left 0.05s;`;
     trackWrap.appendChild(thumb);
-    thumbEls[key] = thumb;
 
     // label hints
     const hints = document.createElement('div');
@@ -721,16 +838,19 @@ function openGlobalMetersPopup() {
       const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       return Math.round(MIN + pct * (MAX - MIN));
     };
-    const setVal = (v) => {
+		const setVal = (v, shouldPersist = true) => {
       live[key] = v;
       const pct = (v - MIN) / (MAX - MIN) * 100;
       thumb.style.transition = 'none';
       thumb.style.left = `${pct}%`;
       valDisplay.textContent = `${v}`;
       updateValColor(v);
-      // persist immediately
-      saveFactionMeters({ ...loadFactionMeters(), [key]: v });
+			if (shouldPersist) {
+				metersByFaction[selectedFaction][key] = v;
+				persistFactionState();
+			}
     };
+		sliderSetters[key] = setVal;
 
     trackWrap.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -747,19 +867,29 @@ function openGlobalMetersPopup() {
 
   FACTION_METER_FIELDS.forEach(makeSlider);
 
+	factionSelect.addEventListener('change', () => {
+		selectedFaction = FACTION_OPTIONS.includes(factionSelect.value) ? factionSelect.value : 'Corporate';
+		if (!metersByFaction[selectedFaction]) metersByFaction[selectedFaction] = createEmptyMeters();
+		FACTION_METER_FIELDS.forEach(({ key }) => {
+			const v = Math.max(0, Math.min(6, metersByFaction[selectedFaction][key] || 0));
+			if (sliderSetters[key]) sliderSetters[key](v, false);
+		});
+		persistFactionState();
+	});
+
   // close button
   const btnRow = document.createElement('div');
   btnRow.style.cssText = 'display:flex;justify-content:flex-end;margin-top:2px;';
   const btnClose = document.createElement('button');
   btnClose.textContent = 'Done';
   btnClose.style.cssText = 'padding:8px 22px;border-radius:8px;border:1px solid rgba(99,255,177,0.4);background:rgba(99,255,177,0.1);color:#63ffb1;cursor:pointer;font-size:0.85rem;font-weight:600;';
-  btnClose.addEventListener('click', () => overlay.remove());
+	btnClose.addEventListener('click', () => { persistFactionState(); overlay.remove(); });
   btnRow.appendChild(btnClose);
   card.appendChild(btnRow);
 
   overlay.appendChild(card);
   document.body.appendChild(overlay);
-  overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) overlay.remove(); });
+	overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) { persistFactionState(); overlay.remove(); } });
 }
 const btnSetGlobalMeters = document.getElementById('btn-set-global-meters');
 if (btnSetGlobalMeters) btnSetGlobalMeters.addEventListener('click', openGlobalMetersPopup);
@@ -778,7 +908,7 @@ const notifyHostState = () => {
 function syncControlsToggleState(isOpen) {
 	if (!btnToggleControls) return;
 	const open = typeof isOpen === 'boolean' ? isOpen : document.body.classList.contains('controls-open');
-	btnToggleControls.textContent = open ? 'Hide Controls' : 'Show Controls';
+	btnToggleControls.textContent = 'Controls';
 	btnToggleControls.setAttribute('aria-expanded', open ? 'true' : 'false');
 	notifyHostState();
 }

@@ -263,6 +263,19 @@ body.nodes-open #node-list-section {
 	body.nodes-open #node-list { flex: 1 1 auto; max-height: none; overflow-y: auto; }
 }
 
+/* Mini embed mode — show only the matrix canvas, no chrome */
+body.cs-mini-mode { background: transparent; overflow: hidden; }
+body.cs-mini-mode::before { display: none; }
+body.cs-mini-mode header { display: none !important; }
+body.cs-mini-mode aside { display: none !important; }
+body.cs-mini-mode #btn-toggle-nodes { display: none !important; }
+body.cs-mini-mode #node-list-section { display: none !important; }
+body.cs-mini-mode footer { display: none !important; }
+body.cs-mini-mode main { padding: 0 !important; margin: 0; height: 100vh; display: flex; flex-direction: column; }
+body.cs-mini-mode #matrix { border-radius: 0; flex: 1 1 auto; display: flex; flex-direction: column; }
+body.cs-mini-mode #matrix-canvas-wrap { border-radius: 0; border: none; padding: 0 !important; flex: 1 1 auto; height: 100%; box-shadow: none; }
+body.cs-mini-mode .scanlines { display: none; }
+body.cs-mini-mode .quadrant-label { font-size: 0.55rem; opacity: 0.4; }
 body.force-mobile-layout main { padding: 8px; padding-bottom: 12px; }
 body.force-mobile-layout #matrix-canvas-wrap { width: 100% !important; min-height: 0; padding: 0 !important; }
 body.force-mobile-layout .node-card { min-width: 0; }

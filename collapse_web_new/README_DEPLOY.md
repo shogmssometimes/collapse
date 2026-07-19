@@ -15,6 +15,11 @@ Manual deploy:
   npm ci
   npm run build
   ```
+- Sync static subapps before build (recommended)
+  ```bash
+  cd collapse_web_new
+  npm run sync:subapps
+  ```
 - GM-only local bundle (keeps player build untouched)
   ```bash
   cd collapse_web_new
@@ -36,6 +41,12 @@ Manual deploy:
   ```
 
 Notes:
+- Source of truth for static applets:
+  - Edit `public/csmatrix/*` and `public/chud/*`.
+  - Treat `docs/*` and `docs-gm/*` as build/deploy copies.
+  - Use `npm run sync:subapps` to mirror `public` into `docs` and `docs-gm`.
+- Main HUD link path:
+  - HUD route `#/csmatrix` loads `csmatrix/index.html` from the current build output.
 - Keep `main` as the default branch for development.
 - Protect `main` with required PR reviews and CI checks.
 

@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "dev:fancybuild": "vite",
+    "sync:csmatrix": "rm -rf docs/csmatrix docs-gm/csmatrix && cp -R public/csmatrix docs/csmatrix && cp -R public/csmatrix docs-gm/csmatrix",
+    "sync:chud": "cp -f public/chud/meter-bridge.js docs/chud/meter-bridge.js && cp -f public/chud/meter-bridge.js docs-gm/chud/meter-bridge.js && cp -f public/chud/assets/chud-app.css docs/chud/assets/chud-app.css && cp -f public/chud/assets/chud-app.css docs-gm/chud/assets/chud-app.css",
+    "sync:subapps": "npm run sync:csmatrix && npm run sync:chud",
     "test": "vitest",
     "smoke": "playwright test tests/smoke.spec.ts --project=chromium --workers=1 --retries=1 --reporter=list",
     "smoke:mobile": "playwright test tests/smoke.mobile.spec.ts --project=chromium --workers=1 --retries=1 --reporter=list",

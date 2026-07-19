@@ -556,8 +556,9 @@ body {
   z-index: 10000;
   background: rgba(10, 8, 8, 0.93);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: clamp(40px, 12vh, 120px);
   border-radius: 8px;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);

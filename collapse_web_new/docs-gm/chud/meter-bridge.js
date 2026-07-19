@@ -1,7 +1,44 @@
 const STORAGE_KEY = 'csmatrix.graph'
 const WALLET_KEY = 'chud.wallet'
 const COMBAT_KEY = 'combat.v1'
+const STATUS_ROLLS_KEY = 'chud.statusRolls'
 const UI_KEY = 'chud.ui.v1'
+const STATUS_ROLL_MAX = 50
+const STATUS_ROLL_MAX_ROWS = 10
+const STATUS_ROLL_DEFAULT_ROWS = 2
+const STATUS_EFFECTS_CATALOG = [
+  { name: 'Slowed', effect: 'Any movement costs +1 additional AP' },
+  { name: 'Bound', effect: 'Cannot take movement actions' },
+  { name: 'Stunned', effect: 'Reduce AP by 1d4' },
+  { name: 'Distracted', effect: 'Cannot purchase/use Reaction Tokens' },
+  { name: 'Taunted', effect: 'Must target Taunter with Combat Action or lose 2AP' },
+  { name: 'Marked', effect: 'Cannot be Hidden' },
+  { name: 'Exposed', effect: 'WT reduced by 1' },
+  { name: 'Nullified', effect: 'Cannot use Mod Engrams' },
+  { name: 'Overheated', effect: 'Cannot use Grit' },
+  { name: 'Irradiated', effect: 'Lose 1 Grit' },
+  { name: 'Afflicted (Poison, Burn, Suffocation etc)', effect: 'At the bottom of your turn, roll a dice, on evens reduce WT by 1, on odds, nothing happens.' },
+  { name: 'Frightened', effect: 'Must remain adjacent to fear source' },
+  { name: 'Crushed', effect: 'Double AP Costs' },
+  { name: 'Confused', effect: 'Roll twice, take lower' },
+  { name: 'Hacked', effect: 'Roll 1d4, control target for that # of Turns' },
+  { name: 'Discombobulated', effect: 'Roll 1d4, on 1, Combat Actions hit a random target' },
+  { name: 'Focused', effect: 'On rolls, roll twice, take higher' },
+  { name: 'Shielded', effect: 'Damage halved' },
+  { name: 'Fortified', effect: 'WT increased by 1' },
+  { name: 'Hastened', effect: 'Any movement costs 1 less AP' },
+  { name: 'Inspired', effect: 'Gain 1 Grit' },
+  { name: 'Energized', effect: 'Gain +1AP' },
+  { name: 'Overclocked', effect: 'Chip damage die steps up one tier' },
+  { name: 'Bleeding', effect: 'On hit, Lose 1HP regardless of WT' },
+  { name: 'Charmed', effect: 'Treat source as friendly' },
+  { name: 'Demoralized', effect: 'Cannot Ganbare or receive Ganbare' },
+  { name: 'Rattled', effect: 'Cannot use Overdrive' },
+  { name: 'Pressured', effect: 'Cannot Flank or gain positional bonuses' },
+  { name: 'Exhausted', effect: 'Reduce all AO/PCDC rolls by 1d4' },
+  { name: 'Downed', effect: 'Out of the fight, must be revived' },
+  { name: 'Desynced', effect: 'Your Chip is Desynced' },
+]
 function readUI() {
   try { const r = localStorage.getItem(UI_KEY); return r ? JSON.parse(r) : {} } catch { return {} }
 }
@@ -144,6 +181,41 @@ function createStyles() {
     .chud-wallet-btn:active { transform: scale(0.95); opacity: 0.85; }
     .chud-wallet-btn.debit  { background: linear-gradient(135deg, #0fa878, #3de8c0); color: #051a14; }
     .chud-wallet-btn.credit { background: linear-gradient(135deg, #9b1b4a, #ff6b9a); color: #fff; }
+
+    /* ── Status Rolls Panel ───────────────────────────────────────────── */
+    .chud-status-rolls { margin-top: 4px; }
+    .chud-status-rolls-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: none; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 6px 0 8px; cursor: pointer; color: rgba(248,250,252,0.65); font-size: 13px; font-family: var(--font-display, inherit); font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; }
+    .chud-status-rolls.open .chud-status-rolls-toggle { color: rgba(248,250,252,0.9); border-bottom-color: rgba(255,255,255,0.18); }
+    .chud-status-rolls-chevron { font-size: 9px; opacity: 0.7; }
+    .chud-status-rolls-body { display: none; padding: 8px 0 0; flex-direction: column; gap: 8px; }
+    .chud-status-rolls.open .chud-status-rolls-body { display: flex; }
+    .status-roll-header { display: flex; gap: 6px; padding: 0 2px; }
+    .status-roll-header span { font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(248,250,252,0.4); font-weight: 600; }
+    .status-roll-header span.col-name { flex: 26 1 0; }
+    .status-roll-header span.col-effect { flex: 42 1 0; }
+    .status-roll-header span.col-value { flex: 22 1 0; text-align: center; }
+    .status-roll-header span.col-clear { flex: 10 1 0; text-align: center; }
+    .status-roll-rows { display: flex; flex-direction: column; gap: 6px; }
+    .status-roll-row { display: flex; gap: 6px; align-items: stretch; position: relative; }
+    .status-roll-name-wrap { position: relative; flex: 26 1 0; min-width: 0; }
+    .status-roll-name-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 7px 8px; font-size: 11px; color: #e9f0ff; outline: none; }
+    .status-roll-name-input:focus { border-color: rgba(61,232,192,0.45); }
+    .status-roll-suggestions { position: absolute; top: 100%; left: 0; right: 0; margin-top: 3px; background: #0d1117; border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; max-height: 170px; overflow-y: auto; z-index: 30; box-shadow: 0 10px 28px rgba(0,0,0,0.55); }
+    .status-roll-suggestion { padding: 8px 10px; font-size: 11px; color: #e9f0ff; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .status-roll-suggestion:last-child { border-bottom: none; }
+    .status-roll-suggestion:hover { background: rgba(61,232,192,0.16); }
+    .status-roll-effect { flex: 42 1 0; min-width: 0; box-sizing: border-box; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 7px 8px; font-size: 10px; color: rgba(248,250,252,0.8); outline: none; line-height: 1.25; }
+    .status-roll-effect[data-readonly="1"] { color: rgba(248,250,252,0.55); font-style: italic; }
+    .status-roll-effect:focus { border-color: rgba(61,232,192,0.3); }
+    .status-roll-value-wrap { flex: 22 1 0; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .status-roll-value-btn { width: 24px; height: 24px; flex-shrink: 0; border-radius: 6px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .status-roll-value-btn:active { transform: scale(0.94); }
+    .status-roll-value { min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; color: #6ac7ff; font-size: 12px; }
+    .status-roll-clear { flex: 10 1 0; min-width: 30px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.1); color: #f87171; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+    .status-roll-clear-progress { position: absolute; inset: 0; background: rgba(239,68,68,0.4); width: 0%; pointer-events: none; }
+    .status-roll-clear-icon { position: relative; z-index: 1; }
+    .status-roll-add { align-self: flex-start; margin-top: 2px; padding: 7px 14px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.26); background: transparent; color: rgba(248,250,252,0.65); font-size: 10px; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase; }
+    .status-roll-add:disabled { opacity: 0.35; cursor: not-allowed; }
 
     /* ── Combat Panel ──────────────────────────────────────────────── */
     .chud-combat { margin-top: 4px; }
@@ -728,6 +800,322 @@ function buildCombatPanel() {
   return container
 }
 
+function readStatusRolls() {
+  try {
+    const raw = localStorage.getItem(STATUS_ROLLS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    // New format
+    if (Array.isArray(parsed?.rows)) return parsed.rows
+    // Back-compat: array at root
+    if (Array.isArray(parsed)) return parsed
+    // Back-compat: old key/value map { marked: 1, ... }
+    if (parsed && typeof parsed === 'object') {
+      return Object.entries(parsed).map(([name, roll], idx) => ({
+        id: `legacy-${idx}`,
+        name,
+        effect: '',
+        roll: Number.isFinite(roll) ? roll : 0,
+      }))
+    }
+    return []
+  } catch { return [] }
+}
+
+function writeStatusRolls(next) {
+  try {
+    const json = JSON.stringify({ rows: next })
+    localStorage.setItem(STATUS_ROLLS_KEY, json)
+  } catch {}
+}
+
+function buildStatusRollsPanel() {
+  const normalizeName = (s) => String(s || '').trim().toLowerCase()
+  const byName = new Map(STATUS_EFFECTS_CATALOG.map((it) => [normalizeName(it.name), it]))
+  const clampStatusRoll = (n) => Math.max(0, Math.min(STATUS_ROLL_MAX, Number.isFinite(n) ? n : 0))
+  const newRow = () => ({ id: `sr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: '', effect: '', roll: 0 })
+  const hydrateRows = (rows) => {
+    const safe = (Array.isArray(rows) ? rows : []).slice(0, STATUS_ROLL_MAX_ROWS).map((row, idx) => {
+      const name = String(row?.name || '')
+      const exact = byName.get(normalizeName(name))
+      const effect = exact ? exact.effect : String(row?.effect || '')
+      return {
+        id: String(row?.id || `sr-${idx}`),
+        name,
+        effect,
+        roll: clampStatusRoll(Number(row?.roll ?? 0)),
+      }
+    })
+    while (safe.length < STATUS_ROLL_DEFAULT_ROWS) safe.push(newRow())
+    return safe
+  }
+  const getSuggestions = (query) => {
+    const q = normalizeName(query)
+    if (!q) return []
+    return STATUS_EFFECTS_CATALOG
+      .filter((it) => normalizeName(it.name).includes(q))
+      .sort((a, b) => {
+        const aStarts = normalizeName(a.name).startsWith(q) ? 0 : 1
+        const bStarts = normalizeName(b.name).startsWith(q) ? 0 : 1
+        if (aStarts !== bStarts) return aStarts - bStarts
+        return a.name.localeCompare(b.name)
+      })
+      .slice(0, 6)
+  }
+
+  let open = readUI().statusRollsOpen ?? true
+  let rows = hydrateRows(readStatusRolls())
+  const container = document.createElement('div')
+  container.className = 'chud-status-rolls' + (open ? ' open' : '')
+
+  const toggleBtn = document.createElement('button')
+  toggleBtn.className = 'chud-status-rolls-toggle'
+  toggleBtn.setAttribute('data-touch-blocker-ignore', '')
+  const toggleLabel = document.createElement('span')
+  toggleLabel.textContent = 'Set Rolls (Status Effects)'
+  const chevron = document.createElement('span')
+  chevron.className = 'chud-status-rolls-chevron'
+  chevron.textContent = open ? '\u25b2' : '\u25bc'
+  toggleBtn.appendChild(toggleLabel)
+  toggleBtn.appendChild(chevron)
+  container.appendChild(toggleBtn)
+
+  toggleBtn.addEventListener('click', () => {
+    open = !open
+    container.className = 'chud-status-rolls' + (open ? ' open' : '')
+    chevron.textContent = open ? '\u25b2' : '\u25bc'
+    writeUIKey('statusRollsOpen', open)
+  })
+
+  const body = document.createElement('div')
+  body.className = 'chud-status-rolls-body'
+  container.appendChild(body)
+
+  const header = document.createElement('div')
+  header.className = 'status-roll-header'
+  header.innerHTML = '<span class="col-name">Name</span><span class="col-effect">Effect</span><span class="col-value">Set Roll</span><span class="col-clear">Clear</span>'
+  body.appendChild(header)
+
+  const rowsWrap = document.createElement('div')
+  rowsWrap.className = 'status-roll-rows'
+  body.appendChild(rowsWrap)
+
+  const addBtn = document.createElement('button')
+  addBtn.className = 'status-roll-add'
+  addBtn.textContent = 'Add Row'
+  addBtn.setAttribute('data-touch-blocker-ignore', '')
+  body.appendChild(addBtn)
+
+  const persist = () => writeStatusRolls(rows)
+
+  const renderRows = () => {
+    rowsWrap.innerHTML = ''
+    rows.forEach((row, idx) => {
+      const rowEl = document.createElement('div')
+      rowEl.className = 'status-roll-row'
+
+      const nameWrap = document.createElement('div')
+      nameWrap.className = 'status-roll-name-wrap'
+
+      const nameInput = document.createElement('input')
+      nameInput.type = 'text'
+      nameInput.className = 'status-roll-name-input'
+      nameInput.placeholder = 'Type effect name...'
+      nameInput.value = row.name
+      nameInput.autocomplete = 'off'
+      nameInput.setAttribute('data-touch-blocker-ignore', '')
+
+      const suggestionsEl = document.createElement('div')
+      suggestionsEl.className = 'status-roll-suggestions'
+      suggestionsEl.style.display = 'none'
+
+      const renderSuggestions = () => {
+        const list = getSuggestions(nameInput.value)
+        suggestionsEl.innerHTML = ''
+        if (!nameInput.value.trim() || list.length === 0) {
+          suggestionsEl.style.display = 'none'
+          return
+        }
+        list.forEach((item) => {
+          const option = document.createElement('div')
+          option.className = 'status-roll-suggestion'
+          option.textContent = item.name
+          option.addEventListener('pointerdown', (ev) => {
+            ev.preventDefault()
+            row.name = item.name
+            row.effect = item.effect
+            nameInput.value = item.name
+            effectInput.value = item.effect
+            effectInput.readOnly = true
+            effectInput.dataset.readonly = '1'
+            suggestionsEl.style.display = 'none'
+            persist()
+          })
+          suggestionsEl.appendChild(option)
+        })
+        suggestionsEl.style.display = 'block'
+      }
+
+      const effectInput = document.createElement('textarea')
+      effectInput.className = 'status-roll-effect'
+      effectInput.rows = 2
+      effectInput.setAttribute('data-touch-blocker-ignore', '')
+      const exact = byName.get(normalizeName(row.name))
+      if (exact) {
+        row.effect = exact.effect
+        effectInput.value = exact.effect
+        effectInput.readOnly = true
+        effectInput.dataset.readonly = '1'
+      } else {
+        effectInput.value = row.effect
+        effectInput.readOnly = false
+        effectInput.dataset.readonly = '0'
+      }
+
+      nameInput.addEventListener('input', () => {
+        row.name = nameInput.value
+        const match = byName.get(normalizeName(row.name))
+        if (match) {
+          row.effect = match.effect
+          effectInput.value = match.effect
+          effectInput.readOnly = true
+          effectInput.dataset.readonly = '1'
+        } else {
+          if (effectInput.readOnly) {
+            row.effect = ''
+            effectInput.value = ''
+          }
+          effectInput.readOnly = false
+          effectInput.dataset.readonly = '0'
+        }
+        renderSuggestions()
+        persist()
+      })
+
+      nameInput.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          const first = getSuggestions(nameInput.value)[0]
+          if (first) {
+            ev.preventDefault()
+            row.name = first.name
+            row.effect = first.effect
+            nameInput.value = first.name
+            effectInput.value = first.effect
+            effectInput.readOnly = true
+            effectInput.dataset.readonly = '1'
+            suggestionsEl.style.display = 'none'
+            persist()
+          }
+        }
+      })
+
+      nameInput.addEventListener('focus', () => renderSuggestions())
+      nameInput.addEventListener('blur', () => {
+        setTimeout(() => { suggestionsEl.style.display = 'none' }, 120)
+      })
+
+      effectInput.addEventListener('input', () => {
+        if (effectInput.readOnly) return
+        row.effect = effectInput.value
+        persist()
+      })
+
+      nameWrap.appendChild(nameInput)
+      nameWrap.appendChild(suggestionsEl)
+
+      const valueWrap = document.createElement('div')
+      valueWrap.className = 'status-roll-value-wrap'
+      const minus = document.createElement('button')
+      minus.className = 'status-roll-value-btn'
+      minus.textContent = '-'
+      minus.setAttribute('data-touch-blocker-ignore', '')
+      const val = document.createElement('span')
+      val.className = 'status-roll-value'
+      val.textContent = String(row.roll)
+      const plus = document.createElement('button')
+      plus.className = 'status-roll-value-btn'
+      plus.textContent = '+'
+      plus.setAttribute('data-touch-blocker-ignore', '')
+
+      minus.addEventListener('click', () => {
+        row.roll = clampStatusRoll(row.roll - 1)
+        val.textContent = String(row.roll)
+        persist()
+      })
+      plus.addEventListener('click', () => {
+        row.roll = clampStatusRoll(row.roll + 1)
+        val.textContent = String(row.roll)
+        persist()
+      })
+
+      valueWrap.appendChild(minus)
+      valueWrap.appendChild(val)
+      valueWrap.appendChild(plus)
+
+      const clearBtn = document.createElement('button')
+      clearBtn.className = 'status-roll-clear'
+      clearBtn.setAttribute('data-touch-blocker-ignore', '')
+      const clearProgress = document.createElement('span')
+      clearProgress.className = 'status-roll-clear-progress'
+      const clearIcon = document.createElement('span')
+      clearIcon.className = 'status-roll-clear-icon'
+      clearIcon.textContent = 'X'
+      clearBtn.appendChild(clearProgress)
+      clearBtn.appendChild(clearIcon)
+
+      let holdTimer = null
+      let holdTick = null
+      const HOLD_MS = 700
+      const clearHold = () => {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null }
+        if (holdTick) { clearInterval(holdTick); holdTick = null }
+        clearProgress.style.width = '0%'
+      }
+      clearBtn.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault()
+        const started = Date.now()
+        holdTick = setInterval(() => {
+          const pct = Math.min(100, ((Date.now() - started) / HOLD_MS) * 100)
+          clearProgress.style.width = `${pct}%`
+        }, 30)
+        holdTimer = setTimeout(() => {
+          clearHold()
+          rows.splice(idx, 1)
+          renderRows()
+          persist()
+        }, HOLD_MS)
+      })
+      ;['pointerup', 'pointerleave', 'pointercancel'].forEach((evt) => {
+        clearBtn.addEventListener(evt, clearHold)
+      })
+
+      rowEl.appendChild(nameWrap)
+      rowEl.appendChild(effectInput)
+      rowEl.appendChild(valueWrap)
+      rowEl.appendChild(clearBtn)
+      rowsWrap.appendChild(rowEl)
+    })
+    addBtn.disabled = rows.length >= STATUS_ROLL_MAX_ROWS
+  }
+
+  addBtn.addEventListener('click', () => {
+    if (rows.length >= STATUS_ROLL_MAX_ROWS) return
+    rows.push(newRow())
+    renderRows()
+    persist()
+  })
+
+  renderRows()
+
+  window.addEventListener('storage', (ev) => {
+    if (ev.key !== STATUS_ROLLS_KEY) return
+    rows = hydrateRows(readStatusRolls())
+    renderRows()
+  })
+
+  return container
+}
+
 function buildMeterRow(def, getMeters, setMeters) {
   const row = document.createElement('div')
   row.className = 'chud-meter-row'
@@ -835,7 +1223,9 @@ function mountMeters() {
   const wallet = buildWalletWidget()
   // Always append at end so React re-renders of accordion state can't shift position
   const combatPanel = buildCombatPanel()
+  const statusRollsPanel = buildStatusRollsPanel()
   panel.appendChild(combatPanel)
+  panel.appendChild(statusRollsPanel)
   panel.appendChild(wrapper)
   panel.appendChild(wallet)
 
