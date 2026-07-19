@@ -183,38 +183,30 @@ function hslToHex(hsl) {
 function openNewNodeMetersPopup(onConfirm) {
   const existing = document.getElementById('new-node-meters-overlay');
   if (existing) { existing.remove(); return; }
-	const factionState = loadFactionMeters();
-	const metersByFaction = factionState && factionState.metersByFaction ? factionState.metersByFaction : {};
-	const trueGlobalMeters = factionState && factionState.globalMeters ? factionState.globalMeters : createEmptyMeters();
-	let selectedFaction = FACTION_OPTIONS.includes(factionState?.currentFaction) ? factionState.currentFaction : 'Corporate';
+	const state = loadFactionMeters();
+	const metersByFaction = state && state.metersByFaction ? state.metersByFaction : {};
+	const trueGlobalMeters = state && state.globalMeters ? state.globalMeters : createEmptyMeters();
+	let selectedFaction = FACTION_OPTIONS.includes(state?.currentFaction) ? state.currentFaction : 'Corporate';
 	if (!metersByFaction[selectedFaction]) metersByFaction[selectedFaction] = createEmptyMeters();
 
-	const gFaction = createEmptyMeters();
-	const gTotal = createEmptyMeters();
-	const combineLayers = () => {
-		FACTION_METER_FIELDS.forEach(({ key }) => {
-			const gv = Math.max(0, Math.min(6, Number(trueGlobalMeters[key] || 0)));
-			const fv = Math.max(0, Math.min(6, Number(gFaction[key] || 0)));
-			gTotal[key] = Math.max(0, Math.min(6, gv + fv));
-		});
+	const clamp6 = (v) => Math.max(-6, Math.min(6, Number.isFinite(v) ? v : 0));
+	const toAxes = (meters) => {
+		const src = meters || createEmptyMeters();
+		return {
+			x: clamp6((src.distrust || 0) - (src.trust || 0)),
+			y: clamp6((src.carteBlanche || 0) - (src.surveillance || 0)),
+		};
 	};
-	const applyFactionGlobalMeters = () => {
-		const src = metersByFaction[selectedFaction] || createEmptyMeters();
-		FACTION_METER_FIELDS.forEach(({ key }) => {
-			gFaction[key] = typeof src[key] === 'number' ? Math.max(0, Math.min(6, src[key])) : 0;
-		});
-		combineLayers();
+	const getBaselineForFaction = (factionName) => {
+		const g = toAxes(trueGlobalMeters);
+		const f = toAxes(metersByFaction[factionName] || createEmptyMeters());
+		return { x: clamp6(g.x + f.x), y: clamp6(g.y + f.y) };
 	};
-	applyFactionGlobalMeters();
 
-	const live = createEmptyMeters();
-	FACTION_METER_FIELDS.forEach(({ key }) => { live[key] = gTotal[key]; });
-
-  const clamp6 = (v) => Math.max(-6, Math.min(6, v));
-	const computeResult = () => ({
-		gx: clamp6(live.trust - live.distrust),
-		gy: clamp6(live.carteBlanche - live.surveillance),
-	});
+	let baseline = getBaselineForFaction(selectedFaction);
+	let liveAxisX = baseline.x;
+	let liveAxisY = baseline.y;
+	const computeResult = () => ({ gx: clamp6(liveAxisX), gy: clamp6(liveAxisY) });
 
   const overlay = document.createElement('div');
   overlay.id = 'new-node-meters-overlay';
@@ -231,7 +223,7 @@ function openNewNodeMetersPopup(onConfirm) {
 	titleEl.textContent = 'New Contact — Initial Meters';
 	const subtitleEl = document.createElement('div');
 	subtitleEl.style.cssText = 'font-size:0.72rem;color:rgba(255,255,255,0.3);';
-	subtitleEl.textContent = 'True Global + Faction meters are combined to set initial position.';
+	subtitleEl.textContent = 'Starts from True Global + selected Faction baseline.';
 	titleRow.appendChild(titleEl);
 	titleRow.appendChild(subtitleEl);
 	card.appendChild(titleRow);
@@ -255,26 +247,24 @@ function openNewNodeMetersPopup(onConfirm) {
 	factionRow.appendChild(factionSelect);
 	card.appendChild(factionRow);
 
-		// Name field
-		const nameRow = document.createElement('div');
-		nameRow.style.cssText = 'display:flex;flex-direction:column;gap:2px;margin:10px 0 2px 0;';
-		const nameLabel = document.createElement('label');
-		nameLabel.textContent = 'Name (optional)';
-		nameLabel.style.cssText = 'font-size:0.82rem;color:rgba(255,255,255,0.55);margin-bottom:2px;letter-spacing:0.01em;';
-		const nameInput = document.createElement('input');
-		nameInput.type = 'text';
-		nameInput.placeholder = 'New Node';
-		nameInput.style.cssText = 'padding:7px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.13);background:#181c22;color:#e8eef3;font-size:1rem;outline:none;transition:border 0.15s;width:100%;';
-		nameInput.autocomplete = 'off';
-		nameRow.appendChild(nameLabel);
-		nameRow.appendChild(nameInput);
-		card.appendChild(nameRow);
+	const nameRow = document.createElement('div');
+	nameRow.style.cssText = 'display:flex;flex-direction:column;gap:2px;margin:10px 0 2px 0;';
+	const nameLabel = document.createElement('label');
+	nameLabel.textContent = 'Name (optional)';
+	nameLabel.style.cssText = 'font-size:0.82rem;color:rgba(255,255,255,0.55);margin-bottom:2px;letter-spacing:0.01em;';
+	const nameInput = document.createElement('input');
+	nameInput.type = 'text';
+	nameInput.placeholder = 'New Node';
+	nameInput.style.cssText = 'padding:7px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.13);background:#181c22;color:#e8eef3;font-size:1rem;outline:none;transition:border 0.15s;width:100%;';
+	nameInput.autocomplete = 'off';
+	nameRow.appendChild(nameLabel);
+	nameRow.appendChild(nameInput);
+	card.appendChild(nameRow);
 
-  const STEPS = 7; const MIN = 0; const MAX = 6;
+  const STEPS = 13; const MIN = -6; const MAX = 6;
+  const axisSetters = {};
 
-	const sliderSetters = {};
-
-	const makeSlider = ({ key, label }) => {
+	const makeAxisSlider = ({ axisKey, label, negativeLabel, positiveLabel }) => {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
 
@@ -285,10 +275,14 @@ function openNewNodeMetersPopup(onConfirm) {
     lbl.textContent = label;
     const valDisplay = document.createElement('span');
     valDisplay.style.cssText = 'font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums;min-width:28px;text-align:right;transition:color 0.15s;';
-    const updateValColor = (v) => { valDisplay.style.color = v > 0 ? '#6ac7ff' : 'rgba(255,255,255,0.5)'; };
-	const initVal = Math.max(0, Math.min(6, Number(live[key] || 0)));
-	valDisplay.textContent = `${initVal}`;
-	updateValColor(initVal);
+    const updateValColor = (v) => {
+			if (v > 0) valDisplay.style.color = '#6ac7ff';
+			else if (v < 0) valDisplay.style.color = '#ffdf7e';
+			else valDisplay.style.color = 'rgba(255,255,255,0.5)';
+		};
+		const initVal = axisKey === 'x' ? liveAxisX : liveAxisY;
+		valDisplay.textContent = initVal > 0 ? `+${initVal}` : `${initVal}`;
+		updateValColor(initVal);
     header.appendChild(lbl); header.appendChild(valDisplay);
     wrap.appendChild(header);
 
@@ -303,8 +297,8 @@ function openNewNodeMetersPopup(onConfirm) {
       const v = MIN + i;
       const pct = i / (STEPS - 1) * 100;
       const tick = document.createElement('div');
-      const isLeft = v === 0; const isMajor = v % 3 === 0;
-      tick.style.cssText = `position:absolute;top:50%;left:${pct}%;transform:translate(-50%,-50%);width:${isLeft ? 3 : isMajor ? 2 : 1}px;height:${isLeft ? 14 : isMajor ? 10 : 6}px;background:${isLeft ? 'rgba(255,255,255,0.5)' : isMajor ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)'};border-radius:1px;pointer-events:none;`;
+	const isCenter = v === 0; const isMajor = v % 3 === 0;
+	tick.style.cssText = `position:absolute;top:50%;left:${pct}%;transform:translate(-50%,-50%);width:${isCenter ? 3 : isMajor ? 2 : 1}px;height:${isCenter ? 14 : isMajor ? 10 : 6}px;background:${isCenter ? 'rgba(255,255,255,0.5)' : isMajor ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)'};border-radius:1px;pointer-events:none;`;
       trackWrap.appendChild(tick);
     }
 
@@ -315,10 +309,10 @@ function openNewNodeMetersPopup(onConfirm) {
 
     const hints = document.createElement('div');
     hints.style.cssText = 'display:flex;justify-content:space-between;';
-    [0, 3, 6].forEach((v, i) => {
+		[MIN, 0, MAX].forEach((v, i) => {
       const h = document.createElement('span');
       h.style.cssText = 'font-size:0.6rem;color:rgba(255,255,255,0.25);font-variant-numeric:tabular-nums;';
-      h.textContent = `${v}`;
+			h.textContent = v > 0 ? `+${v}` : `${v}`;
       if (i === 1) h.style.textAlign = 'center';
       if (i === 2) h.style.textAlign = 'right';
       hints.appendChild(h);
@@ -334,14 +328,15 @@ function openNewNodeMetersPopup(onConfirm) {
     };
 		const setVal = (v, shouldRefresh = true) => {
 			const safeVal = Math.max(MIN, Math.min(MAX, Number.isFinite(v) ? v : 0));
-			live[key] = safeVal;
+			if (axisKey === 'x') liveAxisX = safeVal;
+			else liveAxisY = safeVal;
 			const pct = (safeVal - MIN) / (MAX - MIN) * 100;
       thumb.style.left = `${pct}%`;
-			valDisplay.textContent = `${safeVal}`;
+			valDisplay.textContent = safeVal > 0 ? `+${safeVal}` : `${safeVal}`;
 			updateValColor(safeVal);
 			if (shouldRefresh) refreshResult();
     };
-		sliderSetters[key] = setVal;
+		axisSetters[axisKey] = setVal;
 
     trackWrap.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -353,7 +348,17 @@ function openNewNodeMetersPopup(onConfirm) {
       trackWrap.addEventListener('pointerup', onUp);
     });
 
-    return wrap;
+		const legends = document.createElement('div');
+		legends.style.cssText = 'display:flex;justify-content:space-between;font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.42);';
+		const left = document.createElement('span');
+		left.textContent = negativeLabel;
+		const right = document.createElement('span');
+		right.textContent = positiveLabel;
+		legends.appendChild(left);
+		legends.appendChild(right);
+		wrap.appendChild(legends);
+
+		return wrap;
   };
 
 
@@ -425,8 +430,9 @@ function openNewNodeMetersPopup(onConfirm) {
 	// Initial dot
 	updateDot();
 
-	// Sliders
-	FACTION_METER_FIELDS.forEach(f => card.appendChild(makeSlider(f)));
+	// Axis sliders
+	card.appendChild(makeAxisSlider({ axisKey: 'x', label: 'Trust / Distrust Axis', negativeLabel: 'Trust (-)', positiveLabel: 'Distrust (+)' }));
+	card.appendChild(makeAxisSlider({ axisKey: 'y', label: 'Surveillance / Carte Blanche Axis', negativeLabel: 'Surveillance (-)', positiveLabel: 'Carte Blanche (+)' }));
 
 	// Patch refreshResult to also update dot
 	const origRefresh = refreshResult;
@@ -474,18 +480,18 @@ function openNewNodeMetersPopup(onConfirm) {
     xCell.val.style.color = colorForVal(r.gx);
     yCell.val.textContent = fmtVal(r.gy);
     yCell.val.style.color = colorForVal(r.gy);
-		globalVals.textContent = `Total = True Global + ${selectedFaction}: Trust ${gTotal.trust} | Distrust ${gTotal.distrust} | Carte Blanche ${gTotal.carteBlanche} | Surveillance ${gTotal.surveillance}`;
+		globalVals.textContent = `Baseline (${selectedFaction}): X ${baseline.x > 0 ? '+' : ''}${baseline.x}, Y ${baseline.y > 0 ? '+' : ''}${baseline.y}`;
   }
   refreshResult();
 
 	factionSelect.addEventListener('change', () => {
 		selectedFaction = FACTION_OPTIONS.includes(factionSelect.value) ? factionSelect.value : 'Corporate';
 		if (!metersByFaction[selectedFaction]) metersByFaction[selectedFaction] = createEmptyMeters();
-		applyFactionGlobalMeters();
-		FACTION_METER_FIELDS.forEach(({ key }) => {
-			const nextVal = Math.max(0, Math.min(6, Number(gTotal[key] || 0)));
-			if (sliderSetters[key]) sliderSetters[key](nextVal, false);
-		});
+		baseline = getBaselineForFaction(selectedFaction);
+		liveAxisX = baseline.x;
+		liveAxisY = baseline.y;
+		if (axisSetters.x) axisSetters.x(liveAxisX, false);
+		if (axisSetters.y) axisSetters.y(liveAxisY, false);
 		refreshResult();
 		updateDot();
 	});
@@ -639,37 +645,72 @@ function updateControlMeterBars() {
 	renderBars('ctrl-meter-grit', globalMeters.grit || 0, 'grit');
 }
 function setupMeterTapTargets() {
-	const LONG_PRESS_MS = 520;
+	const LONG_PRESS_MS = 680;
+	const MOVE_CANCEL_PX = 14;
+	const TAP_DEBOUNCE_MS = 180;
 	const targets = document.querySelectorAll('[data-meter-tap]');
 	targets.forEach(target => {
 		const meter = target.getAttribute('data-meter-tap');
 		if (!meter) return;
 		let timer = null;
 		let longPress = false;
-		let suppressClick = false;
+		let suppressClickUntil = 0;
+		let activePointerId = null;
+		let startX = 0;
+		let startY = 0;
+		let movedTooFar = false;
+		let lastCommitAt = 0;
 		const clearTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
-		const handleIncrement = () => { suppressClick = true; changeGlobalMeter(meter, +1); };
-		const handleDecrement = () => { suppressClick = true; changeGlobalMeter(meter, -1); };
+		const commitChange = (delta) => {
+			const now = Date.now();
+			if (now - lastCommitAt < TAP_DEBOUNCE_MS) return;
+			lastCommitAt = now;
+			suppressClickUntil = now + TAP_DEBOUNCE_MS;
+			changeGlobalMeter(meter, delta);
+		};
+		const handleIncrement = () => { commitChange(+1); };
+		const handleDecrement = () => { commitChange(-1); };
+		const resetGesture = () => {
+			clearTimer();
+			activePointerId = null;
+			longPress = false;
+			movedTooFar = false;
+		};
 		target.addEventListener('pointerdown', (ev) => {
 			if (ev.button === 2) return;
+			if (activePointerId !== null) return;
+			activePointerId = ev.pointerId;
 			longPress = false;
-			suppressClick = false;
+			movedTooFar = false;
+			startX = ev.clientX;
+			startY = ev.clientY;
+			try { target.setPointerCapture(ev.pointerId); } catch {}
 			clearTimer();
 			timer = setTimeout(() => {
 				longPress = true;
 				handleDecrement();
 			}, LONG_PRESS_MS);
 		});
+		target.addEventListener('pointermove', (ev) => {
+			if (activePointerId === null || ev.pointerId !== activePointerId) return;
+			if (movedTooFar) return;
+			if (Math.abs(ev.clientX - startX) > MOVE_CANCEL_PX || Math.abs(ev.clientY - startY) > MOVE_CANCEL_PX) {
+				movedTooFar = true;
+				clearTimer();
+			}
+		});
 		target.addEventListener('pointerup', (ev) => {
 			if (ev.button === 2) return;
-			if (timer) clearTimer();
-			if (!longPress) { handleIncrement(); }
-			longPress = false;
+			if (activePointerId === null || ev.pointerId !== activePointerId) return;
+			clearTimer();
+			if (!longPress && !movedTooFar) { handleIncrement(); }
+			resetGesture();
 		});
 		['pointerleave','pointercancel'].forEach(eventName => {
-			target.addEventListener(eventName, () => {
-				if (timer) clearTimer();
-				longPress = false;
+			target.addEventListener(eventName, (ev) => {
+				if (activePointerId !== null && ev.pointerId === activePointerId) {
+					resetGesture();
+				}
 			});
 		});
 		target.addEventListener('contextmenu', (ev) => {
@@ -677,10 +718,9 @@ function setupMeterTapTargets() {
 			handleDecrement();
 		});
 		target.addEventListener('click', (ev) => {
-			if (suppressClick) {
+			if (Date.now() < suppressClickUntil) {
 				ev.preventDefault();
 				ev.stopPropagation();
-				suppressClick = false;
 			}
 		});
 	});
