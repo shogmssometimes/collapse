@@ -1,8 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey } from '../utils/slotKeys'
-
-const CHAR_ACTIVE_KEY = 'collapse.char.active'
-const charSlotKey = (n: number) => `collapse.char.slot.${n}`
+import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey, CHAR_ACTIVE_KEY, charSlotKey } from '../utils/slotKeys'
 
 export const SLOT_DECK_KEYS: Record<number, string> = {
   1: deckBuilderKey(1),

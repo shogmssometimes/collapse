@@ -1,20 +1,29 @@
 // Bump cache version to force a new cache after major deploys.
 // If you need faster invalidation in the future, update this to v3, v4, etc.
-const CACHE_NAME = "collapse-fullbuild-v8";
+const CACHE_NAME = "collapse-fullbuild-v9";
 
 // Derive the base path from the service worker registration so it works from any repo path.
 const scopeUrl = new URL(self.registration.scope);
 const APP_BASE = scopeUrl.pathname.endsWith("/") ? scopeUrl.pathname : `${scopeUrl.pathname}/`;
 const DOC_FALLBACKS = [
   `${APP_BASE}index.html`,
+  `${APP_BASE}gm.html`,
   `${APP_BASE}cvttweb/index.html`,
   `${APP_BASE}chud/index.html`,
   `${APP_BASE}csmatrix/index.html`
 ];
+const ICON_ASSETS = [
+  `${APP_BASE}icons/icon-180.png`,
+  `${APP_BASE}icons/icon-192.png`,
+  `${APP_BASE}icons/icon-512.png`,
+  `${APP_BASE}icons/favicon-32.png`,
+  `${APP_BASE}icons/favicon-16.png`
+];
 const APP_SHELL = [
   APP_BASE,
   ...DOC_FALLBACKS,
-  `${APP_BASE}manifest.webmanifest`
+  `${APP_BASE}manifest.webmanifest`,
+  ...ICON_ASSETS
 ];
 
 self.addEventListener("install", (event) => {

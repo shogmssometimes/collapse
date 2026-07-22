@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const URL = 'http://localhost:3030/collapse/#/chud';
+const URL = process.env.CHUD_URL || 'http://localhost:3030/collapse/#/chud';
 const STORAGE_KEY = 'chud.state.v1';
 
 test('approach values persist across reload', async ({ page }) => {

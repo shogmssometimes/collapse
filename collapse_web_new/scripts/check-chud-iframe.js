@@ -3,7 +3,8 @@ import { chromium } from 'playwright';
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
-  await page.goto('http://localhost:3030/collapse/#/chud', { waitUntil: 'networkidle' });
+  const URL = process.env.CHUD_URL || 'http://localhost:3030/collapse/#/chud';
+  await page.goto(URL, { waitUntil: 'networkidle' });
 
   // Wait for iframe to load. Try specific title first, fallback to iframe with chud src.
   let frameSelector = 'iframe[title="cHUD — Compact HUD"]';

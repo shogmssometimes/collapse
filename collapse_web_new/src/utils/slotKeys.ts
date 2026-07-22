@@ -2,6 +2,10 @@
 export const deckBuilderKey = (slot: number): string =>
   slot === 1 ? 'collapse.deck-builder.v2' : `collapse.deck-builder.slot.${slot}`
 
+export const CHAR_ACTIVE_KEY = 'collapse.char.active'
+
+export const charSlotKey = (slot: number): string => `collapse.char.slot.${slot}`
+
 export const gearSlotsKey = (slot: number): string =>
   slot === 1 ? 'gear.slots.v1' : `gear.slots.slot.${slot}`
 

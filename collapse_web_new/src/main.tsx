@@ -4,6 +4,10 @@ import App from './App';
 import './styles/variables.css';
 import './index.css';
 
+const TOUCH_BLOCKER_SELECTOR = 'button, a[href], [role="button"], .button, .counter-btn, .card, .stat-card, .core-card, .interactive, .stat-large'
+const TOUCH_SELECTION_INIT_KEY = '__collapseTouchSelectionInit__'
+const TOUCH_BLOCKER_INIT_KEY = '__collapseTouchBlockerInit__'
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('Root element #root not found');
@@ -39,7 +43,8 @@ if (typeof window !== 'undefined') {
 
 // If running on a touch device, disable text selection globally (can be narrowed to components if desired)
 // Add no-select class to root on touch devices to prioritize taps
-if (typeof window !== 'undefined' && 'ontouchstart' in window) {
+if (typeof window !== 'undefined' && 'ontouchstart' in window && !(window as any)[TOUCH_SELECTION_INIT_KEY]) {
+  (window as any)[TOUCH_SELECTION_INIT_KEY] = true
   document.getElementById('root')?.classList.add('no-select');
 
   // Track recent touch to distinguish touch-triggered contextmenu (long-press) from mouse right-click
@@ -190,10 +195,10 @@ function attachTouchBlockerToButton(btn: HTMLElement) {
   (btn as any)._touchBlockerAttached = true;
 }
 
-function attachBlockersToAllButtons() {
+function attachBlockersToAllButtons(root: ParentNode = document) {
   try {
     // expanded selector set for interactive elements
-    document.querySelectorAll('button, a[href], [role="button"], .button, .counter-btn, .card, .stat-card, .core-card, .interactive, .stat-large').forEach((el) => {
+    root.querySelectorAll(TOUCH_BLOCKER_SELECTOR).forEach((el) => {
       if (el instanceof HTMLElement) attachTouchBlockerToButton(el);
     });
   } catch (e) {
@@ -202,16 +207,16 @@ function attachBlockersToAllButtons() {
 }
 
 // auto-attach on load and watch for new buttons
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !(window as any)[TOUCH_BLOCKER_INIT_KEY]) {
+  (window as any)[TOUCH_BLOCKER_INIT_KEY] = true
   attachBlockersToAllButtons();
   try {
-    const selector = 'button, a[href], [role="button"], .button, .counter-btn, .card, .stat-card, .core-card, .interactive, .stat-large';
     const mo = new MutationObserver((mutations) => {
       mutations.forEach((m) => {
         m.addedNodes.forEach((node) => {
           if (!(node instanceof HTMLElement)) return;
-          if (node.matches && node.matches(selector)) attachTouchBlockerToButton(node);
-          node.querySelectorAll && node.querySelectorAll(selector).forEach((el) => { if (el instanceof HTMLElement) attachTouchBlockerToButton(el); });
+          if (node.matches && node.matches(TOUCH_BLOCKER_SELECTOR)) attachTouchBlockerToButton(node);
+          node.querySelectorAll && node.querySelectorAll(TOUCH_BLOCKER_SELECTOR).forEach((el) => { if (el instanceof HTMLElement) attachTouchBlockerToButton(el); });
         });
       });
     });
@@ -219,10 +224,6 @@ if (typeof window !== 'undefined') {
   } catch (e) {
     // ignore
   }
-}
-
-// Global handlers: run on selectionchange and pointer/touch events
-if (typeof window !== 'undefined') {
   // Clear immediately when selection changes
   document.addEventListener('selectionchange', () => {
     // use rAF to ensure we clear after browser selection update

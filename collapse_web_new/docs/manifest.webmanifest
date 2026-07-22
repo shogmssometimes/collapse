@@ -1,6 +1,7 @@
 {
   "name": "Collapse Full Build",
   "short_name": "Collapse",
+  "id": ".",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

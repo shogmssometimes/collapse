@@ -72,9 +72,10 @@ const DisplayCard: React.FC<{
   data: ProfileData;
   charName: string;
   miniMatrixSrc: string;
+  imgError: boolean;
+  onImgError: () => void;
   onEdit: () => void;
-}> = ({ data, charName, miniMatrixSrc, onEdit }) => {
-  const [imgError, setImgError] = useState(false);
+}> = ({ data, charName, miniMatrixSrc, imgError, onImgError, onEdit }) => {
   const displayName = charName || 'Unknown Operative';
 
   return (
@@ -91,7 +92,7 @@ const DisplayCard: React.FC<{
       <div style={{ padding: '16px 16px 0' }}>
         <div style={{ width: '100%', height: 200, borderRadius: 8, border: '1px solid rgba(15,246,255,0.25)', background: 'rgba(15,246,255,0.04)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {data.pfpUrl && !imgError ? (
-            <img src={data.pfpUrl} alt="Profile" onError={() => setImgError(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <img src={data.pfpUrl} alt="Profile" onError={onImgError} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'rgba(15,246,255,0.3)' }}>
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
@@ -161,15 +162,17 @@ const DisplayCard: React.FC<{
 const SetupForm: React.FC<{
   data: ProfileData;
   charName: string;
+  imgError: boolean;
+  onImgError: () => void;
+  onImgReset: () => void;
   onChange: (data: ProfileData) => void;
   onDone: () => void;
-}> = ({ data, charName, onChange, onDone }) => {
-  const [imgError, setImgError] = useState(false);
+}> = ({ data, charName, imgError, onImgError, onImgReset, onChange, onDone }) => {
   const featureInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [editingFeatureIdx, setEditingFeatureIdx] = useState<number | null>(null);
 
   const handleImgurInput = (raw: string) => {
-    setImgError(false);
+    onImgReset();
     onChange({ ...data, rawImgurInput: raw, pfpUrl: toDirectImgurUrl(raw) });
   };
 
@@ -202,7 +205,7 @@ const SetupForm: React.FC<{
       <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
         <div style={{ width: 72, height: 88, flexShrink: 0, borderRadius: 6, border: '1px solid rgba(15,246,255,0.3)', background: 'rgba(15,246,255,0.04)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {data.pfpUrl && !imgError ? (
-            <img src={data.pfpUrl} alt="Profile" onError={() => setImgError(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <img src={data.pfpUrl} alt="Profile" onError={onImgError} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(15,246,255,0.35)' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
@@ -290,18 +293,35 @@ export default function ProfilePage({
   const [data, setData] = useState<ProfileData>(() => readProfile(storageKey));
   const [charName, setCharName] = useState(() => readCharName(charSlot));
   const [mode, setMode] = useState<'display' | 'setup'>('display');
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => { setCharName(readCharName(charSlot)); }, [charSlot]);
   useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(data)); }, [data, storageKey]);
+  useEffect(() => { setImgError(false); }, [data.pfpUrl]);
 
   const miniMatrixSrc = `${BASE_URL}csmatrix/index.html?mini=1`;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1.5rem 1rem 4rem' }}>
       {mode === 'display' ? (
-        <DisplayCard data={data} charName={charName} miniMatrixSrc={miniMatrixSrc} onEdit={() => setMode('setup')} />
+        <DisplayCard
+          data={data}
+          charName={charName}
+          miniMatrixSrc={miniMatrixSrc}
+          imgError={imgError}
+          onImgError={() => setImgError(true)}
+          onEdit={() => setMode('setup')}
+        />
       ) : (
-        <SetupForm data={data} charName={charName} onChange={setData} onDone={() => setMode('display')} />
+        <SetupForm
+          data={data}
+          charName={charName}
+          imgError={imgError}
+          onImgError={() => setImgError(true)}
+          onImgReset={() => setImgError(false)}
+          onChange={setData}
+          onDone={() => setMode('display')}
+        />
       )}
     </div>
   );

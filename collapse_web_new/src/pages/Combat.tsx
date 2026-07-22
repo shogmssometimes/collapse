@@ -11,12 +11,13 @@ type CombatState = {
   durability: string
   damage: string
   reactionTokens: number
+  tokensBought: number
   spentAp: number
   spentApOnTokens: number
   turnLocked: boolean
 }
 
-const DEFAULT: CombatState = { rangeSwapped: false, durability: 'd6', damage: 'd4', reactionTokens: 0, spentAp: 0, spentApOnTokens: 0, turnLocked: false }
+const DEFAULT: CombatState = { rangeSwapped: false, durability: 'd6', damage: 'd4', reactionTokens: 0, tokensBought: 0, spentAp: 0, spentApOnTokens: 0, turnLocked: false }
 
 /** Cost to purchase the next RT when you already own `owned` tokens: 2^owned */
 function nextTokenCost(owned: number): number {
@@ -37,6 +38,7 @@ function loadCombat(): CombatState {
       durability: typeof p.durability === 'string' && p.durability ? p.durability : 'd6',
       damage: typeof p.damage === 'string' && p.damage ? p.damage : 'd4',
       reactionTokens: typeof p.reactionTokens === 'number' ? p.reactionTokens : 0,
+      tokensBought: typeof p.tokensBought === 'number' ? p.tokensBought : (typeof p.reactionTokens === 'number' ? p.reactionTokens : 0),
       spentAp: typeof p.spentAp === 'number' ? p.spentAp : 0,
       spentApOnTokens: typeof p.spentApOnTokens === 'number' ? p.spentApOnTokens : 0,
       turnLocked: typeof p.turnLocked === 'boolean' ? p.turnLocked : false,
@@ -180,7 +182,7 @@ const ACTION_DATA: { action: string; ap: number; reaction: string; onTurnDesc: s
     reactionDesc: 'Hold an AO Roll to use a Roleplay Action.' },
 ]
 
-/** A queued action chip — long-press 2s to remove (disabled when locked) */
+/** A queued action chip — long-press 1s to remove it and refund its AP/tokens (disabled when locked) */
 function QueueChip({ item, onRemove, locked }: { item: QueuedAction; onRemove: () => void; locked: boolean }) {
   const [holdProgress, setHoldProgress] = useState(0)
   const [releasing, setReleasing] = useState(false)
@@ -455,6 +457,8 @@ export default function CombatPage() {
     setQueue(prev => [...prev, { id: `${Date.now()}-${Math.random()}`, action, ap: 0, mode: 'reaction' as const, tokenCost }])
   }, [combat.reactionTokens, combat.turnLocked])
 
+  // Long-pressing a queue chip removes it from the queue and refunds whatever AP or
+  // reaction tokens it had reserved.
   const removeFromQueue = useCallback((id: string) => {
     if (combat.turnLocked) return
     setQueue(prev => {
@@ -475,7 +479,7 @@ export default function CombatPage() {
   const apUsed = apUsedByQueue + apUsedByTokens
   const apRemaining = maxAp - apUsed
   const actionsFull = apRemaining <= 0
-  const nextRtCost = nextTokenCost(combat.reactionTokens)
+  const nextRtCost = nextTokenCost(combat.tokensBought)
   const canBuyToken = apRemaining >= nextRtCost
 
   const crValue = combat.rangeSwapped ? '−4' : '0'
@@ -610,7 +614,8 @@ export default function CombatPage() {
                 onRefund={() => setCombat(prev => ({
                   ...prev,
                   reactionTokens: prev.reactionTokens - 1,
-                  spentApOnTokens: Math.max(0, prev.spentApOnTokens - nextTokenCost(prev.reactionTokens - 1)),
+                  tokensBought: Math.max(0, prev.tokensBought - 1),
+                  spentApOnTokens: Math.max(0, prev.spentApOnTokens - nextTokenCost(prev.tokensBought - 1)),
                 }))}
               />
             ))
@@ -621,6 +626,7 @@ export default function CombatPage() {
           onClick={() => setCombat(prev => ({
             ...prev,
             reactionTokens: prev.reactionTokens + 1,
+            tokensBought: prev.tokensBought + 1,
             spentApOnTokens: prev.spentApOnTokens + nextRtCost,
           }))}
           title={canBuyToken ? `Spend ${nextRtCost}AP for 1 Token` : `Need ${nextRtCost}AP`}
@@ -673,7 +679,7 @@ export default function CombatPage() {
             <button
               onClick={() => {
                 setQueue([])
-                setCombat(prev => ({ ...prev, reactionTokens: 0, spentAp: 0, spentApOnTokens: 0, turnLocked: false }))
+                setCombat(prev => ({ ...prev, reactionTokens: 0, tokensBought: 0, spentAp: 0, spentApOnTokens: 0, turnLocked: false }))
               }}
               style={{
                 background: 'rgba(15,246,255,0.08)',
@@ -756,8 +762,15 @@ export default function CombatPage() {
           ))}
         </div>
         {ACTION_DATA.map((row, i) => {
-          const canAdd = !combat.turnLocked && apRemaining >= row.ap
-          const reactionCost = tokenCostFromReaction(row.reaction)
+          // Each time this action is already queued this turn, its cost doubles on the
+          // next purchase (On Turn AP cost and Reaction token cost alike) — other actions
+          // are unaffected.
+          const timesQueued = queue.filter(q => q.action === row.action).length
+          const costMultiplier = Math.pow(2, timesQueued)
+          const effectiveAp = row.ap * costMultiplier
+          const canAdd = !combat.turnLocked && apRemaining >= effectiveAp
+          const baseReactionCost = tokenCostFromReaction(row.reaction)
+          const reactionCost = baseReactionCost * costMultiplier
           const canReact = reactionCost > 0 && combat.reactionTokens >= reactionCost
           return (
             <div
@@ -773,7 +786,7 @@ export default function CombatPage() {
               {/* Action name — tap to queue, long-press for description */}
               <div
                 onPointerDown={startCellHold(`${row.action} — On Turn`, row.onTurnDesc)}
-                onPointerUp={endCellHold(() => addToQueue(row.action, row.ap))}
+                onPointerUp={endCellHold(() => canAdd && addToQueue(row.action, effectiveAp))}
                 onPointerLeave={cancelCellHold}
                 onPointerCancel={cancelCellHold}
                 style={{
@@ -795,7 +808,7 @@ export default function CombatPage() {
                   fontWeight: 600,
                   textAlign: 'center',
                   minWidth: 76,
-                }}>{row.ap}AP</span>
+                }}>{effectiveAp}AP</span>
               </div>
               {/* As Reaction — tap to react, long-press for description */}
               <div

@@ -1426,7 +1426,7 @@ function loadSample() {
 			// otherwise fall back to the sample
 		} catch (err) { /* continue to sample */ }
 	}
-	const sample = { nodes: [ { id: 'n1', name: 'Organizer', gx: -1, gy: 2 }, { id: 'n2', name: 'Ally', gx: 1, gy: 2 }, { id: 'n3', name: 'Neutral', gx: 0, gy: 0 } ], edges: [], meta: { globalMeters: { collapse: 0, influence: 2, record: 1, grit: 0 } } };
+	const sample = { nodes: [], edges: [], meta: { globalMeters: { collapse: 0, influence: 0, record: 0, grit: 0 } } };
 	try {
 		graph.fromJSON(sample);
 	} catch (err) { console.error('csmatrix: graph.fromJSON failed', err); }

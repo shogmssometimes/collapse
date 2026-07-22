@@ -27,6 +27,105 @@ function searchGear(query: string): GearItem[] {
   )
 }
 
+const GEAR_NAME_OPTIONS = gear.map(item => item.name)
+
+function NameAutocompleteInput({
+  value,
+  onChange,
+  onSelect,
+  options,
+  placeholder,
+  style,
+}: {
+  value: string
+  onChange: (value: string) => void
+  onSelect?: (value: string) => void
+  options: string[]
+  placeholder?: string
+  style?: React.CSSProperties
+}) {
+  const [open, setOpen] = useState(false)
+  const [highlight, setHighlight] = useState(0)
+  const wrapRef = useRef<HTMLDivElement | null>(null)
+
+  const suggestions = useMemo(() => {
+    const q = value.trim().toLowerCase()
+    const list = q ? options.filter(name => name.toLowerCase().includes(q)) : options
+    return list.slice(0, 8)
+  }, [value, options])
+
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  const selectSuggestion = (name: string) => {
+    onChange(name)
+    onSelect?.(name)
+    setOpen(false)
+  }
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', width: '100%' }}>
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true); setHighlight(0) }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={e => {
+          if (!open || suggestions.length === 0) return
+          if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => Math.min(h + 1, suggestions.length - 1)) }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => Math.max(h - 1, 0)) }
+          else if (e.key === 'Enter') { e.preventDefault(); selectSuggestion(suggestions[highlight]) }
+          else if (e.key === 'Escape') { setOpen(false) }
+        }}
+        autoComplete="off"
+        style={style ?? FIELD_STYLE}
+      />
+      {open && suggestions.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            marginTop: 3,
+            background: '#0d1117',
+            border: '1px solid rgba(255,255,255,0.18)',
+            borderRadius: 8,
+            maxHeight: 170,
+            overflowY: 'auto',
+            zIndex: 30,
+            boxShadow: '0 10px 28px rgba(0,0,0,0.55)',
+          }}
+        >
+          {suggestions.map((name, i) => (
+            <div
+              key={name}
+              onMouseDown={e => { e.preventDefault(); selectSuggestion(name) }}
+              style={{
+                padding: '8px 10px',
+                fontSize: '0.72rem',
+                color: '#e9f0ff',
+                cursor: 'pointer',
+                borderBottom: i === suggestions.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                background: i === highlight ? 'rgba(61,232,192,0.16)' : 'transparent',
+              }}
+            >
+              {name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // --- Inventory slot data ---
 export type SlotEntry = { name: string; units: string; qty: string }
 export type EquippedItem = { itemId: string } | null
@@ -210,11 +309,15 @@ function SlotRow({ index, entry, onChange }: {
           USE
         </div>
       </div>
-      <input
-        type="text"
+      <NameAutocompleteInput
         placeholder="—"
         value={entry.name}
-        onChange={e => onChange({ ...entry, name: e.target.value })}
+        onChange={name => onChange({ ...entry, name })}
+        onSelect={name => {
+          const match = gear.find(item => item.name === name)
+          onChange({ ...entry, name, units: match?.cost !== undefined ? String(match.cost) : entry.units })
+        }}
+        options={GEAR_NAME_OPTIONS}
         style={FIELD_STYLE}
       />
       <input
@@ -265,7 +368,7 @@ function InventoryEntries({ count, entries, onEntryChange }: {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
         {Array.from({ length: count }).map((_, i) => (
           <SlotRow
-            key={i}
+            key={`slot-row-${i}`}
             index={i}
             entry={entries[i] ?? EMPTY_ENTRY}
             onChange={e => onEntryChange(i, e)}
@@ -375,7 +478,7 @@ const RARITY_COLORS: Record<GearRarity, string> = {
   Unique:   'rgba(249,115,22,0.85)',
 }
 
-function GearCard({ item }: { item: GearItem }) {
+function GearCard({ item, onQuickAdd }: { item: GearItem; onQuickAdd?: (item: GearItem) => void }) {
   const [expanded, setExpanded] = useState(false)
   const rarityColor = RARITY_COLORS[item.rarity]
 
@@ -400,7 +503,7 @@ function GearCard({ item }: { item: GearItem }) {
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
           {item.cost !== undefined && (
             <span style={{ fontSize: '0.7rem', color: 'var(--muted)', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 6px' }}>
-              ¢{item.cost}
+              Size {item.cost}
             </span>
           )}
           <span
@@ -416,6 +519,33 @@ function GearCard({ item }: { item: GearItem }) {
           >
             {item.rarity}
           </span>
+          {onQuickAdd && (
+            <button
+              onClick={e => { e.stopPropagation(); onQuickAdd(item) }}
+              title="Add 1 to Inventory"
+              aria-label={`Add 1 ${item.name} to inventory`}
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(99,255,177,0.1)',
+                border: '1px solid rgba(99,255,177,0.45)',
+                color: '#63ffb1',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                lineHeight: 1,
+                padding: 0,
+                cursor: 'pointer',
+                flexShrink: 0,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              +
+            </button>
+          )}
         </div>
       </div>
 
@@ -498,6 +628,30 @@ export default function GearPage({
     setEntries(prev => {
       const next = [...prev]
       next[index] = entry
+      return next
+    })
+  }
+
+  // Quick-add from the gear browser: bump qty on a matching inventory slot, or
+  // fill the first empty visible slot with this item at qty 1.
+  const handleQuickAdd = (item: GearItem) => {
+    setEntries(prev => {
+      const next = [...prev]
+      const existingIndex = next.slice(0, inventorySlots).findIndex(e => e.name === item.name)
+      if (existingIndex !== -1) {
+        const current = parseFloat(next[existingIndex].qty)
+        const newQty = (!isNaN(current) ? current : 0) + 1
+        next[existingIndex] = { ...next[existingIndex], qty: String(newQty) }
+        return next
+      }
+      const emptyIndex = next.slice(0, inventorySlots).findIndex(e => !e.name)
+      if (emptyIndex !== -1) {
+        next[emptyIndex] = {
+          name: item.name,
+          units: item.cost !== undefined ? String(item.cost) : '',
+          qty: '1',
+        }
+      }
       return next
     })
   }
@@ -640,9 +794,10 @@ export default function GearPage({
                 </label>
                 <input
                   type="text"
+                  placeholder="—"
                   value={row.name}
                   onChange={e => handleWardrobeChange(index, 'name', e.target.value)}
-                  style={{ ...FIELD_STYLE }}
+                  style={FIELD_STYLE}
                 />
               </div>
 
@@ -819,7 +974,7 @@ export default function GearPage({
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {grouped[slot]!.map(item => (
-                  <GearCard key={item.id} item={item} />
+                  <GearCard key={item.id} item={item} onQuickAdd={handleQuickAdd} />
                 ))}
               </div>
             </div>

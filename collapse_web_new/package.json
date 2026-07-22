@@ -5,15 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:fancybuild": "vite",
     "sync:csmatrix": "rm -rf docs/csmatrix docs-gm/csmatrix && cp -R public/csmatrix docs/csmatrix && cp -R public/csmatrix docs-gm/csmatrix",
-    "sync:chud": "cp -f public/chud/meter-bridge.js docs/chud/meter-bridge.js && cp -f public/chud/meter-bridge.js docs-gm/chud/meter-bridge.js && cp -f public/chud/assets/chud-app.css docs/chud/assets/chud-app.css && cp -f public/chud/assets/chud-app.css docs-gm/chud/assets/chud-app.css",
+    "sync:chud": "rm -rf docs/chud docs-gm/chud && cp -R public/chud docs/chud && cp -R public/chud docs-gm/chud",
     "sync:subapps": "npm run sync:csmatrix && npm run sync:chud",
     "test": "vitest",
-    "smoke": "playwright test tests/smoke.spec.ts --project=chromium --workers=1 --retries=1 --reporter=list",
-    "smoke:mobile": "playwright test tests/smoke.mobile.spec.ts --project=chromium --workers=1 --retries=1 --reporter=list",
-    "e2e": "playwright test tests/e2e --project=chromium --workers=1 --retries=1 --reporter=list",
-    "test:coverage": "vitest --run --coverage \"src/**/*.test.ts\"",
+    "smoke": "playwright test tests/chud-persistence.spec.ts --project=chromium",
+    "smoke:mobile": "playwright test tests/e2e/csmatrix.spec.ts --project=mobile-chromium",
+    "e2e": "playwright test tests/e2e --project=chromium",
+    "test:coverage": "vitest --run --coverage",
     "build:chud": "vite build --config vite.chud.config.ts && mv public/chud/chud.html public/chud/index.html",
     "build": "npm run build:chud && tsc -b && vite build",
     "build:fancybuild": "tsc -b && vite build",
@@ -25,15 +24,14 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
     "@types/node": "^24.10.1",
     "@types/react": "^18.2.24",
     "@types/react-dom": "^18.2.11",
-    "@vitejs/plugin-react": "^4.2.0",
+    "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/coverage-v8": "^4.1.10",
     "typescript": "^5.3.3",
-    "vite": "^5.0.5",
-    "vitest": "^1.6.1",
-    "@vitest/coverage-v8": "^1.6.1",
-    "@vitest/coverage-istanbul": "^1.6.1",
-    "@playwright/test": "^1.40.0"
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
   }
 }

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-// Note: Run this with a local dev server running at http://localhost:3030
+// Run this with a local server and override CSMATRIX_URL when needed.
 
 test.describe('csmatrix persistence', () => {
   test('add node persists to localStorage and survives reload', async ({ page }) => {
@@ -8,8 +8,16 @@ test.describe('csmatrix persistence', () => {
     await page.goto(URL, { waitUntil: 'networkidle' });
     // add a node via button
     await page.click('#btn-add-node');
-    // wait a bit for handlers to run
-    await page.waitForTimeout(300);
+    await page.waitForFunction(() => {
+      try {
+        const raw = localStorage.getItem('csmatrix.graph');
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed.nodes) && parsed.nodes.length > 0;
+      } catch {
+        return false;
+      }
+    });
 
     // assert localStorage contains csmatrix.graph with nodes
     const raw = await page.evaluate(() => localStorage.getItem('csmatrix.graph'));

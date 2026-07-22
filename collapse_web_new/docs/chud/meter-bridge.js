@@ -76,7 +76,7 @@ function readMeters() {
     }
   }
   // fallback to sample values used by CS Matrix when empty
-  return { collapse: 0, influence: 2, record: 1, grit: 0 }
+  return { collapse: 0, influence: 0, record: 0, grit: 0 }
 }
 
 function writeMeters(nextMeters) {
@@ -516,6 +516,42 @@ function buildCombatPanel() {
   rtSection.appendChild(rtLabel)
   rtSection.appendChild(rtVal)
   rtSection.appendChild(rtPips)
+
+  // Long-press the Reaction Tokens widget to jump to the Combat page and make a selection.
+  const RT_HOLD_MS = 900
+  let rtHoldTimer = null
+  let rtHoldInterval = null
+  const cancelRtHold = () => {
+    if (rtHoldTimer) { clearTimeout(rtHoldTimer); rtHoldTimer = null }
+    if (rtHoldInterval) { clearInterval(rtHoldInterval); rtHoldInterval = null }
+    rtSection.style.borderColor = ''
+    rtSection.style.boxShadow = ''
+  }
+  const navigateToCombat = () => {
+    try {
+      const targetOrigin = window.location.origin && window.location.origin !== 'null' ? window.location.origin : '*'
+      window.parent.postMessage({ type: 'collapse-navigate', route: 'combat' }, targetOrigin)
+    } catch {}
+  }
+  rtSection.style.cursor = 'pointer'
+  rtSection.title = 'Hold to jump to Combat'
+  rtSection.addEventListener('pointerdown', () => {
+    const start = Date.now()
+    rtHoldInterval = setInterval(() => {
+      const pct = Math.min(((Date.now() - start) / RT_HOLD_MS) * 100, 100)
+      const glow = pct / 100
+      rtSection.style.borderColor = `rgba(255,200,60,${0.2 + 0.6 * glow})`
+      rtSection.style.boxShadow = `0 0 ${6 + 16 * glow}px rgba(255,200,60,${0.15 + 0.5 * glow})`
+    }, 30)
+    rtHoldTimer = setTimeout(() => {
+      cancelRtHold()
+      navigateToCombat()
+    }, RT_HOLD_MS)
+  })
+  rtSection.addEventListener('pointerup', cancelRtHold)
+  rtSection.addEventListener('pointerleave', cancelRtHold)
+  rtSection.addEventListener('pointercancel', cancelRtHold)
+  rtSection.addEventListener('contextmenu', ev => ev.preventDefault())
 
   const chipWrap = document.createElement('div')
   chipWrap.className = 'combat-chip-wrap'

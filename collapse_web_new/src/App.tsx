@@ -5,9 +5,9 @@ import CombatPage from "./pages/Combat";
 import NotesPage from "./pages/Notes";
 import CharMgmt, { CHAR_SWITCH_EVENT } from "./pages/CharMgmt";
 import ProfilePage from "./pages/Profile";
-import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey, profileKey } from "./utils/slotKeys";
+import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey, profileKey, CHAR_ACTIVE_KEY } from "./utils/slotKeys";
+import { parseHashRoute } from "./utils/routing";
 
-const CHAR_ACTIVE_KEY = 'collapse.char.active';
 function readActiveCharSlot(): number {
   if (typeof window === 'undefined') return 1;
   const raw = window.localStorage.getItem(CHAR_ACTIVE_KEY);
@@ -32,6 +32,7 @@ interface DieRoll { id: string; sides: DieSides; value: number; }
 interface DiceState { rolls: DieRoll[]; target: number; mode: ResultMode; modifier: number; }
 type DiceAction =
   | { type: 'ROLL'; sides: DieSides }
+  | { type: 'ROLL_SOLO'; sides: DieSides }
   | { type: 'CLEAR' }
   | { type: 'REMOVE'; id: string }
   | { type: 'SET_TARGET'; value: number }
@@ -47,6 +48,8 @@ function diceReducer(state: DiceState, action: DiceAction): DiceState {
   switch (action.type) {
     case 'ROLL':
       return { ...state, rolls: [...state.rolls, { id: `${Date.now()}-${Math.random()}`, sides: action.sides, value: Math.floor(Math.random() * action.sides) + 1 }] };
+    case 'ROLL_SOLO':
+      return { ...state, rolls: [{ id: `${Date.now()}-${Math.random()}`, sides: action.sides, value: Math.floor(Math.random() * action.sides) + 1 }] };
     case 'CLEAR':
       return { ...state, rolls: [] };
     case 'REMOVE':
@@ -63,9 +66,7 @@ function diceReducer(state: DiceState, action: DiceAction): DiceState {
 }
 
 const deriveRoute = (): Route => {
-  if (typeof window === "undefined") return "hub";
-  const hash = window.location.hash.replace(/^#\/?/, "");
-  const [segment, sub] = hash.split(/[\/?]/);
+  const { segment, sub } = parseHashRoute();
   if (segment === "player") {
     if (sub === "ops") return "player-ops";
     return "player";
@@ -156,6 +157,11 @@ const DiceDock: React.FC = () => {
   const [ds, dispatchDice] = useReducer(diceReducer, { rolls: [], target: 0, mode: 'total', modifier: 0 });
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chipsEndRef = useRef<HTMLDivElement>(null);
+  const prevRollIdsRef = useRef<Set<string>>(new Set());
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+  const [rollingId, setRollingId] = React.useState<string | null>(null);
+  const [rollingValue, setRollingValue] = React.useState<number>(1);
 
   const vibe = () => { try { if (navigator.vibrate) navigator.vibrate(8); } catch { /* ignore */ } };
 
@@ -185,13 +191,32 @@ const DiceDock: React.FC = () => {
     chipsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [ds.rolls.length]);
 
+  React.useEffect(() => {
+    const newRoll = ds.rolls.find(r => !prevRollIdsRef.current.has(r.id));
+    prevRollIdsRef.current = new Set(ds.rolls.map(r => r.id));
+    if (!newRoll) return;
+    setRollingId(newRoll.id);
+    let ticks = 0;
+    const maxTicks = 8;
+    const interval = setInterval(() => {
+      ticks++;
+      setRollingValue(Math.floor(Math.random() * newRoll.sides) + 1);
+      if (ticks >= maxTicks) {
+        clearInterval(interval);
+        setRollingId(null);
+      }
+    }, 60);
+    return () => clearInterval(interval);
+  }, [ds.rolls]);
+
   if (!open) return null;
 
-  const rollsTotal = ds.rolls.reduce((s, r) => s + r.value, 0);
+  const displayRolls = ds.rolls.map(r => r.id === rollingId ? { ...r, value: rollingValue } : r);
+  const rollsTotal = displayRolls.reduce((s, r) => s + r.value, 0);
   const total = rollsTotal + ds.modifier;
   const hasTarget = ds.target > 0;
   const hasModifier = ds.modifier !== 0;
-  const passing = hasTarget ? ds.rolls.filter(r => r.value >= ds.target) : [];
+  const passing = hasTarget ? displayRolls.filter(r => r.value >= ds.target) : [];
   const labelStyle: React.CSSProperties = { fontFamily: 'var(--font-display)', letterSpacing: '0.14em' };
 
   return (
@@ -199,7 +224,6 @@ const DiceDock: React.FC = () => {
       role="dialog"
       aria-modal="true"
       aria-label="Dice Roller"
-      onClick={e => { if (e.target === e.currentTarget) { vibe(); setOpen(false); } }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(4,6,10,0.75)', backdropFilter: 'blur(12px)', zIndex: 402, display: 'flex', justifyContent: 'center', alignItems: 'stretch', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div style={{ width: 'min(960px,100vw)', background: '#0c0f16', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -209,7 +233,7 @@ const DiceDock: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <DiceIcon size={18} />DICE ROLLER
           </div>
-          <button onClick={() => { vibe(); setOpen(false); }} aria-label="Close dice roller" style={{ border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.06)', color: '#eaf2ff', borderRadius: 8, padding: '6px 10px', fontSize: '0.95rem', cursor: 'pointer' }}>✕</button>
+          <button onPointerUp={() => { vibe(); setOpen(false); }} aria-label="Close dice roller" style={{ border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.06)', color: '#eaf2ff', borderRadius: 8, padding: '6px 10px', fontSize: '0.95rem', cursor: 'pointer' }}>✕</button>
         </div>
 
         {/* Scrollable body */}
@@ -287,14 +311,34 @@ const DiceDock: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, padding: '0 12%' }}>
             {DICE_SIDES.map(sides => {
               const color = DIE_COLOR[sides];
+              const startLongPress = (e: React.PointerEvent<HTMLButtonElement>) => {
+                (e.currentTarget as HTMLElement).style.boxShadow = `0 0 16px ${color}55`;
+                (e.currentTarget as HTMLElement).style.background = `${color}22`;
+                longPressFiredRef.current = false;
+                longPressTimerRef.current = setTimeout(() => {
+                  longPressFiredRef.current = true;
+                  vibe();
+                  dispatchDice({ type: 'ROLL_SOLO', sides });
+                }, 500);
+              };
+              const cancelLongPress = (e: React.PointerEvent<HTMLButtonElement>) => {
+                (e.currentTarget as HTMLElement).style.boxShadow = '';
+                (e.currentTarget as HTMLElement).style.background = `${color}0f`;
+                if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+              };
               return (
                 <button
                   key={sides}
-                  onClick={() => { vibe(); dispatchDice({ type: 'ROLL', sides }); }}
-                  onPointerDown={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 0 16px ${color}55`; (e.currentTarget as HTMLElement).style.background = `${color}22`; }}
-                  onPointerUp={e => { (e.currentTarget as HTMLElement).style.boxShadow = ''; (e.currentTarget as HTMLElement).style.background = `${color}0f`; }}
-                  onPointerLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = ''; (e.currentTarget as HTMLElement).style.background = `${color}0f`; }}
-                  style={{ aspectRatio: '1', padding: 0, borderRadius: 16, border: `1.5px solid ${color}44`, background: `${color}0f`, color, ...labelStyle, fontSize: '1.5rem', cursor: 'pointer', transition: 'box-shadow 0.1s', WebkitTapHighlightColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={() => {
+                    if (longPressFiredRef.current) { longPressFiredRef.current = false; return; }
+                    vibe(); dispatchDice({ type: 'ROLL', sides });
+                  }}
+                  onPointerDown={startLongPress}
+                  onPointerUp={cancelLongPress}
+                  onPointerLeave={cancelLongPress}
+                  onPointerCancel={cancelLongPress}
+                  onContextMenu={e => e.preventDefault()}
+                  style={{ aspectRatio: '1', padding: 0, borderRadius: 16, border: `1.5px solid ${color}44`, background: `${color}0f`, color, ...labelStyle, fontSize: '1.5rem', cursor: 'pointer', transition: 'box-shadow 0.1s', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation', userSelect: 'none', WebkitUserSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   D{sides}
                 </button>
@@ -310,9 +354,10 @@ const DiceDock: React.FC = () => {
             {ds.rolls.length === 0
               ? <div style={{ padding: 22, textAlign: 'center', color: 'rgba(255,255,255,0.15)', fontSize: '0.82rem', border: '1px dashed rgba(255,255,255,0.07)', borderRadius: 12 }}>Tap a die to roll</div>
               : <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {ds.rolls.map(roll => {
+                  {displayRolls.map(roll => {
                     const color = DIE_COLOR[roll.sides];
-                    const glow = ds.mode === 'per-dice' && hasTarget && roll.value >= ds.target;
+                    const rolling = roll.id === rollingId;
+                    const glow = !rolling && ds.mode === 'per-dice' && hasTarget && roll.value >= ds.target;
                     return (
                       <div
                         key={roll.id}
@@ -324,7 +369,7 @@ const DiceDock: React.FC = () => {
                         }}
                         onPointerUp={() => { if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } }}
                         onPointerLeave={() => { if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } }}
-                        style={{ width: 54, height: 54, borderRadius: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${glow ? color : color + '44'}`, background: glow ? `radial-gradient(circle at 50% 60%,${color}28,${color}0a)` : `${color}0d`, boxShadow: glow ? `0 0 0 1px ${color}66,0 0 16px ${color}55,0 6px 20px ${color}30` : '0 2px 8px rgba(0,0,0,0.35)', transition: 'box-shadow 0.25s,background 0.25s,border-color 0.25s', flexShrink: 0, userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'none', cursor: 'pointer' }}>
+                        style={{ width: 54, height: 54, borderRadius: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${glow ? color : color + '44'}`, background: glow ? `radial-gradient(circle at 50% 60%,${color}28,${color}0a)` : `${color}0d`, boxShadow: glow ? `0 0 0 1px ${color}66,0 0 16px ${color}55,0 6px 20px ${color}30` : rolling ? `0 0 14px ${color}88` : '0 2px 8px rgba(0,0,0,0.35)', transition: 'box-shadow 0.25s,background 0.25s,border-color 0.25s', flexShrink: 0, userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'none', cursor: 'pointer', animation: rolling ? 'diceRollPulse 0.12s linear infinite' : 'none' }}>
                         <span style={{ ...labelStyle, fontSize: '1.15rem', color: glow ? color : '#fff', lineHeight: 1 }}>{roll.value}</span>
                         <span style={{ fontSize: '0.48rem', color: `${color}77`, marginTop: 2, ...labelStyle }}>D{roll.sides}</span>
                       </div>
@@ -470,9 +515,18 @@ const HubLanding: React.FC<{
   ], []);
 
   return (
+    <>
     <main className="hub-landing">
       <div className="hub-landing-content" style={{ width: "min(1100px, 100%)", padding: "1.25rem 1rem" }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+          <button
+            className="ghost-btn ghost-btn-icon"
+            onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))}
+            aria-label="Open dice roller"
+            style={{ color: "var(--muted)" }}
+          >
+            <DiceIcon size={18} />
+          </button>
           <a
             href={`${import.meta.env.BASE_URL}gm.html`}
             style={{ color: "var(--muted)", fontSize: "0.85rem", textDecoration: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "0.3rem 0.75rem" }}
@@ -516,6 +570,7 @@ const HubLanding: React.FC<{
         </div>
       </div>
     </main>
+    </>
   );
 };
 

@@ -93,11 +93,14 @@ export default function Pager({ pageIndex, onPageIndexChange, children }: PagerP
           }
         }}
       >
-        {pages.map((page, index) => (
-          <section className="page" key={index} aria-hidden={index !== pageIndex}>
+        {pages.map((page, index) => {
+          const pageKey = React.isValidElement(page) && page.key != null ? String(page.key) : `page-${index}`
+          return (
+          <section className="page" key={pageKey} aria-hidden={index !== pageIndex}>
             {page}
           </section>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

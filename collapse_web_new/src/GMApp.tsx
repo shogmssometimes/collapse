@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import DeckBuilder from "./pages/DeckBuilder";
 import GMCombatTracker from "./pages/GMCombatTracker";
 import { Card } from "./domain/decks/DeckEngine";
+import { parseHashRoute } from "./utils/routing";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -10,9 +11,7 @@ type GMRoute = "hub" | "deck" | "ops" | "combat";
 // ── Route helpers ────────────────────────────────────────────────────────────
 
 const deriveGMRoute = (): GMRoute => {
-  if (typeof window === "undefined") return "hub";
-  const hash = window.location.hash.replace(/^#\/?/, "");
-  const [segment, sub] = hash.split(/[\/?]/);
+  const { segment, sub } = parseHashRoute();
   if (segment === "deck") return "deck";
   if (segment === "ops") return "ops";
   if (segment === "combat") return "combat";

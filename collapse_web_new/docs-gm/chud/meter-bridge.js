@@ -76,7 +76,7 @@ function readMeters() {
     }
   }
   // fallback to sample values used by CS Matrix when empty
-  return { collapse: 0, influence: 2, record: 1, grit: 0 }
+  return { collapse: 0, influence: 0, record: 0, grit: 0 }
 }
 
 function writeMeters(nextMeters) {
