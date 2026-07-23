@@ -463,56 +463,157 @@ const ChudDock: React.FC<{ basePath: string; charSlot?: number }> = ({ basePath,
   );
 };
 
+const HUB_CARD_DEFS: HubCard[] = [
+  {
+    id: "player",
+    title: "Deck Builder",
+    description: "Player-facing tools with deck builder and ops.",
+  },
+  {
+    id: "player-ops",
+    title: "Deck Ops",
+    description: "Standalone deck operations for the player deck.",
+  },
+  {
+    id: "csmatrix",
+    title: "CS Matrix",
+    description: "Campaign Support Matrix with draggable nodes.",
+  },
+  {
+    id: "gear",
+    title: "Wardrobe & Gear",
+    description: "Browse equipment and items.",
+  },
+  {
+    id: "combat",
+    title: "Combat",
+    description: "Combat tools and tracking.",
+  },
+  {
+    id: "notes",
+    title: "Notes",
+    description: "Campaign notes and reminders.",
+  },
+  {
+    id: "chud",
+    title: "cHUD",
+    description: "Compact HUD for derived stats.",
+  },
+  {
+    id: "char-mgmt",
+    title: "Character Management",
+    description: "Manage up to 3 characters. Hot swap decks and export or import saves.",
+  },
+  {
+    id: "profile",
+    title: "Profile",
+    description: "Character profile and background.",
+  },
+];
+
+type HubOrderMode = "build" | "play" | "custom";
+const HUB_MODE_KEY = "hub.order.mode.v1";
+const HUB_CUSTOM_ORDER_KEY = "hub.order.custom.v1";
+
+const HUB_BUILD_ORDER: Route[] = ["csmatrix", "gear", "chud", "combat", "player", "profile", "char-mgmt", "player-ops", "notes"];
+const HUB_PLAY_ORDER: Route[] = ["chud", "player-ops", "csmatrix", "gear", "combat", "player", "notes", "profile", "char-mgmt"];
+
+function orderCards(order: Route[]): HubCard[] {
+  const byId = new Map(HUB_CARD_DEFS.map(c => [c.id, c]));
+  const ordered = order.map(id => byId.get(id)).filter((c): c is HubCard => !!c);
+  // Include any cards missing from the order list (safety net for future additions)
+  const seen = new Set(ordered.map(c => c.id));
+  for (const c of HUB_CARD_DEFS) if (!seen.has(c.id)) ordered.push(c);
+  return ordered;
+}
+
+function loadHubMode(): HubOrderMode {
+  try {
+    const raw = localStorage.getItem(HUB_MODE_KEY);
+    if (raw === "build" || raw === "play" || raw === "custom") return raw;
+  } catch {}
+  return "build";
+}
+
+function loadCustomOrder(): Route[] {
+  try {
+    const raw = localStorage.getItem(HUB_CUSTOM_ORDER_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as Route[];
+    }
+  } catch {}
+  return HUB_CARD_DEFS.map(c => c.id);
+}
+
 const HubLanding: React.FC<{
   onNavigate: (route: Route) => void;
 }> = ({ onNavigate }) => {
-  const cards = useMemo<HubCard[]>(() => [
-    {
-      id: "player",
-      title: "Deck Builder",
-      description: "Player-facing tools with deck builder and ops.",
-    },
-    {
-      id: "player-ops",
-      title: "Deck Ops",
-      description: "Standalone deck operations for the player deck.",
-    },
-    {
-      id: "csmatrix",
-      title: "CS Matrix",
-      description: "Campaign Support Matrix with draggable nodes.",
-    },
-    {
-      id: "gear",
-      title: "Wardrobe & Gear",
-      description: "Browse equipment and items.",
-    },
-    {
-      id: "combat",
-      title: "Combat",
-      description: "Combat tools and tracking.",
-    },
-    {
-      id: "notes",
-      title: "Notes",
-      description: "Campaign notes and reminders.",
-    },
-    {
-      id: "chud",
-      title: "cHUD",
-      description: "Compact HUD for derived stats.",
-    },
-    {
-      id: "char-mgmt",
-      title: "Character Management",
-      description: "Manage up to 3 characters. Hot swap decks and export or import saves.",
-    },
-    {
-      id: "profile",
-      title: "Profile",
-      description: "Character profile and background.",
-    },
-  ], []);
+  const [mode, setMode] = useState<HubOrderMode>(() => loadHubMode());
+  const [customOrder, setCustomOrder] = useState<Route[]>(() => loadCustomOrder());
+  const [dragId, setDragId] = useState<Route | null>(null);
+  const [dragOverId, setDragOverId] = useState<Route | null>(null);
+  const cardRefs = useRef<Map<Route, HTMLButtonElement>>(new Map());
+  const dragMovedRef = useRef(false);
+
+  useEffect(() => {
+    try { localStorage.setItem(HUB_MODE_KEY, mode); } catch {}
+  }, [mode]);
+
+  useEffect(() => {
+    try { localStorage.setItem(HUB_CUSTOM_ORDER_KEY, JSON.stringify(customOrder)); } catch {}
+  }, [customOrder]);
+
+  const cards = useMemo<HubCard[]>(() => {
+    if (mode === "build") return orderCards(HUB_BUILD_ORDER);
+    if (mode === "play") return orderCards(HUB_PLAY_ORDER);
+    return orderCards(customOrder);
+  }, [mode, customOrder]);
+
+  const reorderCustom = useCallback((fromId: Route, toId: Route) => {
+    if (fromId === toId) return;
+    setCustomOrder(prev => {
+      const next = [...prev];
+      const fromIdx = next.indexOf(fromId);
+      const toIdx = next.indexOf(toId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, fromId);
+      return next;
+    });
+  }, []);
+
+  // Pointer-based drag reordering (works on touch and mouse, unlike HTML5 drag-and-drop
+  // which iOS Safari does not support).
+  const findCardIdAtPoint = useCallback((x: number, y: number): Route | null => {
+    for (const [id, el] of cardRefs.current) {
+      const rect = el.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return id;
+    }
+    return null;
+  }, []);
+
+  const handlePointerDown = useCallback((cardId: Route) => (e: React.PointerEvent) => {
+    dragMovedRef.current = false;
+    if (mode !== "custom") return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragId(cardId);
+  }, [mode]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (mode !== "custom" || !dragId) return;
+    dragMovedRef.current = true;
+    const overId = findCardIdAtPoint(e.clientX, e.clientY);
+    setDragOverId(overId);
+  }, [mode, dragId, findCardIdAtPoint]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (mode !== "custom" || !dragId) return;
+    const overId = findCardIdAtPoint(e.clientX, e.clientY);
+    if (overId) reorderCustom(dragId, overId);
+    setDragId(null);
+    setDragOverId(null);
+  }, [mode, dragId, findCardIdAtPoint, reorderCustom]);
 
   return (
     <>
@@ -535,6 +636,42 @@ const HubLanding: React.FC<{
           </a>
         </div>
         <div
+          role="group"
+          aria-label="Hub link order"
+          style={{
+            display: "inline-flex",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            overflow: "hidden",
+            marginBottom: "0.75rem",
+          }}
+        >
+          {(["build", "play", "custom"] as HubOrderMode[]).map(m => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              style={{
+                padding: "0.4rem 1rem",
+                fontSize: "0.8rem",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                fontFamily: "var(--font-display)",
+                border: "none",
+                cursor: "pointer",
+                background: mode === m ? "var(--accent)" : "transparent",
+                color: mode === m ? "#000" : "var(--muted)",
+              }}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        {mode === "custom" && (
+          <p style={{ color: "var(--muted)", fontSize: "0.78rem", margin: "0 0 0.5rem" }}>
+            Tap and drag a card to reorder.
+          </p>
+        )}
+        <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -542,31 +679,47 @@ const HubLanding: React.FC<{
             marginTop: "0.6rem",
           }}
         >
-          {cards.map((card, index) => (
-            <button
-              key={card.id}
-              className="hub-card"
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                padding: "1rem",
-                background: "var(--surface)",
-                minHeight: 126,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-                textAlign: "center",
-                cursor: "pointer",
-              '--card-index': index,
-              } as React.CSSProperties}
-              onClick={() => onNavigate(card.id)}
-            >
-              <h2 style={{ margin: 0 }}>{card.title}</h2>
-              <p style={{ color: "var(--muted)", margin: "0.25rem 0" }}>{card.description}</p>
-            </button>
-          ))}
+          {cards.map((card, index) => {
+            const isCustom = mode === "custom";
+            const isDragging = dragId === card.id;
+            const isDragOver = isCustom && dragOverId === card.id && dragId !== card.id;
+            return (
+              <button
+                key={card.id}
+                ref={(el) => {
+                  if (el) cardRefs.current.set(card.id, el);
+                  else cardRefs.current.delete(card.id);
+                }}
+                className="hub-card"
+                onPointerDown={handlePointerDown(card.id)}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={() => { setDragId(null); setDragOverId(null); }}
+                style={{
+                  border: `1px solid ${isDragOver ? "var(--accent)" : "var(--border)"}`,
+                  borderRadius: 8,
+                  padding: "1rem",
+                  background: "var(--surface)",
+                  minHeight: 126,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  textAlign: "center",
+                  cursor: isCustom ? "grab" : "pointer",
+                  opacity: isDragging ? 0.5 : 1,
+                  touchAction: isCustom ? "none" : "auto",
+                  transition: "opacity 0.15s, border-color 0.15s",
+                '--card-index': index,
+                } as React.CSSProperties}
+                onClick={() => { if (!isCustom && !dragMovedRef.current) onNavigate(card.id); }}
+              >
+                <h2 style={{ margin: 0 }}>{card.title}</h2>
+                <p style={{ color: "var(--muted)", margin: "0.25rem 0" }}>{card.description}</p>
+              </button>
+            );
+          })}
         </div>
       </div>
     </main>

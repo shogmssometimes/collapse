@@ -622,32 +622,28 @@ function buildCombatPanel() {
     return action
   }
 
-  const showQueuePopup = (item) => {
-    const existing = document.getElementById('chud-queue-popup')
-    if (existing) existing.remove()
-    const overlay = document.createElement('div')
-    overlay.id = 'chud-queue-popup'
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:24px;touch-action:none;'
-    const card = document.createElement('div')
-    card.style.cssText = 'background:#0d1117;border:1px solid rgba(15,246,255,0.25);border-radius:14px;padding:22px 24px;max-width:300px;width:100%;box-shadow:0 0 40px rgba(15,246,255,0.12);display:flex;flex-direction:column;gap:10px;'
-    const eyebrow = document.createElement('span')
-    eyebrow.style.cssText = 'font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:rgba(248,250,252,0.4);text-align:center;'
-    eyebrow.textContent = item.mode === 'reaction' ? 'Reaction Action' : 'Queue Item'
-    const title = document.createElement('div')
-    title.style.cssText = 'font-size:1.05rem;font-weight:700;color:#f8fafc;text-align:center;line-height:1.3;'
-    title.textContent = formatActionName(item.action)
-    const cost = document.createElement('div')
-    cost.style.cssText = `font-size:0.95rem;font-weight:600;text-align:center;color:${item.mode === 'reaction' ? 'rgba(255,200,60,0.9)' : '#0ff6ff'};`
-    cost.textContent = item.mode === 'reaction'
-      ? `${item.tokenCost} Reaction Token${item.tokenCost !== 1 ? 's' : ''}`
-      : `${item.ap} AP`
-    const dismiss = document.createElement('div')
-    dismiss.style.cssText = 'font-size:0.6rem;color:rgba(248,250,252,0.25);text-align:center;letter-spacing:0.12em;text-transform:uppercase;margin-top:6px;'
-    dismiss.textContent = 'tap to dismiss'
-    card.appendChild(eyebrow); card.appendChild(title); card.appendChild(cost); card.appendChild(dismiss)
-    overlay.appendChild(card)
-    document.body.appendChild(overlay)
-    overlay.addEventListener('pointerdown', () => overlay.remove(), { once: true })
+  const writeQueue = (items) => {
+    try {
+      const json = JSON.stringify(items)
+      localStorage.setItem(QUEUE_KEY, json)
+      window.dispatchEvent(new StorageEvent('storage', { key: QUEUE_KEY, newValue: json, storageArea: window.localStorage }))
+    } catch {}
+  }
+
+  // Long-pressing a queued action "uses" it: remove it from the queue and refund
+  // whatever AP or reaction tokens it had reserved, mirroring the Combat page.
+  const expendQueueItem = (item) => {
+    const items = readQueue()
+    const idx = items.findIndex(i => i.id === item.id)
+    if (idx === -1) return
+    writeQueue(items.slice(0, idx).concat(items.slice(idx + 1)))
+    const state = readCombat()
+    if (item.mode === 'reaction') {
+      writeCombat({ ...state, reactionTokens: (state.reactionTokens || 0) + (item.tokenCost || 0) })
+    } else {
+      writeCombat({ ...state, spentAp: Math.max(0, (state.spentAp || 0) - (item.ap || 0)) })
+    }
+    if (queueIdx > 0) queueIdx -= 1
   }
 
   const cancelQBriefHold = () => {
@@ -725,7 +721,8 @@ function buildCombatPanel() {
       cancelQBriefHold()
       const items = readQueue()
       if (items.length > 0) {
-        showQueuePopup(items[queueIdx % items.length])
+        expendQueueItem(items[queueIdx % items.length])
+        renderQueueBrief()
       }
     }, QUEUE_HOLD_MS)
   })
