@@ -3,6 +3,7 @@ import "./chud.css";
 import type { ApproachStats, CoreStats, GearSlotEntry, SaveState, SecondaryStats, StatReps } from "../types/chud";
 import {
   DEFAULT_APPROACH,
+  DEFAULT_DRAW,
   DEFAULT_SECONDARY,
   DEFAULT_STAT_REPS,
   computeDerived,
@@ -45,7 +46,7 @@ export default function Chud() {
   );
   const [wt, setWtRaw] = useState<number>(saved?.wt ?? 0);
   const [ap, setApRaw] = useState<number>(saved?.ap ?? 0);
-  const [draw, setDrawRaw] = useState<number>(saved?.draw ?? 0);
+  const [draw, setDrawRaw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
   const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? 0);
   const [gearEntries, setGearEntries] = useState<GearSlotEntry[] | null>(() =>
     typeof window !== "undefined" ? (readGearData(GEAR_SLOTS_KEY)?.entries ?? null) : null

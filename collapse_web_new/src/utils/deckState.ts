@@ -29,6 +29,8 @@ export type DeckBuilderState = {
     createdAt: string
   }>
   handLimit?: number
+  actionCounts?: CountMap
+  reactionCounts?: CountMap
 }
 
 export const defaultState = (
@@ -50,6 +52,8 @@ export const defaultState = (
   deckName: '',
   savedDecks: {},
   handLimit: DEFAULT_HAND_LIMIT,
+  actionCounts: {},
+  reactionCounts: {},
 })
 
 export const loadState = (
@@ -82,6 +86,8 @@ export const loadState = (
       deckName: parsed.deckName ?? '',
       handLimit: clamp(parsed.handLimit ?? DEFAULT_HAND_LIMIT, 0, MAX_HAND_LIMIT),
       savedDecks: parsed.savedDecks ?? {},
+      actionCounts: parsed.actionCounts ?? {},
+      reactionCounts: parsed.reactionCounts ?? {},
     }
   } catch {
     return defaultState(baseCards, modCards, minNulls, defaultModCapacity)

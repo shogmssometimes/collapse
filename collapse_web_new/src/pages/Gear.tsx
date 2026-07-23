@@ -399,7 +399,7 @@ function InventoryGrid({
         </span>
         <span style={{ fontSize: '0.72rem', color: overCapacity ? 'rgba(255,100,100,0.9)' : 'var(--muted)' }}>
           {used} / {clamped} used
-          {synced && <span style={{ marginLeft: 6, fontSize: '0.65rem', opacity: 0.6 }}>· synced from cHUD</span>}
+          {synced && <span style={{ marginLeft: 6, fontSize: '0.65rem', opacity: 0.6 }}>· synced from HUD</span>}
         </span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -725,9 +725,6 @@ export default function GearPage({
     <div className="page" style={{ maxWidth: 680, margin: '0 auto', padding: '1.25rem 1rem 2rem' }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: '0 0 4px 0' }}>Wardrobe &amp; Gear</h1>
-        <p className="muted" style={{ margin: 0 }}>
-          Equipment and items available in the world. Tap a card to expand details.
-        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap' }}>

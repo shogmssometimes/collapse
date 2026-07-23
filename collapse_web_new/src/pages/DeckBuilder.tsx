@@ -29,6 +29,8 @@ type DeckBuilderProps = {
   baseCardsOverride?: Card[]
   modCardsOverride?: Card[]
   nullCardOverride?: Card
+  actionCardsOverride?: Card[]
+  reactionCardsOverride?: Card[]
   baseTarget?: number
   minNulls?: number
   modifierCapacityDefault?: number
@@ -46,6 +48,9 @@ type DeckBuilderProps = {
   showBaseAdjusters?: boolean
   lockControlsInOps?: boolean
   chudStateStorageKey?: string
+  syncWithChud?: boolean
+  showActionReactionCards?: boolean
+  independentPlay?: boolean
 }
 
 export default function DeckBuilder({
@@ -54,6 +59,8 @@ export default function DeckBuilder({
   baseCardsOverride,
   modCardsOverride,
   nullCardOverride,
+  actionCardsOverride,
+  reactionCardsOverride,
   baseTarget = DEFAULT_BASE_TARGET,
   minNulls = DEFAULT_MIN_NULLS,
   modifierCapacityDefault = DEFAULT_MODIFIER_CAPACITY,
@@ -71,13 +78,20 @@ export default function DeckBuilder({
   showBaseAdjusters = true,
   lockControlsInOps = true,
   chudStateStorageKey = DEFAULT_CHUD_STATE_KEY,
+  syncWithChud = true,
+  showActionReactionCards = false,
+  independentPlay = false,
 }: DeckBuilderProps){
   const baseCards = baseCardsOverride ?? (Handbook.baseCards ?? [])
   const modCards = modCardsOverride ?? (Handbook.modCards ?? [])
   const nullCard = nullCardOverride ?? Handbook.nullCards?.[0]
+  const actionCards = actionCardsOverride ?? []
+  const reactionCards = reactionCardsOverride ?? []
 
   const primaryBaseId = baseCards[0]?.id
   const primaryModId = modCards[0]?.id
+  const primaryActionId = actionCards[0]?.id
+  const primaryReactionId = reactionCards[0]?.id
 
   const applyInitialCounts = useCallback(
     (state: DeckBuilderState): DeckBuilderState => {
@@ -86,6 +100,8 @@ export default function DeckBuilder({
         ...state,
         baseCounts: { ...state.baseCounts },
         modCounts: { ...state.modCounts },
+        actionCounts: { ...(state.actionCounts ?? {}) },
+        reactionCounts: { ...(state.reactionCounts ?? {}) },
       }
       const totalBase = sumCounts(next.baseCounts)
       const totalMod = sumCounts(next.modCounts)
@@ -123,23 +139,24 @@ export default function DeckBuilder({
   const modLongPressFired = useRef(false)
 
   const [chudCapacity, setChudCapacity] = useState<number | null>(() =>
-    typeof window !== 'undefined' ? readChudCapacity(chudStateStorageKey) : null
+    syncWithChud && typeof window !== 'undefined' ? readChudCapacity(chudStateStorageKey) : null
   )
   const [chudDraw, setChudDraw] = useState<number | null>(() =>
-    typeof window !== 'undefined' ? readChudDraw(chudStateStorageKey) : null
+    syncWithChud && typeof window !== 'undefined' ? readChudDraw(chudStateStorageKey) : null
   )
 
   useEffect(() => {
-    if (chudCapacity === null) return
+    if (!syncWithChud || chudCapacity === null) return
     setBuilderState(prev => ({ ...prev, modifierCapacity: chudCapacity }))
-  }, [chudCapacity])
+  }, [chudCapacity, syncWithChud])
 
   useEffect(() => {
-    if (chudDraw === null) return
+    if (!syncWithChud || chudDraw === null) return
     setBuilderState(prev => ({ ...prev, handLimit: chudDraw }))
-  }, [chudDraw])
+  }, [chudDraw, syncWithChud])
 
   useEffect(() => {
+    if (!syncWithChud) return
     const handler = (e: StorageEvent) => {
       if (e.key !== chudStateStorageKey) return
       setChudCapacity(readChudCapacity(chudStateStorageKey))
@@ -257,10 +274,10 @@ export default function DeckBuilder({
   }, [activeCostFilter, activeRarityFilter, activeTargetFilter, modCards, simpleCounters])
 
   const cardLookup = useMemo(() => {
-    const all: Card[] = [...baseCards, ...modCards]
+    const all: Card[] = [...baseCards, ...modCards, ...actionCards, ...reactionCards]
     if (nullCard) all.push(nullCard)
     return new Map(all.map((c) => [c.id, c]))
-  }, [baseCards, modCards, nullCard])
+  }, [baseCards, modCards, actionCards, reactionCards, nullCard])
   const cardCosts = useMemo(() => {
     return Array.from(cardLookup.values()).reduce<Record<string, number>>((acc, c) => {
       acc[c.id] = c.cost ?? 0
@@ -385,7 +402,7 @@ export default function DeckBuilder({
   }
 
   const resetDeck = () => {
-    const newDeck = buildDeckArray(builderState.baseCounts, builderState.modCounts, builderState.nullCount, nullCard?.id)
+    const newDeck = buildDeckArray(builderState.baseCounts, builderState.modCounts, builderState.nullCount, nullCard?.id, [builderState.actionCounts ?? {}, builderState.reactionCounts ?? {}])
     setBuilderState((prev) => ({ ...prev, deck: shuffleInPlace(newDeck), hand: [], discard: [], hasBuiltDeck: true, hasShuffledDeck: true }))
     setDeckSeed((s) => s + 1)
     setHasBuiltDeck(true)
@@ -474,7 +491,7 @@ export default function DeckBuilder({
     setBuilderState((prev) => {
       const nextLocked = !prev.isLocked
       if (nextLocked) {
-        const built = shuffleInPlace(buildDeckArray(prev.baseCounts, prev.modCounts, prev.nullCount, nullCard?.id))
+        const built = shuffleInPlace(buildDeckArray(prev.baseCounts, prev.modCounts, prev.nullCount, nullCard?.id, [prev.actionCounts ?? {}, prev.reactionCounts ?? {}]))
         setHasBuiltDeck(true)
         setHasShuffledDeck(false)
         setOpsError('Shuffle the deck before drawing.')
@@ -583,6 +600,42 @@ export default function DeckBuilder({
   const adjustPrimaryModCount = (delta: number) => {
     if (!primaryModId) return
     adjustModCount(primaryModId, delta)
+  }
+
+  const adjustActionCount = (cardId: string, delta: number) => {
+    setBuilderState((prev) => {
+      if (prev.isLocked) return prev
+      return {
+        ...prev,
+        actionCounts: {
+          ...(prev.actionCounts ?? {}),
+          [cardId]: clamp((prev.actionCounts?.[cardId] ?? 0) + delta, 0),
+        },
+      }
+    })
+  }
+
+  const adjustPrimaryActionCount = (delta: number) => {
+    if (!primaryActionId) return
+    adjustActionCount(primaryActionId, delta)
+  }
+
+  const adjustReactionCount = (cardId: string, delta: number) => {
+    setBuilderState((prev) => {
+      if (prev.isLocked) return prev
+      return {
+        ...prev,
+        reactionCounts: {
+          ...(prev.reactionCounts ?? {}),
+          [cardId]: clamp((prev.reactionCounts?.[cardId] ?? 0) + delta, 0),
+        },
+      }
+    })
+  }
+
+  const adjustPrimaryReactionCount = (delta: number) => {
+    if (!primaryReactionId) return
+    adjustReactionCount(primaryReactionId, delta)
   }
 
   const handleModIncrement = (cardId: string) => {
@@ -800,7 +853,9 @@ export default function DeckBuilder({
             )}
           </div>
           <div className="hand-actions" style={{ justifyContent: isNull ? 'flex-end' : undefined }}>
-            {isNull ? null : isBase ? (
+            {isNull ? null : independentPlay ? (
+              <button onClick={() => playCardIndependently(id)}>Play {card?.name ?? id}</button>
+            ) : isBase ? (
               <button onClick={() => startPlayBase(id, index)} disabled={!canPlayBase}>Play Base</button>
             ) : (
               isQueuedModifier
@@ -818,7 +873,7 @@ export default function DeckBuilder({
         </div>
       )
     })
-  }, [activePlay, builderState.hand, getCard, renderDetails, showCardDetails])
+  }, [activePlay, builderState.hand, getCard, renderDetails, showCardDetails, independentPlay])
 
   const handGhostCard = (
     <div key="hand-ghost" className="hand-card ghost-hand-card" aria-hidden="true">
@@ -857,6 +912,12 @@ export default function DeckBuilder({
       const discard = [...(prev.discard ?? []), ...removed.map(r => ({ id: r.id, origin }))]
       return { ...prev, hand, discard }
     })
+  }
+
+  // Plays a single card independently (GM mode): no base/attach requirement, just
+  // moves straight from hand to discard marked as "played".
+  function playCardIndependently(cardId: string) {
+    discardGroupFromHand(cardId, false, 'played')
   }
 
   // Play flow handlers (use pure helpers)
@@ -1051,7 +1112,7 @@ export default function DeckBuilder({
                 {chudCapacity !== null ? (
                   <div style={{ marginTop: 4, textAlign: 'center' }}>
                     <div className="counter-value counter-pill">{builderState.modifierCapacity}</div>
-                    <div className="muted text-body" style={{ marginTop: 4, fontSize: '0.75em' }}>Synced from cHUD</div>
+                    <div className="muted text-body" style={{ marginTop: 4, fontSize: '0.75em' }}>Synced from HUD</div>
                   </div>
                 ) : (
                   <div className="counter-inline" role="group" aria-label="Adjust capacity" style={{ marginTop: 4, justifyContent: 'center' }}>
@@ -1077,6 +1138,28 @@ export default function DeckBuilder({
                   {simpleCounters && modCapacityAsCount ? 'Mod Cards' : 'Mod Cards Used'}
                 </div>
                 {!modValid && <div className="status-error text-body">Reduce modifier cards or raise capacity.</div>}
+              </div>
+            )}
+            {showActionReactionCards && primaryActionId && (
+              <div>
+                <div className="muted text-body">Action Cards</div>
+                <div className="stat-large">{builderState.actionCounts?.[primaryActionId] ?? 0}</div>
+                <div className="counter-inline" role="group" aria-label="Adjust action cards" style={{ marginTop: 8 }}>
+                  <button className="counter-btn" onClick={() => adjustPrimaryActionCount(-1)} disabled={builderState.isLocked}>-</button>
+                  <div className="counter-value counter-pill">{builderState.actionCounts?.[primaryActionId] ?? 0}</div>
+                  <button className="counter-btn" onClick={() => adjustPrimaryActionCount(1)} disabled={builderState.isLocked}>+</button>
+                </div>
+              </div>
+            )}
+            {showActionReactionCards && primaryReactionId && (
+              <div>
+                <div className="muted text-body">Reaction Cards</div>
+                <div className="stat-large">{builderState.reactionCounts?.[primaryReactionId] ?? 0}</div>
+                <div className="counter-inline" role="group" aria-label="Adjust reaction cards" style={{ marginTop: 8 }}>
+                  <button className="counter-btn" onClick={() => adjustPrimaryReactionCount(-1)} disabled={builderState.isLocked}>-</button>
+                  <div className="counter-value counter-pill">{builderState.reactionCounts?.[primaryReactionId] ?? 0}</div>
+                  <button className="counter-btn" onClick={() => adjustPrimaryReactionCount(1)} disabled={builderState.isLocked}>+</button>
+                </div>
               </div>
             )}
             <div>

@@ -59,7 +59,6 @@ export default function ModifierCardGrid({
       <div className="modifier-header-row">
         <div className="modifier-header-text">
           <h2 style={{ marginBottom: 4 }}>Modifier Cards</h2>
-          <p className="muted" style={{ marginTop: 0 }}>Each modifier consumes capacity equal to its card cost. Stay within your Engram Capacity.</p>
         </div>
         <button
           type="button"

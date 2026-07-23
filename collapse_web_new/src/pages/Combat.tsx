@@ -490,9 +490,6 @@ export default function CombatPage() {
     <div className="page" style={{ maxWidth: 680, margin: '0 auto', padding: '1.25rem 1rem 2rem' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ margin: '0 0 4px 0' }}>Combat</h1>
-        <p className="muted" style={{ margin: 0 }}>
-          Combat tools and tracking.
-        </p>
       </div>
 
       {/* Range / Durability / Damage — 3-up horizontal cards */}

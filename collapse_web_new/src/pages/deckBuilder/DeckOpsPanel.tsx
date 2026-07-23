@@ -101,7 +101,7 @@ export default function DeckOpsPanel({
               {chudDraw !== null ? (
                 <>
                   <div style={{ fontWeight: 600, fontSize: '1.1em' }}>{handLimit}</div>
-                  <div className="muted text-body" style={{ fontSize: '0.75em' }}>Synced from cHUD</div>
+                  <div className="muted text-body" style={{ fontSize: '0.75em' }}>Synced from HUD</div>
                 </>
               ) : (
                 <>

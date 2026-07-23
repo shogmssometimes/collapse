@@ -21,6 +21,17 @@ type CombatantType = "enemy" | "player";
 
 type NoteEntry = { id: string; category: string; text: string };
 
+type SetRollState = {
+  open: boolean;
+  target: number;
+  modifier: number;
+  lastRoll: number | null;
+};
+
+function defaultSetRoll(): SetRollState {
+  return { open: false, target: 0, modifier: 0, lastRoll: null };
+}
+
 type Combatant = {
   id: string;
   name: string;
@@ -33,6 +44,7 @@ type Combatant = {
   maxViv: number;
   notes: NoteEntry[];
   partyId?: string; // set when imported from a Party slot
+  setRoll: SetRollState;
 };
 
 type Scenario = {
@@ -130,6 +142,7 @@ function makeCombatant(existing: Combatant[], type: CombatantType = "enemy"): Co
     viv: type === "enemy" ? 0 : 0,
     maxViv: type === "enemy" ? 99 : 0,
     notes: [],
+    setRoll: defaultSetRoll(),
   };
 }
 
@@ -149,6 +162,9 @@ function loadApp(): AppState {
       ...c,
       icon: migrateIcon(c.icon) ?? ICONS[index % ICONS.length],
       notes: migrateNotes(c.notes),
+      setRoll: c.setRoll && typeof c.setRoll === "object"
+        ? { ...defaultSetRoll(), ...c.setRoll }
+        : defaultSetRoll(),
     });
     return {
       combatants: Array.isArray(p.combatants)
@@ -401,6 +417,100 @@ const NotesTable: React.FC<NotesTableProps> = ({ notes, onChange }) => {
   );
 };
 
+// ── Set Roll Panel ────────────────────────────────────────────────────────────
+// Per-combatant, collapsible status-effect roll tracker. Each combatant owns
+// its own SetRollState, so panels never interfere with one another and persist
+// with the rest of the combatant's data.
+
+type SetRollPanelProps = {
+  value: SetRollState;
+  onChange: (next: SetRollState) => void;
+};
+
+const SetRollPanel: React.FC<SetRollPanelProps> = ({ value, onChange }) => {
+  const hasTarget = value.target > 0;
+  const hasModifier = value.modifier !== 0;
+  const total = value.lastRoll !== null ? value.lastRoll + value.modifier : null;
+  const passing = hasTarget && total !== null ? total >= value.target : null;
+
+  return (
+    <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, marginTop: "0.6rem", overflow: "hidden" }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onChange({ ...value, open: !value.open }); }}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: "rgba(255,255,255,0.03)",
+          border: "none",
+          color: "#f8f9fa",
+          padding: "0.5rem 0.75rem",
+          fontSize: "0.82rem",
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        <span>Set Roll (Status Effects)</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {total !== null && (
+            <span style={{ fontSize: "0.78rem", color: passing === true ? "var(--accent-influence)" : passing === false ? "var(--error)" : "var(--muted)" }}>
+              {total}{hasTarget ? ` / ${value.target}` : ""}
+            </span>
+          )}
+          <span style={{ color: "var(--muted)", transform: value.open ? "rotate(180deg)" : "none", transition: "transform 0.15s", display: "inline-block" }}>▾</span>
+        </span>
+      </button>
+      {value.open && (
+        <div style={{ padding: "0.75rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
+          <div>
+            <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 6, textAlign: "center" }}>Target</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
+              <button
+                onClick={() => onChange({ ...value, target: Math.max(0, value.target - 1) })}
+                style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#fff", cursor: "pointer" }}
+              >−</button>
+              <span style={{ minWidth: 28, textAlign: "center", fontWeight: 700, color: hasTarget ? "var(--accent)" : "rgba(255,255,255,0.3)" }}>{value.target}</span>
+              <button
+                onClick={() => onChange({ ...value, target: Math.min(100, value.target + 1) })}
+                style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#fff", cursor: "pointer" }}
+              >+</button>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 6, textAlign: "center" }}>Modifier</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
+              <button
+                onClick={() => onChange({ ...value, modifier: Math.max(-100, value.modifier - 1) })}
+                style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#fff", cursor: "pointer" }}
+              >−</button>
+              <span style={{ minWidth: 28, textAlign: "center", fontWeight: 700, color: hasModifier ? "var(--accent-amber)" : "rgba(255,255,255,0.3)" }}>{hasModifier ? (value.modifier > 0 ? `+${value.modifier}` : value.modifier) : 0}</span>
+              <button
+                onClick={() => onChange({ ...value, modifier: Math.min(100, value.modifier + 1) })}
+                style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#fff", cursor: "pointer" }}
+              >+</button>
+            </div>
+          </div>
+          <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              onClick={() => onChange({ ...value, lastRoll: Math.floor(Math.random() * 20) + 1 })}
+              style={{ flex: 1, background: "rgba(15,246,255,0.08)", border: "1px solid rgba(15,246,255,0.25)", borderRadius: 6, color: "var(--accent)", padding: "0.45rem 0", fontSize: "0.82rem", cursor: "pointer" }}
+            >
+              Roll d20{total !== null ? ` → ${total}` : ""}
+            </button>
+            {value.lastRoll !== null && (
+              <button
+                onClick={() => onChange({ ...value, lastRoll: null })}
+                style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "var(--muted)", padding: "0.45rem 0.6rem", fontSize: "0.78rem", cursor: "pointer" }}
+              >Clear</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Edit Row ──────────────────────────────────────────────────────────────────
 
 type EditRowProps = {
@@ -578,6 +688,8 @@ const EditRow: React.FC<EditRowProps> = ({ c, index, isLast, onChange, onRemove,
       )}
 
       <NotesTable notes={c.notes} onChange={(notes) => onChange({ ...c, notes })} />
+
+      <SetRollPanel value={c.setRoll ?? defaultSetRoll()} onChange={(setRoll) => onChange({ ...c, setRoll })} />
     </div>
   );
 };
@@ -693,6 +805,9 @@ const RunCard: React.FC<RunCardProps> = ({ c, index, total, onChange, onPrev, on
 
       {/* Notes */}
       <NotesTable notes={c.notes} onChange={(notes) => onChange({ ...c, notes })} />
+
+      {/* Set Roll (Status Effects) */}
+      <SetRollPanel value={c.setRoll ?? defaultSetRoll()} onChange={(setRoll) => onChange({ ...c, setRoll })} />
 
       {/* Dot navigation */}
       {total > 1 && (

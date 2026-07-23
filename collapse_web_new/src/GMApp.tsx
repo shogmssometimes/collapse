@@ -3,6 +3,7 @@ import DeckBuilder from "./pages/DeckBuilder";
 import GMCombatTracker from "./pages/GMCombatTracker";
 import { Card } from "./domain/decks/DeckEngine";
 import { parseHashRoute } from "./utils/routing";
+import { DiceDock, DiceIcon, DICE_OPEN_EVENT } from "./components/DiceRoller";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,14 +31,22 @@ const GMShell: React.FC<{
   subtitle?: string;
 }> = ({ onBack, children, subtitle }) => (
   <div className="gm-shell" style={{ minHeight: "100vh", background: "var(--bg-dark)" }}>
-    <header className="topbar">
+    <DiceDock />
+    <header className="topbar" style={{ position: "relative" }}>
       {onBack && (
         <button className="ghost-btn ghost-btn-icon" onClick={onBack} aria-label="Back to hub">
           <span aria-hidden="true">←</span>
         </button>
       )}
+      <button
+        className="ghost-btn ghost-btn-icon"
+        onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))}
+        aria-label="Open dice roller"
+        style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", color: "rgba(255,255,255,0.65)" }}
+      >
+        <DiceIcon size={18} />
+      </button>
       <div className="topbar-title">
-        <div className="muted" style={{ fontSize: "0.85rem" }}>Collapse GM Companion</div>
         <strong>{subtitle ?? "GM Tools"}</strong>
       </div>
     </header>
@@ -52,21 +61,12 @@ const CompanionIntro: React.FC<{
   title: string;
   description: string;
   helper?: string;
-}> = ({ eyebrow, title, description, helper }) => (
+}> = ({ title }) => (
   <div className="page">
     <div className="page-header">
       <div>
-        <div className="muted" style={{ fontSize: "0.9rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          {eyebrow}
-        </div>
-        <h1 style={{ margin: "0.15rem 0 0.35rem 0" }}>{title}</h1>
-        <p className="muted" style={{ margin: 0 }}>{description}</p>
+        <h1 style={{ margin: 0, fontSize: '2rem' }}>{title}</h1>
       </div>
-      {helper && (
-        <div className="muted text-body" style={{ maxWidth: 320, textAlign: "right" }}>
-          {helper}
-        </div>
-      )}
     </div>
   </div>
 );
@@ -114,10 +114,7 @@ const GMHub: React.FC<{ onNavigate: (route: GMRoute) => void }> = ({ onNavigate 
             } as React.CSSProperties}
             onClick={() => onNavigate("deck")}
           >
-            <h2 style={{ margin: 0 }}>Deck Builder</h2>
-            <p style={{ color: "var(--muted)", margin: "0.25rem 0" }}>
-              Pure-count GM deck controls with offline storage, separate from player data.
-            </p>
+            <h2 style={{ margin: 0, fontSize: '1.6rem' }}>Deck Builder</h2>
           </button>
           <button
             className="hub-card"
@@ -138,10 +135,7 @@ const GMHub: React.FC<{ onNavigate: (route: GMRoute) => void }> = ({ onNavigate 
             } as React.CSSProperties}
             onClick={() => onNavigate("ops")}
           >
-            <h2 style={{ margin: 0 }}>Deck Ops</h2>
-            <p style={{ color: "var(--muted)", margin: "0.25rem 0" }}>
-              Minimal deck operations for live sessions — draw, shuffle, and manage discard.
-            </p>
+            <h2 style={{ margin: 0, fontSize: '1.6rem' }}>Deck Ops</h2>
           </button>
           <button
             className="hub-card"
@@ -162,10 +156,7 @@ const GMHub: React.FC<{ onNavigate: (route: GMRoute) => void }> = ({ onNavigate 
             } as React.CSSProperties}
             onClick={() => onNavigate("combat")}
           >
-            <h2 style={{ margin: 0 }}>Combat Tracker</h2>
-            <p style={{ color: "var(--muted)", margin: "0.25rem 0" }}>
-              Track readiness order, HP, WT, and status effects for all combatants.
-            </p>
+            <h2 style={{ margin: 0, fontSize: '1.6rem' }}>Combat Tracker</h2>
           </button>
         </div>
       </div>
@@ -207,6 +198,8 @@ export default function GMApp() {
   const gmBaseCards = useMemo<Card[]>(() => [{ id: "gm-base-1", name: "Base", type: "Base" }], []);
   const gmModCards  = useMemo<Card[]>(() => [{ id: "gm-mod-1",  name: "Mod",  type: "Modifier", cost: 1 }], []);
   const gmNullCard  = useMemo<Card>(() => ({ id: "gm-null", name: "Null", type: "Null" }), []);
+  const gmActionCards   = useMemo<Card[]>(() => [{ id: "gm-action-1",   name: "Action",   type: "Action" }], []);
+  const gmReactionCards = useMemo<Card[]>(() => [{ id: "gm-reaction-1", name: "Reaction", type: "Reaction" }], []);
 
   if (route === "deck") {
     return (
@@ -223,6 +216,9 @@ export default function GMApp() {
           baseCardsOverride={gmBaseCards}
           modCardsOverride={gmModCards}
           nullCardOverride={gmNullCard}
+          actionCardsOverride={gmActionCards}
+          reactionCardsOverride={gmReactionCards}
+          showActionReactionCards={true}
           baseTarget={15}
           minNulls={5}
           modifierCapacityDefault={10}
@@ -233,6 +229,7 @@ export default function GMApp() {
           showModifierCards={true}
           showModifierCapacity={false}
           showBaseCounters={true}
+          syncWithChud={false}
         />
       </GMShell>
     );
@@ -253,6 +250,9 @@ export default function GMApp() {
           baseCardsOverride={gmBaseCards}
           modCardsOverride={gmModCards}
           nullCardOverride={gmNullCard}
+          actionCardsOverride={gmActionCards}
+          reactionCardsOverride={gmReactionCards}
+          showActionReactionCards={true}
           baseTarget={15}
           minNulls={5}
           modifierCapacityDefault={10}
@@ -262,6 +262,8 @@ export default function GMApp() {
           showBuilderSections={false}
           showOpsSections={true}
           lockControlsInOps={false}
+          syncWithChud={false}
+          independentPlay={true}
         />
       </GMShell>
     );

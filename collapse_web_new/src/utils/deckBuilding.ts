@@ -23,11 +23,14 @@ export const filterCounts = (counts: CountMap, allowedIds: Set<string>) =>
   }, {})
 
 // Expand base/mod/null counts into a flat array of card ids (one entry per copy).
+// extraCounts lets callers append additional pure-count categories (e.g. GM-only
+// Action/Reaction cards) without changing the base/mod/null signature.
 export const buildDeckArray = (
   baseCounts: CountMap,
   modCounts: CountMap,
   nullCount: number,
-  nullCardId?: string
+  nullCardId?: string,
+  extraCounts?: CountMap[]
 ): string[] => {
   const out: string[] = []
   Object.entries(baseCounts).forEach(([id, qty]) => {
@@ -39,6 +42,11 @@ export const buildDeckArray = (
   if (nullCount && nullCardId) {
     for (let i = 0; i < nullCount; i++) out.push(nullCardId)
   }
+  extraCounts?.forEach((counts) => {
+    Object.entries(counts).forEach(([id, qty]) => {
+      for (let i = 0; i < qty; i++) out.push(id)
+    })
+  })
   return out
 }
 
