@@ -5,11 +5,12 @@ import React, { useReducer, useRef } from "react";
 export const DICE_OPEN_EVENT = 'dice-open';
 type DieSides = 4 | 6 | 8 | 10 | 12 | 20;
 type ResultMode = 'total' | 'per-dice';
-interface DieRoll { id: string; sides: DieSides; value: number; }
+interface DieRoll { id: string; sides: DieSides; value: number; acedFrom?: string; }
 interface DiceState { rolls: DieRoll[]; target: number; mode: ResultMode; modifier: number; }
 type DiceAction =
   | { type: 'ROLL'; sides: DieSides }
   | { type: 'ROLL_SOLO'; sides: DieSides }
+  | { type: 'ACE_REROLL'; parentId: string }
   | { type: 'CLEAR' }
   | { type: 'REMOVE'; id: string }
   | { type: 'SET_TARGET'; value: number }
@@ -21,12 +22,33 @@ const DIE_COLOR: Record<DieSides, string> = {
   4: '#ff6b6b', 6: '#ffa94d', 8: '#ffd43b', 10: '#69db7c', 12: '#4dabf7', 20: '#cc5de8',
 };
 
+// Acing: rolling max value on a die steps down to the next smallest standard
+// die size and adds another roll. Chain stops when a roll isn't max, or once
+// 1d4 has been rolled (smallest standard die).
+const ACE_STEP_DOWN: Record<DieSides, DieSides | null> = {
+  20: 12, 12: 10, 10: 8, 8: 6, 6: 4, 4: null,
+};
+
+function isAce(roll: DieRoll): boolean {
+  return roll.value === roll.sides;
+}
+
 function diceReducer(state: DiceState, action: DiceAction): DiceState {
   switch (action.type) {
     case 'ROLL':
       return { ...state, rolls: [...state.rolls, { id: `${Date.now()}-${Math.random()}`, sides: action.sides, value: Math.floor(Math.random() * action.sides) + 1 }] };
     case 'ROLL_SOLO':
       return { ...state, rolls: [{ id: `${Date.now()}-${Math.random()}`, sides: action.sides, value: Math.floor(Math.random() * action.sides) + 1 }] };
+    case 'ACE_REROLL': {
+      const parent = state.rolls.find(r => r.id === action.parentId);
+      if (!parent) return state;
+      const nextSides = ACE_STEP_DOWN[parent.sides];
+      if (!nextSides) return state;
+      // Already stepped down from this roll — don't allow a second reroll off the same parent.
+      if (state.rolls.some(r => r.acedFrom === action.parentId)) return state;
+      const newRoll: DieRoll = { id: `${Date.now()}-${Math.random()}`, sides: nextSides, value: Math.floor(Math.random() * nextSides) + 1, acedFrom: action.parentId };
+      return { ...state, rolls: [...state.rolls, newRoll] };
+    }
     case 'CLEAR':
       return { ...state, rolls: [] };
     case 'REMOVE':
@@ -259,20 +281,36 @@ export const DiceDock: React.FC = () => {
                     const color = DIE_COLOR[roll.sides];
                     const rolling = roll.id === rollingId;
                     const glow = !rolling && ds.mode === 'per-dice' && hasTarget && roll.value >= ds.target;
+                    const aced = !rolling && isAce(roll);
+                    const hasChild = ds.rolls.some(r => r.acedFrom === roll.id);
+                    const canReroll = aced && !hasChild && ACE_STEP_DOWN[roll.sides] !== null;
+                    const acedMaxed = aced && !hasChild && ACE_STEP_DOWN[roll.sides] === null;
                     return (
-                      <div
-                        key={roll.id}
-                        onPointerDown={() => {
-                          longPressRef.current = setTimeout(() => {
-                            vibe();
-                            dispatchDice({ type: 'REMOVE', id: roll.id });
-                          }, 500);
-                        }}
-                        onPointerUp={() => { if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } }}
-                        onPointerLeave={() => { if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } }}
-                        style={{ width: 54, height: 54, borderRadius: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${glow ? color : color + '44'}`, background: glow ? `radial-gradient(circle at 50% 60%,${color}28,${color}0a)` : `${color}0d`, boxShadow: glow ? `0 0 0 1px ${color}66,0 0 16px ${color}55,0 6px 20px ${color}30` : rolling ? `0 0 14px ${color}88` : '0 2px 8px rgba(0,0,0,0.35)', transition: 'box-shadow 0.25s,background 0.25s,border-color 0.25s', flexShrink: 0, userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'none', cursor: 'pointer', animation: rolling ? 'diceRollPulse 0.12s linear infinite' : 'none' }}>
-                        <span style={{ ...labelStyle, fontSize: '1.15rem', color: glow ? color : '#fff', lineHeight: 1 }}>{roll.value}</span>
-                        <span style={{ fontSize: '0.48rem', color: `${color}77`, marginTop: 2, ...labelStyle }}>D{roll.sides}</span>
+                      <div key={roll.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                        <div
+                          onPointerDown={() => {
+                            longPressRef.current = setTimeout(() => {
+                              vibe();
+                              dispatchDice({ type: 'REMOVE', id: roll.id });
+                            }, 500);
+                          }}
+                          onPointerUp={() => { if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } }}
+                          onPointerLeave={() => { if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } }}
+                          style={{ width: 54, height: 54, borderRadius: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${aced ? '#ffd43b' : glow ? color : color + '44'}`, background: aced ? 'radial-gradient(circle at 50% 60%,#ffd43b28,#ffd43b0a)' : glow ? `radial-gradient(circle at 50% 60%,${color}28,${color}0a)` : `${color}0d`, boxShadow: aced ? '0 0 0 1px #ffd43b66,0 0 16px #ffd43b55' : glow ? `0 0 0 1px ${color}66,0 0 16px ${color}55,0 6px 20px ${color}30` : rolling ? `0 0 14px ${color}88` : '0 2px 8px rgba(0,0,0,0.35)', transition: 'box-shadow 0.25s,background 0.25s,border-color 0.25s', flexShrink: 0, userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'none', cursor: 'pointer', animation: rolling ? 'diceRollPulse 0.12s linear infinite' : 'none' }}>
+                          <span style={{ ...labelStyle, fontSize: '1.15rem', color: aced ? '#ffd43b' : glow ? color : '#fff', lineHeight: 1 }}>{roll.value}</span>
+                          <span style={{ fontSize: '0.48rem', color: aced ? '#ffd43b99' : `${color}77`, marginTop: 2, ...labelStyle }}>D{roll.sides}</span>
+                        </div>
+                        {canReroll && (
+                          <button
+                            onClick={() => { vibe(); dispatchDice({ type: 'ACE_REROLL', parentId: roll.id }); }}
+                            style={{ background: 'rgba(255,212,59,0.12)', border: '1px solid rgba(255,212,59,0.4)', borderRadius: 6, color: '#ffd43b', fontSize: '0.5rem', letterSpacing: '0.06em', ...labelStyle, padding: '3px 6px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            ⚡ ACE
+                          </button>
+                        )}
+                        {acedMaxed && (
+                          <span style={{ fontSize: '0.48rem', color: 'rgba(255,212,59,0.6)', ...labelStyle, letterSpacing: '0.06em' }}>ACED (MAX)</span>
+                        )}
                       </div>
                     );
                   })}

@@ -219,7 +219,7 @@ const HUB_CARD_DEFS: HubCard[] = [
   },
   {
     id: "profile",
-    title: "Profile",
+    title: "Bio Card",
     description: "Character profile and background.",
   },
 ];
