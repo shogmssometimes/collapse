@@ -98,12 +98,23 @@ body.hosted-toolbar .meter-toolbar { display: none !important; }
 /* final-clean overrides removed */
 .hud-toggle { position: absolute; right: 8px; top: 8px; background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.06); padding: 7px 9px; border-radius: 6px; font-weight: 600; font-size: 0.88rem; }
 /* HUD toggle when placed within the canvas wrapper */
-#matrix-canvas-wrap .hud-toggle { left: 12px; right: auto; top: 12px; background: rgba(0,0,0,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.02); z-index: 50; }
+#matrix-canvas-wrap .hud-toggle,
+#matrix-canvas-wrap .posture-toggle {
+  right: auto;
+  top: 12px;
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.02);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 0;
+  border-radius: 6px;
+}
 /* Make HUD toggle tiny and symbolic */
-#matrix-canvas-wrap .hud-toggle { width: 36px; height: 36px; padding: 0; font-size: 0; }
+#matrix-canvas-wrap .hud-toggle { left: 12px; background: rgba(0,0,0,0.45); z-index: 50; }
 #matrix-canvas-wrap .hud-toggle::before { content: "☰"; display:inline-block; font-size: 18px; line-height:36px; text-align:center; width:100%; color: var(--text); }
 #matrix-canvas-wrap .hud-toggle[aria-pressed='true']::before { content: "✖"; }
-#matrix-canvas-wrap .posture-toggle { left: 56px; right: auto; top: 12px; background: rgba(0,0,0,0.35); color: var(--text); border: 1px solid rgba(255,255,255,0.02); width:36px; height:36px; padding: 0; font-size:0; border-radius:6px; }
+#matrix-canvas-wrap .posture-toggle { left: 56px; background: rgba(0,0,0,0.35); }
 #matrix-canvas-wrap .posture-toggle::before { content: "≡"; display:inline-block; font-size:16px; line-height:36px; text-align:center; width:100%; }
 #matrix-canvas-wrap .posture-toggle[aria-pressed='true']::before { content: "⊞"; }
 #matrix-canvas-wrap {
@@ -908,6 +919,21 @@ body.nodes-open, body.nodes-open * {
 .node-quadrant[data-quadrant="valuable-risk"] { background: rgba(255,215,96,0.18); color: #ffd760; border-color: rgba(255,215,96,0.4); }
 .node-quadrant[data-quadrant="asset"]         { background: rgba(106,199,255,0.18); color: #6ac7ff; border-color: rgba(106,199,255,0.4); }
 .node-quadrant[data-quadrant="useful-ghost"]  { background: rgba(255,107,154,0.18); color: #ff6b9a; border-color: rgba(255,107,154,0.4); }
+
+.node-modal-faction {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.85);
+  margin-left: 8px;
+}
 
 /* Node card layout: row1=[swatch|name|delete]  row2=[quadrant badge] */
 .node-card-head {

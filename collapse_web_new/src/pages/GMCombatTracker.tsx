@@ -21,15 +21,22 @@ type CombatantType = "enemy" | "player";
 
 type NoteEntry = { id: string; category: string; text: string };
 
+// Set Roll: a direct, per-combatant copy of the CHUD's "Set Rolls (Status
+// Effects)" panel — each combatant owns its own independent rows, not synced
+// to the shared CHUD localStorage state.
+type SetRollRow = { id: string; name: string; effect: string; roll: number };
+
 type SetRollState = {
   open: boolean;
-  target: number;
-  modifier: number;
-  lastRoll: number | null;
+  rows: SetRollRow[];
 };
 
+function newSetRollRow(): SetRollRow {
+  return { id: `sr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: "", effect: "", roll: 0 };
+}
+
 function defaultSetRoll(): SetRollState {
-  return { open: false, target: 0, modifier: 0, lastRoll: null };
+  return { open: false, rows: [newSetRollRow(), newSetRollRow()] };
 }
 
 type Combatant = {
@@ -42,6 +49,7 @@ type Combatant = {
   maxHp: number;
   viv: number;
   maxViv: number;
+  rdy: number;
   notes: NoteEntry[];
   partyId?: string; // set when imported from a Party slot
   setRoll: SetRollState;
@@ -141,6 +149,7 @@ function makeCombatant(existing: Combatant[], type: CombatantType = "enemy"): Co
     maxHp: type === "enemy" ? 10 : 0,
     viv: type === "enemy" ? 0 : 0,
     maxViv: type === "enemy" ? 99 : 0,
+    rdy: 0,
     notes: [],
     setRoll: defaultSetRoll(),
   };
@@ -158,13 +167,18 @@ function loadApp(): AppState {
       if (typeof n === "string" && n.trim()) return [{ id: uid(), category: "", text: n }];
       return [];
     };
+    const migrateSetRoll = (sr: any): SetRollState => {
+      if (sr && typeof sr === "object" && Array.isArray(sr.rows)) {
+        return { open: !!sr.open, rows: sr.rows.map((r: any) => ({ id: String(r?.id || newSetRollRow().id), name: String(r?.name || ""), effect: String(r?.effect || ""), roll: clampStatusRoll(Number(r?.roll ?? 0)) })) };
+      }
+      return defaultSetRoll();
+    };
     const migrateCombatant = (c: any, index: number) => ({
       ...c,
       icon: migrateIcon(c.icon) ?? ICONS[index % ICONS.length],
+      rdy: typeof c.rdy === "number" ? c.rdy : 0,
       notes: migrateNotes(c.notes),
-      setRoll: c.setRoll && typeof c.setRoll === "object"
-        ? { ...defaultSetRoll(), ...c.setRoll }
-        : defaultSetRoll(),
+      setRoll: migrateSetRoll(c.setRoll),
     });
     return {
       combatants: Array.isArray(p.combatants)
@@ -193,6 +207,32 @@ function loadApp(): AppState {
 function saveApp(s: AppState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+// ── Run state persistence ─────────────────────────────────────────────────────
+// Keeps Run mode (and which combatant is active) alive across navigation until
+// the GM explicitly ends combat (Edit / Clear).
+
+const RUN_STATE_KEY = "collapse.gm.tracker.runstate.v1";
+
+function loadRunState(): { mode: "edit" | "run"; runIndex: number } {
+  try {
+    const raw = localStorage.getItem(RUN_STATE_KEY);
+    if (!raw) return { mode: "edit", runIndex: 0 };
+    const p = JSON.parse(raw);
+    return {
+      mode: p.mode === "run" ? "run" : "edit",
+      runIndex: typeof p.runIndex === "number" && p.runIndex >= 0 ? p.runIndex : 0,
+    };
+  } catch {
+    return { mode: "edit", runIndex: 0 };
+  }
+}
+
+function saveRunState(mode: "edit" | "run", runIndex: number) {
+  try {
+    localStorage.setItem(RUN_STATE_KEY, JSON.stringify({ mode, runIndex }));
   } catch {}
 }
 
@@ -418,93 +458,218 @@ const NotesTable: React.FC<NotesTableProps> = ({ notes, onChange }) => {
 };
 
 // ── Set Roll Panel ────────────────────────────────────────────────────────────
-// Per-combatant, collapsible status-effect roll tracker. Each combatant owns
-// its own SetRollState, so panels never interfere with one another and persist
-// with the rest of the combatant's data.
+// A direct copy of the CHUD's "Set Rolls (Status Effects)" panel — a Name /
+// Effect / Set Roll (+/-) / Clear table with catalog autocomplete and
+// hold-to-clear rows. Stopgapped here so each Combat Tracker combatant owns
+// its own independent set of rows (not synced to any shared CHUD state).
+
+const STATUS_ROLL_MAX = 50;
+const STATUS_ROLL_MAX_ROWS = 10;
+const STATUS_ROLL_CLEAR_HOLD_MS = 700;
+
+const STATUS_EFFECTS_CATALOG: { name: string; effect: string }[] = [
+  { name: "Slowed", effect: "Any movement costs +1 additional AP" },
+  { name: "Bound", effect: "Cannot take movement actions" },
+  { name: "Stunned", effect: "Reduce AP by 1d4" },
+  { name: "Distracted", effect: "Cannot purchase/use Reaction Tokens" },
+  { name: "Taunted", effect: "Must target Taunter with Combat Action or lose 2AP" },
+  { name: "Marked", effect: "Cannot be Hidden" },
+  { name: "Exposed", effect: "WT reduced by 1" },
+  { name: "Nullified", effect: "Cannot use Mod Engrams" },
+  { name: "Overheated", effect: "Cannot use Grit" },
+  { name: "Irradiated", effect: "Lose 1 Grit" },
+  { name: "Afflicted (Poison, Burn, Suffocation etc)", effect: "At the bottom of your turn, roll a dice, on evens reduce WT by 1, on odds, nothing happens." },
+  { name: "Frightened", effect: "Must remain adjacent to fear source" },
+  { name: "Crushed", effect: "Double AP Costs" },
+  { name: "Confused", effect: "Roll twice, take lower" },
+  { name: "Hacked", effect: "Roll 1d4, control target for that # of Turns" },
+  { name: "Discombobulated", effect: "Roll 1d4, on 1, Combat Actions hit a random target" },
+  { name: "Focused", effect: "On rolls, roll twice, take higher" },
+  { name: "Shielded", effect: "Damage halved" },
+  { name: "Fortified", effect: "WT increased by 1" },
+  { name: "Hastened", effect: "Any movement costs 1 less AP" },
+  { name: "Inspired", effect: "Gain 1 Grit" },
+  { name: "Energized", effect: "Gain +1AP" },
+  { name: "Overclocked", effect: "Chip damage die steps up one tier" },
+  { name: "Bleeding", effect: "On hit, Lose 1HP regardless of WT" },
+  { name: "Charmed", effect: "Treat source as friendly" },
+  { name: "Demoralized", effect: "Cannot Ganbare or receive Ganbare" },
+  { name: "Rattled", effect: "Cannot use Overdrive" },
+  { name: "Pressured", effect: "Cannot Flank or gain positional bonuses" },
+  { name: "Exhausted", effect: "Reduce all AO/PCDC rolls by 1d4" },
+  { name: "Downed", effect: "Out of the fight, must be revived" },
+  { name: "Desynced", effect: "Your Chip is Desynced" },
+];
+
+function normalizeStatusName(s: string): string {
+  return String(s || "").trim().toLowerCase();
+}
+
+const STATUS_EFFECTS_BY_NAME = new Map(STATUS_EFFECTS_CATALOG.map((it) => [normalizeStatusName(it.name), it]));
+
+function clampStatusRoll(n: number): number {
+  return Math.max(0, Math.min(STATUS_ROLL_MAX, Number.isFinite(n) ? n : 0));
+}
+
+function getStatusSuggestions(query: string): { name: string; effect: string }[] {
+  const q = normalizeStatusName(query);
+  if (!q) return [];
+  return STATUS_EFFECTS_CATALOG
+    .filter((it) => normalizeStatusName(it.name).includes(q))
+    .sort((a, b) => {
+      const aStarts = normalizeStatusName(a.name).startsWith(q) ? 0 : 1;
+      const bStarts = normalizeStatusName(b.name).startsWith(q) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, 6);
+}
 
 type SetRollPanelProps = {
   value: SetRollState;
   onChange: (next: SetRollState) => void;
 };
 
-const SetRollPanel: React.FC<SetRollPanelProps> = ({ value, onChange }) => {
-  const hasTarget = value.target > 0;
-  const hasModifier = value.modifier !== 0;
-  const total = value.lastRoll !== null ? value.lastRoll + value.modifier : null;
-  const passing = hasTarget && total !== null ? total >= value.target : null;
+const SetRollRowView: React.FC<{
+  row: SetRollRow;
+  onUpdate: (next: SetRollRow) => void;
+  onRemove: () => void;
+}> = ({ row, onUpdate, onRemove }) => {
+  const [nameFocused, setNameFocused] = useState(false);
+  const [holdPct, setHoldPct] = useState(0);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const exact = STATUS_EFFECTS_BY_NAME.get(normalizeStatusName(row.name));
+  const effectReadOnly = !!exact;
+  const suggestions = nameFocused ? getStatusSuggestions(row.name) : [];
+
+  const applySuggestion = (item: { name: string; effect: string }) => {
+    onUpdate({ ...row, name: item.name, effect: item.effect });
+    setNameFocused(false);
+  };
+
+  const clearHold = () => {
+    if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null; }
+    if (holdTickRef.current) { clearInterval(holdTickRef.current); holdTickRef.current = null; }
+    setHoldPct(0);
+  };
+
+  const startHold = () => {
+    const started = Date.now();
+    holdTickRef.current = setInterval(() => {
+      setHoldPct(Math.min(100, ((Date.now() - started) / STATUS_ROLL_CLEAR_HOLD_MS) * 100));
+    }, 30);
+    holdTimerRef.current = setTimeout(() => {
+      clearHold();
+      onRemove();
+    }, STATUS_ROLL_CLEAR_HOLD_MS);
+  };
 
   return (
-    <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, marginTop: "0.6rem", overflow: "hidden" }}>
+    <div style={{ display: "flex", gap: 6, alignItems: "stretch", position: "relative" }}>
+      <div style={{ position: "relative", flex: "26 1 0", minWidth: 0 }}>
+        <input
+          type="text"
+          value={row.name}
+          placeholder="Type effect name..."
+          autoComplete="off"
+          onChange={(e) => {
+            const name = e.target.value;
+            const match = STATUS_EFFECTS_BY_NAME.get(normalizeStatusName(name));
+            onUpdate({ ...row, name, effect: match ? match.effect : (effectReadOnly ? "" : row.effect) });
+          }}
+          onFocus={() => setNameFocused(true)}
+          onBlur={() => setTimeout(() => setNameFocused(false), 120)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const first = getStatusSuggestions(row.name)[0];
+              if (first) { e.preventDefault(); applySuggestion(first); }
+            }
+          }}
+          style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 8, padding: "7px 8px", fontSize: "0.72rem", color: "#e9f0ff", outline: "none" }}
+        />
+        {suggestions.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 3, background: "#0d1117", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 8, maxHeight: 170, overflowY: "auto", zIndex: 30, boxShadow: "0 10px 28px rgba(0,0,0,0.55)" }}>
+            {suggestions.map((item) => (
+              <div
+                key={item.name}
+                onPointerDown={(e) => { e.preventDefault(); applySuggestion(item); }}
+                style={{ padding: "8px 10px", fontSize: "0.7rem", color: "#e9f0ff", cursor: "pointer", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                {item.name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <textarea
+        rows={2}
+        value={row.effect}
+        readOnly={effectReadOnly}
+        onChange={(e) => { if (!effectReadOnly) onUpdate({ ...row, effect: e.target.value }); }}
+        style={{ flex: "42 1 0", minWidth: 0, boxSizing: "border-box", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "7px 8px", fontSize: "0.68rem", color: effectReadOnly ? "rgba(248,250,252,0.55)" : "rgba(248,250,252,0.8)", fontStyle: effectReadOnly ? "italic" : "normal", outline: "none", lineHeight: 1.25, resize: "none" }}
+      />
+      <div style={{ flex: "22 1 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+        <button
+          onClick={() => onUpdate({ ...row, roll: clampStatusRoll(row.roll - 1) })}
+          style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 6, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.07)", color: "#fff", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >−</button>
+        <span style={{ minWidth: 20, textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 800, color: "#6ac7ff", fontSize: "0.72rem" }}>{row.roll}</span>
+        <button
+          onClick={() => onUpdate({ ...row, roll: clampStatusRoll(row.roll + 1) })}
+          style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 6, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.07)", color: "#fff", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >+</button>
+      </div>
+      <button
+        onPointerDown={(e) => { e.preventDefault(); startHold(); }}
+        onPointerUp={clearHold}
+        onPointerLeave={clearHold}
+        onPointerCancel={clearHold}
+        style={{ flex: "10 1 0", minWidth: 30, borderRadius: 8, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.1)", color: "#f87171", fontSize: "0.78rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}
+      >
+        <span style={{ position: "absolute", inset: 0, background: "rgba(239,68,68,0.4)", width: `${holdPct}%`, pointerEvents: "none" }} />
+        <span style={{ position: "relative", zIndex: 1 }}>X</span>
+      </button>
+    </div>
+  );
+};
+
+const SetRollPanel: React.FC<SetRollPanelProps> = ({ value, onChange }) => {
+  return (
+    <div style={{ marginTop: "0.6rem" }}>
       <button
         onClick={(e) => { e.stopPropagation(); onChange({ ...value, open: !value.open }); }}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "rgba(255,255,255,0.03)",
-          border: "none",
-          color: "#f8f9fa",
-          padding: "0.5rem 0.75rem",
-          fontSize: "0.82rem",
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
+        style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.12)", padding: "6px 0 8px", cursor: "pointer", color: "rgba(248,250,252,0.65)", fontSize: "0.72rem", fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase" }}
       >
-        <span>Set Roll (Status Effects)</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {total !== null && (
-            <span style={{ fontSize: "0.78rem", color: passing === true ? "var(--accent-influence)" : passing === false ? "var(--error)" : "var(--muted)" }}>
-              {total}{hasTarget ? ` / ${value.target}` : ""}
-            </span>
-          )}
-          <span style={{ color: "var(--muted)", transform: value.open ? "rotate(180deg)" : "none", transition: "transform 0.15s", display: "inline-block" }}>▾</span>
-        </span>
+        <span>Set Rolls (Status Effects)</span>
+        <span style={{ fontSize: "0.55rem", opacity: 0.7 }}>{value.open ? "▲" : "▼"}</span>
       </button>
       {value.open && (
-        <div style={{ padding: "0.75rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
-          <div>
-            <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 6, textAlign: "center" }}>Target</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-              <button
-                onClick={() => onChange({ ...value, target: Math.max(0, value.target - 1) })}
-                style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#fff", cursor: "pointer" }}
-              >−</button>
-              <span style={{ minWidth: 28, textAlign: "center", fontWeight: 700, color: hasTarget ? "var(--accent)" : "rgba(255,255,255,0.3)" }}>{value.target}</span>
-              <button
-                onClick={() => onChange({ ...value, target: Math.min(100, value.target + 1) })}
-                style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#fff", cursor: "pointer" }}
-              >+</button>
-            </div>
+        <div style={{ paddingTop: 8, display: "flex", flexDirection: "column", gap: 8 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: "flex", gap: 6, padding: "0 2px" }}>
+            <span style={{ flex: "26 1 0", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(248,250,252,0.4)", fontWeight: 600 }}>Name</span>
+            <span style={{ flex: "42 1 0", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(248,250,252,0.4)", fontWeight: 600 }}>Effect</span>
+            <span style={{ flex: "22 1 0", textAlign: "center", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(248,250,252,0.4)", fontWeight: 600 }}>Set Roll</span>
+            <span style={{ flex: "10 1 0", textAlign: "center", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(248,250,252,0.4)", fontWeight: 600 }}>Clear</span>
           </div>
-          <div>
-            <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 6, textAlign: "center" }}>Modifier</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-              <button
-                onClick={() => onChange({ ...value, modifier: Math.max(-100, value.modifier - 1) })}
-                style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#fff", cursor: "pointer" }}
-              >−</button>
-              <span style={{ minWidth: 28, textAlign: "center", fontWeight: 700, color: hasModifier ? "var(--accent-amber)" : "rgba(255,255,255,0.3)" }}>{hasModifier ? (value.modifier > 0 ? `+${value.modifier}` : value.modifier) : 0}</span>
-              <button
-                onClick={() => onChange({ ...value, modifier: Math.min(100, value.modifier + 1) })}
-                style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#fff", cursor: "pointer" }}
-              >+</button>
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {value.rows.map((row) => (
+              <SetRollRowView
+                key={row.id}
+                row={row}
+                onUpdate={(next) => onChange({ ...value, rows: value.rows.map((r) => (r.id === row.id ? next : r)) })}
+                onRemove={() => onChange({ ...value, rows: value.rows.filter((r) => r.id !== row.id) })}
+              />
+            ))}
           </div>
-          <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8 }}>
-            <button
-              onClick={() => onChange({ ...value, lastRoll: Math.floor(Math.random() * 20) + 1 })}
-              style={{ flex: 1, background: "rgba(15,246,255,0.08)", border: "1px solid rgba(15,246,255,0.25)", borderRadius: 6, color: "var(--accent)", padding: "0.45rem 0", fontSize: "0.82rem", cursor: "pointer" }}
-            >
-              Roll d20{total !== null ? ` → ${total}` : ""}
-            </button>
-            {value.lastRoll !== null && (
-              <button
-                onClick={() => onChange({ ...value, lastRoll: null })}
-                style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "var(--muted)", padding: "0.45rem 0.6rem", fontSize: "0.78rem", cursor: "pointer" }}
-              >Clear</button>
-            )}
-          </div>
+          <button
+            disabled={value.rows.length >= STATUS_ROLL_MAX_ROWS}
+            onClick={() => onChange({ ...value, rows: [...value.rows, newSetRollRow()] })}
+            style={{ alignSelf: "flex-start", marginTop: 2, padding: "7px 14px", borderRadius: 8, border: "1px dashed rgba(255,255,255,0.26)", background: "transparent", color: "rgba(248,250,252,0.65)", fontSize: "0.62rem", cursor: value.rows.length >= STATUS_ROLL_MAX_ROWS ? "not-allowed" : "pointer", letterSpacing: "0.08em", textTransform: "uppercase", opacity: value.rows.length >= STATUS_ROLL_MAX_ROWS ? 0.35 : 1 }}
+          >
+            Add Row
+          </button>
         </div>
       )}
     </div>
@@ -662,6 +827,26 @@ const EditRow: React.FC<EditRowProps> = ({ c, index, isLast, onChange, onRemove,
         </div>
       </div>
 
+      <div>
+        <span style={{ display: "block", fontSize: "0.82rem", color: "var(--muted)", marginBottom: 5 }}>RDY</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="-?[0-9]*"
+          value={c.rdy}
+          onChange={(e) => {
+            const raw = e.target.value;
+            if (raw === "" || raw === "-") { onChange({ ...c, rdy: 0 }); return; }
+            const n = Number(raw);
+            if (!Number.isNaN(n)) onChange({ ...c, rdy: n });
+          }}
+          style={{ ...INPUT, maxWidth: 120 }}
+        />
+        <div style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: 6 }}>
+          When Run starts, combatants are ordered highest RDY to lowest.
+        </div>
+      </div>
+
       {c.type === "enemy" ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
           <div>
@@ -732,7 +917,7 @@ const RunCard: React.FC<RunCardProps> = ({ c, index, total, onChange, onPrev, on
       const dx = e.changedTouches[0].clientX - startX;
       const dy = Math.abs(e.changedTouches[0].clientY - startY);
       if (Math.abs(dx) > 55 && dy < Math.abs(dx) * 0.7) {
-        if (dx < 0 && indexRef.current < totalRef.current - 1) onNextRef.current();
+        if (dx < 0 && totalRef.current > 1) onNextRef.current();
         else if (dx > 0 && indexRef.current > 0) onPrevRef.current();
       }
     };
@@ -775,8 +960,8 @@ const RunCard: React.FC<RunCardProps> = ({ c, index, total, onChange, onPrev, on
             style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: index === 0 ? "rgba(255,255,255,0.18)" : "#f8f9fa", padding: "0.4rem 0.85rem", fontSize: "1.1rem", cursor: index === 0 ? "default" : "pointer" }}
           >←</button>
           <button
-            onClick={onNext} disabled={index === total - 1}
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: index === total - 1 ? "rgba(255,255,255,0.18)" : "#f8f9fa", padding: "0.4rem 0.85rem", fontSize: "1.1rem", cursor: index === total - 1 ? "default" : "pointer" }}
+            onClick={onNext} disabled={total <= 1}
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: total <= 1 ? "rgba(255,255,255,0.18)" : "#f8f9fa", padding: "0.4rem 0.85rem", fontSize: "1.1rem", cursor: total <= 1 ? "default" : "pointer" }}
           >→</button>
         </div>
       </div>
@@ -1153,8 +1338,8 @@ const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
 
 export default function GMCombatTracker() {
   const [appState, setAppState] = useState<AppState>(loadApp);
-  const [mode, setMode] = useState<"edit" | "run">("edit");
-  const [runIndex, setRunIndex] = useState(0);
+  const [mode, setMode] = useState<"edit" | "run">(() => loadRunState().mode);
+  const [runIndex, setRunIndex] = useState(() => loadRunState().runIndex);
   const [showScenarios, setShowScenarios] = useState(false);
   const [showParties, setShowParties] = useState(false);
   const [partySelected, setPartySelected] = useState<Set<string>>(new Set());
@@ -1172,6 +1357,12 @@ export default function GMCombatTracker() {
       setRunIndex(combatants.length - 1);
     }
   }, [combatants.length, runIndex]);
+
+  // Persist Run mode / active index so combat stays running across navigation
+  // until the GM explicitly ends it (Edit / Clear).
+  useEffect(() => {
+    saveRunState(mode, runIndex);
+  }, [mode, runIndex]);
 
   // ── Pool actions ──────────────────────────────────────────────────────────
 
@@ -1335,15 +1526,17 @@ export default function GMCombatTracker() {
               onClick={() => setMode((m) => {
                 if (m === "edit") {
                   setAppState((prev) => {
+                    const sorted = [...prev.combatants].sort((a, b) => (b.rdy ?? 0) - (a.rdy ?? 0));
                     const next = {
                       ...prev,
-                      combatants: prev.combatants.map((c) =>
+                      combatants: sorted.map((c) =>
                         c.type === "enemy" ? { ...c, hp: c.maxHp, viv: 0 } : c
                       ),
                     };
                     saveApp(next);
                     return next;
                   });
+                  setRunIndex(0);
                   return "run";
                 }
                 return "edit";
@@ -1383,7 +1576,7 @@ export default function GMCombatTracker() {
               onClick={addCombatant}
               style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.13)", borderRadius: 8, color: "var(--muted)", padding: "0.75rem", fontSize: "0.88rem", cursor: "pointer" }}
             >
-              + Add Enemy
+              + Add
             </button>
             {combatants.length > 0 && (
               <button
@@ -1405,7 +1598,7 @@ export default function GMCombatTracker() {
           total={combatants.length}
           onChange={updateCombatant}
           onPrev={() => setRunIndex((i) => Math.max(0, i - 1))}
-          onNext={() => setRunIndex((i) => Math.min(combatants.length - 1, i + 1))}
+          onNext={() => setRunIndex((i) => (i + 1) % combatants.length)}
           onGoTo={setRunIndex}
         />
       )}

@@ -23,6 +23,6 @@ export function computeDerived(core: CoreStats) {
   return {
     hp: 8 + core.vigor * 2,
     capacity: core.inference + 10,
-    readyness: core.personality + 5,
+    readyness: core.personality + 3,
   };
 }

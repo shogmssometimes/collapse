@@ -920,6 +920,21 @@ body.nodes-open, body.nodes-open * {
 .node-quadrant[data-quadrant="asset"]         { background: rgba(106,199,255,0.18); color: #6ac7ff; border-color: rgba(106,199,255,0.4); }
 .node-quadrant[data-quadrant="useful-ghost"]  { background: rgba(255,107,154,0.18); color: #ff6b9a; border-color: rgba(255,107,154,0.4); }
 
+.node-modal-faction {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.85);
+  margin-left: 8px;
+}
+
 /* Node card layout: row1=[swatch|name|delete]  row2=[quadrant badge] */
 .node-card-head {
   display: flex !important;

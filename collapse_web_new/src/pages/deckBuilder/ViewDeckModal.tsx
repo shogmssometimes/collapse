@@ -23,7 +23,6 @@ type ViewDeckModalProps = {
   activePlayCost: number
   modifierCapacity: number
   onFinalizePlay: () => void
-  onCancelPlay: () => void
 }
 
 export default function ViewDeckModal({
@@ -46,7 +45,6 @@ export default function ViewDeckModal({
   activePlayCost,
   modifierCapacity,
   onFinalizePlay,
-  onCancelPlay,
 }: ViewDeckModalProps) {
   if (!show) return null
   return (
@@ -176,13 +174,6 @@ export default function ViewDeckModal({
                 disabled={!activePlay?.baseId}
               >
                 Finalize Play
-              </button>
-              <button
-                className="ghost-btn"
-                style={{ flex: '1 1 120px', minWidth: 120 }}
-                onClick={onCancelPlay}
-              >
-                Cancel
               </button>
             </div>
           </div>

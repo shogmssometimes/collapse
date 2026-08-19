@@ -3,9 +3,9 @@ import React, { useReducer, useRef } from "react";
 // ─── Dice Roller ──────────────────────────────────────────────────────────────
 // Shared dice roller dock used on both the player side and GM side.
 export const DICE_OPEN_EVENT = 'dice-open';
-type DieSides = 4 | 6 | 8 | 10 | 12 | 20;
+export type DieSides = 4 | 6 | 8 | 10 | 12 | 20;
 type ResultMode = 'total' | 'per-dice';
-interface DieRoll { id: string; sides: DieSides; value: number; acedFrom?: string; }
+export interface DieRoll { id: string; sides: DieSides; value: number; acedFrom?: string; }
 interface DiceState { rolls: DieRoll[]; target: number; mode: ResultMode; modifier: number; }
 type DiceAction =
   | { type: 'ROLL'; sides: DieSides }
@@ -17,19 +17,19 @@ type DiceAction =
   | { type: 'SET_MODIFIER'; value: number }
   | { type: 'TOGGLE_MODE' };
 
-const DICE_SIDES: DieSides[] = [4, 6, 8, 10, 12, 20];
-const DIE_COLOR: Record<DieSides, string> = {
+export const DICE_SIDES: DieSides[] = [4, 6, 8, 10, 12, 20];
+export const DIE_COLOR: Record<DieSides, string> = {
   4: '#ff6b6b', 6: '#ffa94d', 8: '#ffd43b', 10: '#69db7c', 12: '#4dabf7', 20: '#cc5de8',
 };
 
 // Acing: rolling max value on a die steps down to the next smallest standard
 // die size and adds another roll. Chain stops when a roll isn't max, or once
 // 1d4 has been rolled (smallest standard die).
-const ACE_STEP_DOWN: Record<DieSides, DieSides | null> = {
+export const ACE_STEP_DOWN: Record<DieSides, DieSides | null> = {
   20: 12, 12: 10, 10: 8, 8: 6, 6: 4, 4: null,
 };
 
-function isAce(roll: DieRoll): boolean {
+export function isAce(roll: DieRoll): boolean {
   return roll.value === roll.sides;
 }
 

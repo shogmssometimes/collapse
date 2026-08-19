@@ -1300,7 +1300,6 @@ export default function DeckBuilder({
         activePlayCost={activePlayCost}
         modifierCapacity={builderState.modifierCapacity}
         onFinalizePlay={finalizePlay}
-        onCancelPlay={cancelPlay}
       />
 
     </>

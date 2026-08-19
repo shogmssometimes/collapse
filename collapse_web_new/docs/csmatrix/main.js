@@ -110,6 +110,7 @@ function persistGraph() {
 			gy: typeof n.gy === 'number' ? n.gy : 0,
 			color: n.color || '',
 			notes: n.notes || '',
+			faction: n.faction || '',
 		}));
 		const json = { nodes, edges: [], meta: { globalMeters } };
 		localStorage.setItem('csmatrix.graph', JSON.stringify(json));
@@ -508,7 +509,7 @@ function openNewNodeMetersPopup(onConfirm) {
 	btnAdd.addEventListener('click', () => {
 		overlay.remove();
 		const name = nameInput.value && nameInput.value.trim() ? nameInput.value.trim() : undefined;
-		onConfirm(computeResult(), name);
+		onConfirm(computeResult(), name, selectedFaction);
 	});
   btnRow.appendChild(btnCancel);
   btnRow.appendChild(btnAdd);
@@ -520,9 +521,9 @@ function openNewNodeMetersPopup(onConfirm) {
 }
 
 document.getElementById('btn-add-node').addEventListener('click', () => {
-	openNewNodeMetersPopup(({ gx, gy }, name) => {
+	openNewNodeMetersPopup(({ gx, gy }, name, faction) => {
 		const defaultColor = getColorOrDefault(graph._nextColor ? graph._nextColor() : getCssVar('--accent-influence', '#4caf50'));
-		const node = graph.addNode({ name: name || 'New Node', gx, gy, color: defaultColor });
+		const node = graph.addNode({ name: name || 'New Node', gx, gy, color: defaultColor, faction: faction || '' });
 		graph.selectNode(node);
 		try { persistGraph(); } catch (e) {}
 		updateNodeList();
@@ -580,6 +581,8 @@ graph.svg.addEventListener('click', (ev) => {
 		const ql = getQuadrantLabel(n.gx, n.gy);
 		const qBadge = modal.querySelector('.node-modal-quadrant');
 		qBadge.textContent = ql; qBadge.dataset.quadrant = getQuadrantSlug(ql); qBadge.style.display = ql ? '' : 'none';
+		const factionBadge = modal.querySelector('.node-modal-faction');
+		if (factionBadge) { factionBadge.textContent = n.faction || 'Unaffiliated'; factionBadge.style.display = ''; }
 		modal.querySelector('.node-modal-coords').textContent = `Matrix: ${n.gx}, ${n.gy}`;
 		const notesEl = modal.querySelector('.node-modal-notes');
 		if (notesEl) { notesEl.textContent = n.notes || ''; notesEl.style.display = n.notes ? '' : 'none'; }
@@ -1359,6 +1362,18 @@ function updateNodeList() {
 			palette.appendChild(swatch);
 		});
 		panel.appendChild(palette);
+		// Faction field
+		const factionLabel = document.createElement('label'); factionLabel.textContent = 'Faction: ';
+		const factionSelectField = document.createElement('select');
+		const factionNoneOpt = document.createElement('option'); factionNoneOpt.value = ''; factionNoneOpt.textContent = 'Unaffiliated'; factionSelectField.appendChild(factionNoneOpt);
+		FACTION_OPTIONS.forEach((name) => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name; factionSelectField.appendChild(opt); });
+		factionSelectField.value = n.faction || '';
+		factionLabel.appendChild(factionSelectField); panel.appendChild(factionLabel);
+		stopNodeCardPropagation(factionSelectField);
+		factionSelectField.addEventListener('change', () => {
+			n.faction = factionSelectField.value;
+			try { persistGraph(); } catch(e) {}
+		});
 		// Notes field
 		const notesLabel = document.createElement('label'); notesLabel.textContent = 'Notes: '; notesLabel.style.alignItems = 'flex-start';
 		const notesInput = document.createElement('textarea'); notesInput.className = 'node-notes-input'; notesInput.value = n.notes || ''; notesInput.placeholder = 'Your Notes Auto-Save';
@@ -1414,6 +1429,7 @@ function loadSample() {
 					if (!live) return;
 					if (saved.notes) live.notes = saved.notes;
 					if (saved.color) live.color = saved.color;
+					if (saved.faction) live.faction = saved.faction;
 				});
 				// Normalise any still-missing colors
 				graph.nodes.forEach(n => { if (!sanitizeHexColor(n.color)) n.color = getNodeDisplayColor(n); });
