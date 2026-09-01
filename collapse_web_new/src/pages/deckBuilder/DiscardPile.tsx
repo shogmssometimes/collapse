@@ -12,7 +12,7 @@ export default function DiscardPile({
   return (
     <section style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
       <div>
-        <h3 style={{ textAlign: 'center' }}>Discard Pile</h3>
+        <h3 style={{ textAlign: 'center' }}>Null Space</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, textAlign: 'center', alignItems: 'center' }}>
           <div className="text-body">Discard Count: <strong>{discardCount}</strong></div>
           <div className="muted text-body">Duplicates stacked</div>

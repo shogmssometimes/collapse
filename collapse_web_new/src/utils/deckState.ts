@@ -15,6 +15,7 @@ export type DeckBuilderState = {
   deck?: string[]
   hand?: { id: string; state: 'unspent' | 'played' }[]
   discard?: { id: string; origin: 'played' | 'discarded' }[]
+  exile?: string[]
   isLocked?: boolean
   deckName?: string
   savedDecks?: Record<string, {
@@ -48,6 +49,7 @@ export const defaultState = (
   deck: [],
   hand: [],
   discard: [],
+  exile: [],
   isLocked: false,
   deckName: '',
   savedDecks: {},
@@ -82,6 +84,7 @@ export const loadState = (
       deck: parsed.deck ?? [],
       hand: parsed.hand ?? [],
       discard: parsed.discard ?? [],
+      exile: parsed.exile ?? [],
       isLocked: parsed.isLocked ?? false,
       deckName: parsed.deckName ?? '',
       handLimit: clamp(parsed.handLimit ?? DEFAULT_HAND_LIMIT, 0, MAX_HAND_LIMIT),

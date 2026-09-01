@@ -15,7 +15,10 @@ import ModifierCardGrid from './deckBuilder/ModifierCardGrid'
 import HandCarousel from './deckBuilder/HandCarousel'
 import DeckOpsPanel from './deckBuilder/DeckOpsPanel'
 import DiscardPile from './deckBuilder/DiscardPile'
+import ExilePile from './deckBuilder/ExilePile'
+import ViewDeckContent from './deckBuilder/ViewDeckContent'
 import ViewDeckModal from './deckBuilder/ViewDeckModal'
+import HoldButton from './deckBuilder/HoldButton'
 
 const DEFAULT_BASE_TARGET = 21
 const DEFAULT_MIN_NULLS = 5
@@ -130,6 +133,8 @@ export default function DeckBuilder({
   const [opsError, setOpsError] = useState<string | null>(null)
   const [shuffledRecently, setShuffledRecently] = useState(false)
   const [showViewDeck, setShowViewDeck] = useState(false)
+  const [opsMode, setOpsMode] = useState<'combat' | 'roleplay'>('combat')
+  const [reshuffleMessage, setReshuffleMessage] = useState<string | null>(null)
   const [pendingDeckPlay, setPendingDeckPlay] = useState<string[]>([])
   const handCount = (builderState.hand ?? []).length
   const { handListRef, handNavState, updateHandNav, scrollHand } = useHandNavigation(handCount)
@@ -221,7 +226,7 @@ export default function DeckBuilder({
   const nullValid = builderState.nullCount >= minNulls
   const modValid = simpleCounters && modCapacityAsCount ? true : modCapacityUsed <= builderState.modifierCapacity
   const deckIsValid = baseValid && nullValid && modValid
-  const lockLabel = builderState.isLocked && hasBuiltDeck && hasShuffledDeck ? 'Deck Locked + Primed' : (builderState.isLocked ? 'Deck Locked' : 'Deck Unlocked')
+  const lockLabel = builderState.isLocked && hasBuiltDeck && hasShuffledDeck ? 'Deck Locked + Shuffled' : (builderState.isLocked ? 'Deck Locked' : 'Deck Unlocked')
   const lockPill = builderState.isLocked ? <span className="lock-pill locked">{lockLabel}</span> : <span className="lock-pill unlocked">{lockLabel}</span>
 
   const costFilterOptions = useMemo(() => buildCostFilterOptions(modCards), [modCards])
@@ -354,6 +359,30 @@ export default function DeckBuilder({
     setShuffledRecently(true)
   }
 
+  // Reshuffle: return all Null Space (discard) cards to the deck, shuffle,
+  // then roll 1d8 and exile that many cards from the top of the deck.
+  const reshuffleDeck = () => {
+    const roll = Math.floor(Math.random() * 8) + 1
+    setBuilderState((prev) => {
+      const returned = (prev.discard ?? []).map((d) => d.id)
+      const combinedDeck = shuffleInPlace([...(prev.deck ?? []), ...returned])
+      const exiledCards = combinedDeck.slice(0, roll)
+      const nextDeck = combinedDeck.slice(roll)
+      return {
+        ...prev,
+        deck: nextDeck,
+        discard: [],
+        exile: [...(prev.exile ?? []), ...exiledCards],
+        hasShuffledDeck: true,
+      }
+    })
+    setDeckSeed((s) => s + 1)
+    setHasShuffledDeck(true)
+    setOpsError(null)
+    setShuffledRecently(true)
+    setReshuffleMessage(`Rolled ${roll} — ${roll} card${roll === 1 ? '' : 's'} moved to Exile`)
+  }
+
   // Draw a single card to hand (only allowed when deck is locked)
   const draw = () => {
     let drewCard = false
@@ -484,6 +513,89 @@ export default function DeckBuilder({
     setActivePlay({ baseId: cardId, baseHandIndex: -1, mods: [], modIndices: [] })
     setPendingDeckPlay([cardId])
     setOpsError(null)
+  }
+
+  // Moves one copy of a card from the deck straight to Exile.
+  const exileSpecificCard = (cardId: string) => {
+    if (needsLock) {
+      setOpsError('Lock the deck before exiling a card.')
+      return
+    }
+    if (needsBuild) {
+      setOpsError('Build the deck before exiling a card.')
+      return
+    }
+    if (needsShuffle) {
+      setOpsError('Shuffle the deck before exiling a card.')
+      return
+    }
+    const available = (deckCounts[cardId] ?? 0) - (pendingDeckCounts[cardId] ?? 0)
+    if (available <= 0) {
+      setOpsError('No copies of that card are available in the deck.')
+      return
+    }
+    setBuilderState((prev) => {
+      const deck = [...(prev.deck ?? [])]
+      const idx = deck.lastIndexOf(cardId)
+      if (idx === -1) return prev
+      deck.splice(idx, 1)
+      return { ...prev, deck, exile: [...(prev.exile ?? []), cardId] }
+    })
+    setDeckSeed((s) => s + 1)
+    setOpsError(null)
+  }
+
+  // Moves one copy of a card from the deck straight to Null Space (discard).
+  const discardSpecificCard = (cardId: string) => {
+    if (needsLock) {
+      setOpsError('Lock the deck before discarding a card.')
+      return
+    }
+    if (needsBuild) {
+      setOpsError('Build the deck before discarding a card.')
+      return
+    }
+    if (needsShuffle) {
+      setOpsError('Shuffle the deck before discarding a card.')
+      return
+    }
+    const available = (deckCounts[cardId] ?? 0) - (pendingDeckCounts[cardId] ?? 0)
+    if (available <= 0) {
+      setOpsError('No copies of that card are available in the deck.')
+      return
+    }
+    setBuilderState((prev) => {
+      const deck = [...(prev.deck ?? [])]
+      const idx = deck.lastIndexOf(cardId)
+      if (idx === -1) return prev
+      deck.splice(idx, 1)
+      return { ...prev, deck, discard: [...(prev.discard ?? []), { id: cardId, origin: 'discarded' }] }
+    })
+    setDeckSeed((s) => s + 1)
+    setOpsError(null)
+  }
+
+  // Full Rest: return all Exiled and Null Space cards to the deck. The deck
+  // stays locked/built ("primed") but is marked unshuffled, so a Shuffle is
+  // required again before drawing.
+  const fullRest = () => {
+    setBuilderState((prev) => {
+      const returnedDiscard = (prev.discard ?? []).map((d) => d.id)
+      const returnedExile = prev.exile ?? []
+      const nextDeck = [...(prev.deck ?? []), ...returnedDiscard, ...returnedExile]
+      return {
+        ...prev,
+        deck: nextDeck,
+        discard: [],
+        exile: [],
+        hasShuffledDeck: false,
+      }
+    })
+    setDeckSeed((s) => s + 1)
+    setHasShuffledDeck(false)
+    setOpsError('Shuffle the deck before drawing.')
+    setShuffledRecently(false)
+    setReshuffleMessage(null)
   }
 
   // Lock / Unlock the deck (save)
@@ -758,6 +870,26 @@ export default function DeckBuilder({
     })
   }, [builderState.discard, builderState.hand, builderState.handLimit, getCard, returnDiscardGroupToDeck, returnDiscardGroupToHand])
 
+  // Exile is populated by Reshuffle (and future exile-triggering effects); it
+  // has no return-to-deck/hand actions yet, just a grouped read-only display.
+  const groupedExileElements = useMemo(() => {
+    const groups = (builderState.exile ?? []).reduce((acc: Record<string, number>, id) => {
+      acc[id] = (acc[id] ?? 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    return Object.entries(groups).map(([id, count]) => {
+      const card = getCard(id)
+      return (
+        <div key={id} className="discard-row">
+          <div className="discard-name">{card?.name ?? id}</div>
+          <div className="discard-actions">
+            <span className="discard-count">x{count}</span>
+          </div>
+        </div>
+      )
+    })
+  }, [builderState.exile, getCard])
+
   const groupedHandStacks = useMemo(() => {
     const handList = builderState.hand ?? []
     const idOccurrenceCount: Record<string, number> = {}
@@ -862,7 +994,10 @@ export default function DeckBuilder({
                 ? <button onClick={() => detachModifier(index)}>Remove</button>
                 : <button onClick={() => attachModifier(id, index)} disabled={!canAttach}>Attach</button>
             )}
-            <button onClick={() => discardGroupFromHand(id, false, 'discarded')}>Discard</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <HoldButton label="Discard" holdMs={500} onHold={() => discardGroupFromHand(id, false, 'discarded')} />
+              <HoldButton label="Exile" holdMs={500} onHold={() => exileCardFromHand(id)} />
+            </div>
           </div>
           {showAttachWarning && (
             <div className="hand-warning-overlay" role="status">
@@ -918,6 +1053,17 @@ export default function DeckBuilder({
   // moves straight from hand to discard marked as "played".
   function playCardIndependently(cardId: string) {
     discardGroupFromHand(cardId, false, 'played')
+  }
+
+  // Moves a single card straight from the hand to Exile.
+  function exileCardFromHand(cardId: string) {
+    setBuilderState((prev) => {
+      const hand = [...(prev.hand ?? [])]
+      const idx = hand.findIndex((h) => h.id === cardId)
+      if (idx === -1) return prev
+      hand.splice(idx, 1)
+      return { ...prev, hand, exile: [...(prev.exile ?? []), cardId] }
+    })
   }
 
   // Play flow handlers (use pure helpers)
@@ -1219,63 +1365,117 @@ export default function DeckBuilder({
 
       {showOpsSections && (
         <div className="page">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <HandCarousel
-              handListRef={handListRef}
-              handFanStyle={handFanStyle}
-              onScroll={updateHandNav}
-              handDisplayCards={handDisplayCards}
-              handIsEmpty={groupedHandStacks.length === 0}
-              handNavState={handNavState}
-              onScrollLeft={() => scrollHand(-1)}
-              onScrollRight={() => scrollHand(1)}
-              handCount={(builderState.hand ?? []).length}
-              handLimit={builderState.handLimit ?? DEFAULT_HAND_LIMIT}
-              activePlay={activePlay}
-              pendingDeckPlayCount={pendingDeckPlay.length}
-              cardLookup={cardLookup}
-              onFinalizePlay={finalizePlay}
-              onCancelPlay={cancelPlay}
-            />
-
-            {/* Deck Operations directly below the hand */}
-            <DeckOpsPanel
-              drawHealthVariant={drawHealthVariant}
-              onDraw={handleDraw}
-              handAtLimit={(builderState.hand ?? []).length >= (builderState.handLimit ?? DEFAULT_HAND_LIMIT)}
-              drawHealthLabel={drawHealthLabel}
-              drawHealthPercent={drawHealthPercent}
-              isLocked={!!builderState.isLocked}
-              hasBuiltDeck={hasBuiltDeck}
-              hasShuffledDeck={hasShuffledDeck}
-              onShuffle={shuffleDeck}
-              lockControlsInOps={lockControlsInOps}
-              needsLock={needsLock}
-              onToggleLock={toggleLockDeck}
-              lockPill={lockPill}
-              opsError={opsError}
-              onViewDeck={() => setShowViewDeck(true)}
-              chudDraw={chudDraw}
-              handLimit={builderState.handLimit ?? DEFAULT_HAND_LIMIT}
-              maxHandLimit={MAX_HAND_LIMIT}
-              onHandLimitChange={(next) => {
-                setBuilderState((prev) => ({
-                  ...prev,
-                  handLimit: Number.isNaN(next)
-                    ? prev.handLimit ?? DEFAULT_HAND_LIMIT
-                    : clamp(next, 0, MAX_HAND_LIMIT),
-                }))
-              }}
-              cardsRemaining={cardsRemaining}
-              shuffledRecently={shuffledRecently}
-              onShuffleFlashEnd={() => setShuffledRecently(false)}
-            />
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+            <button
+              type="button"
+              className={`mode-toggle${opsMode === 'roleplay' ? ' active' : ''}`}
+              onClick={() => setOpsMode('roleplay')}
+            >
+              Roleplay
+            </button>
+            <button
+              type="button"
+              className={`mode-toggle${opsMode === 'combat' ? ' active' : ''}`}
+              onClick={() => setOpsMode('combat')}
+            >
+              Combat
+            </button>
           </div>
 
-          <DiscardPile
-            discardCount={(builderState.discard ?? []).length}
-            groupedDiscardElements={groupedDiscardElements}
-          />
+          {opsMode === 'combat' ? (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <HandCarousel
+                  handListRef={handListRef}
+                  handFanStyle={handFanStyle}
+                  onScroll={updateHandNav}
+                  handDisplayCards={handDisplayCards}
+                  handIsEmpty={groupedHandStacks.length === 0}
+                  handNavState={handNavState}
+                  onScrollLeft={() => scrollHand(-1)}
+                  onScrollRight={() => scrollHand(1)}
+                  handCount={(builderState.hand ?? []).length}
+                  handLimit={builderState.handLimit ?? DEFAULT_HAND_LIMIT}
+                  activePlay={activePlay}
+                  pendingDeckPlayCount={pendingDeckPlay.length}
+                  cardLookup={cardLookup}
+                  onFinalizePlay={finalizePlay}
+                  onCancelPlay={cancelPlay}
+                />
+
+                {/* Deck Operations directly below the hand */}
+                <DeckOpsPanel
+                  drawHealthVariant={drawHealthVariant}
+                  onDraw={handleDraw}
+                  handAtLimit={(builderState.hand ?? []).length >= (builderState.handLimit ?? DEFAULT_HAND_LIMIT)}
+                  drawHealthLabel={drawHealthLabel}
+                  drawHealthPercent={drawHealthPercent}
+                  isLocked={!!builderState.isLocked}
+                  hasBuiltDeck={hasBuiltDeck}
+                  hasShuffledDeck={hasShuffledDeck}
+                  onShuffle={shuffleDeck}
+                  onReshuffle={reshuffleDeck}
+                  reshuffleMessage={reshuffleMessage}
+                  lockControlsInOps={lockControlsInOps}
+                  needsLock={needsLock}
+                  onToggleLock={toggleLockDeck}
+                  lockPill={lockPill}
+                  opsError={opsError}
+                  onViewDeck={() => setShowViewDeck(true)}
+                  chudDraw={chudDraw}
+                  handLimit={builderState.handLimit ?? DEFAULT_HAND_LIMIT}
+                  maxHandLimit={MAX_HAND_LIMIT}
+                  onHandLimitChange={(next) => {
+                    setBuilderState((prev) => ({
+                      ...prev,
+                      handLimit: Number.isNaN(next)
+                        ? prev.handLimit ?? DEFAULT_HAND_LIMIT
+                        : clamp(next, 0, MAX_HAND_LIMIT),
+                    }))
+                  }}
+                  cardsRemaining={cardsRemaining}
+                  shuffledRecently={shuffledRecently}
+                  onShuffleFlashEnd={() => setShuffledRecently(false)}
+                />
+              </div>
+
+              <DiscardPile
+                discardCount={(builderState.discard ?? []).length}
+                groupedDiscardElements={groupedDiscardElements}
+              />
+
+              <ExilePile
+                exileCount={(builderState.exile ?? []).length}
+                groupedExileElements={groupedExileElements}
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <HoldButton label="Full Rest" onHold={fullRest} />
+              </div>
+            </>
+          ) : (
+            <ViewDeckContent
+              opsError={opsError}
+              deckSummary={deckSummary}
+              nullId={nullId}
+              deckCounts={deckCounts}
+              pendingDeckCounts={pendingDeckCounts}
+              overlayHasPending={overlayHasPending}
+              overlayBaseId={overlayBaseId}
+              overlayModCounts={overlayModCounts}
+              onPlaySpecificCard={playSpecificCard}
+              onExileCard={exileSpecificCard}
+              onDiscardCard={discardSpecificCard}
+              needsLock={needsLock}
+              needsBuild={!!needsBuild}
+              needsShuffle={!!needsShuffle}
+              activePlay={activePlay}
+              cardLookup={cardLookup}
+              activePlayCost={activePlayCost}
+              modifierCapacity={builderState.modifierCapacity}
+              onFinalizePlay={finalizePlay}
+            />
+          )}
         </div>
       )}
 
@@ -1292,6 +1492,8 @@ export default function DeckBuilder({
         overlayBaseId={overlayBaseId}
         overlayModCounts={overlayModCounts}
         onPlaySpecificCard={playSpecificCard}
+        onExileCard={exileSpecificCard}
+        onDiscardCard={discardSpecificCard}
         needsLock={needsLock}
         needsBuild={!!needsBuild}
         needsShuffle={!!needsShuffle}

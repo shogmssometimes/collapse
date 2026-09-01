@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import ReshuffleButton from './ReshuffleButton'
+import HoldButton from './HoldButton'
 
 type DeckOpsPanelProps = {
   drawHealthVariant: string
@@ -10,6 +12,8 @@ type DeckOpsPanelProps = {
   hasBuiltDeck: boolean
   hasShuffledDeck: boolean
   onShuffle: () => void
+  onReshuffle: () => void
+  reshuffleMessage: string | null
   lockControlsInOps: boolean
   needsLock: boolean
   onToggleLock: () => void
@@ -35,6 +39,8 @@ export default function DeckOpsPanel({
   hasBuiltDeck,
   hasShuffledDeck,
   onShuffle,
+  onReshuffle,
+  reshuffleMessage,
   lockControlsInOps,
   needsLock,
   onToggleLock,
@@ -52,7 +58,6 @@ export default function DeckOpsPanel({
   return (
     <section className="compact">
       <div>
-        <h2 style={{ textAlign: 'center' }}>Deck Operations</h2>
         <div className="ops-toolbar ops-toolbar-column">
           <button
             className={`draw-health-btn draw-health-${drawHealthVariant}`}
@@ -60,17 +65,22 @@ export default function DeckOpsPanel({
             disabled={handAtLimit}
             title={drawHealthLabel}
           >
-            <span>Draw 1</span>
+            <span className="draw-health-label">Draw 1</span>
             <span className="draw-health-percent">{drawHealthPercent}%</span>
           </button>
           <div className="ops-btn-standard">
-            <button
+            <HoldButton
+              label="Shuffle"
+              onHold={onShuffle}
               className={isLocked && hasBuiltDeck && !hasShuffledDeck ? 'cta-pulse' : undefined}
-              onClick={onShuffle}
-            >
-              Shuffle
-            </button>
+            />
           </div>
+          <div className="ops-btn-standard">
+            <ReshuffleButton onReshuffle={onReshuffle} />
+          </div>
+          {reshuffleMessage && (
+            <div className="muted text-body" style={{ textAlign: 'center', marginTop: -4 }}>{reshuffleMessage}</div>
+          )}
           {lockControlsInOps && (
             <button
               className={needsLock ? 'cta-pulse' : undefined}
@@ -86,41 +96,6 @@ export default function DeckOpsPanel({
           <button type="button" aria-label="View Deck" className="view-deck-btn" onClick={onViewDeck}>View Deck</button>
         </div>
         <div style={{ marginTop: 12 }}>
-          <div style={{ marginTop: 8 }}>
-            <label style={{ fontWeight: 600, display: 'block', textAlign: 'center' }}>Draw</label>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 8,
-                marginTop: 8,
-                textAlign: 'center',
-              }}
-            >
-              {chudDraw !== null ? (
-                <>
-                  <div style={{ fontWeight: 600, fontSize: '1.1em' }}>{handLimit}</div>
-                  <div className="muted text-body" style={{ fontSize: '0.75em' }}>Synced from HUD</div>
-                </>
-              ) : (
-                <>
-                  <input
-                    type="number"
-                    min={0}
-                    max={maxHandLimit}
-                    value={handLimit}
-                    onChange={(e) => {
-                      const next = Number.parseInt(e.target.value, 10)
-                      onHandLimitChange(next)
-                    }}
-                    style={{ width: 80, maxWidth: '100%', textAlign: 'center' }}
-                  />
-                  <div className="muted text-body">Active cap for hand cards.</div>
-                </>
-              )}
-            </div>
-          </div>
           <div style={{ marginTop: 12, textAlign: 'center' }} className="text-body">
             <div>Cards Remaining:</div>
             <strong

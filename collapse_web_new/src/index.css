@@ -403,6 +403,37 @@ button:hover {
   font-weight: 700;
 }
 
+/* Reshuffle button: long-press with a visual fill sweeping across the button
+   to indicate hold progress. Releasing before the hold completes resets the
+   fill instantly with no animation. */
+.reshuffle-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.reshuffle-btn .reshuffle-label {
+  position: relative;
+  z-index: 1;
+}
+.reshuffle-progress {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(86,141,255,0.6), rgba(86,255,201,0.6));
+  z-index: 0;
+}
+.reshuffle-progress.active {
+  width: 100%;
+  transition: width var(--reshuffle-hold-ms, 900ms) linear;
+}
+
+/* Long-press card-name target for the details pop-up: must not be cancelled
+   by the browser's scroll-gesture disambiguation while the finger is held
+   still, so override the global touch-action reset above. */
+.card-detail-press-target {
+  touch-action: none !important;
+}
+
 /* Prevent text selection and highlights globally in the app (use .selectable to opt back in) */
 html, body, #root, #root *:not(input):not(textarea):not([contenteditable]) {
   -webkit-user-select: none !important; /* iOS Safari */
@@ -637,6 +668,17 @@ main {
 
 .ops-toolbar-column > .draw-health-btn {
   margin-bottom: 24px;
+  width: 65%;
+  align-self: center;
+  min-width: 62px;
+  padding: 0.195rem 0.55rem;
+  font-size: 0.6rem;
+}
+.ops-toolbar-column > .draw-health-btn .draw-health-label {
+  font-size: 0.84rem;
+}
+.ops-toolbar-column > .draw-health-btn .draw-health-percent {
+  font-size: 0.47rem;
 }
 
 .ops-toolbar-column > .lock-pill {
@@ -1027,11 +1069,11 @@ main {
 
 .hand-card {
   position: relative;
-  flex: 0 0 286px;
-  min-width: 286px;
-  max-width: 286px;
-  min-height: 306px;
-  max-height: 306px;
+  flex: 0 0 343px;
+  min-width: 343px;
+  max-width: 343px;
+  min-height: 367px;
+  max-height: 367px;
   border: 1px solid rgba(255,255,255,0.16);
   border-radius: 12px;
   padding: 20px 16px 20px;
