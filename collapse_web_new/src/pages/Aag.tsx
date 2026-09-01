@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ApproachStats, CoreStats } from "../types/chud";
-import { DEFAULT_APPROACH, DEFAULT_DRAW, computeDerived } from "../domain/chudStats";
+import { DEFAULT_APPROACH, DEFAULT_DRAW, DEFAULT_WT, DEFAULT_AP, DEFAULT_INVENTORY_SLOTS, computeDerived } from "../domain/chudStats";
 import { loadState, readGearData } from "../utils/chudPersistence";
 import { Page2Panel } from "../chud/panels/Page2Panel";
 import "./aagPage2.css";
@@ -20,10 +20,10 @@ export default function AagPage({
 
   const [core, setCore] = useState<CoreStats>(saved?.core ?? { vigor: 0, inference: 0, personality: 0 });
   const [approach, setApproach] = useState<ApproachStats>(saved?.approach ?? DEFAULT_APPROACH);
-  const [wt, setWtRaw] = useState<number>(saved?.wt ?? 0);
-  const [ap, setApRaw] = useState<number>(saved?.ap ?? 0);
+  const [wt, setWtRaw] = useState<number>(saved?.wt ?? DEFAULT_WT);
+  const [ap, setApRaw] = useState<number>(saved?.ap ?? DEFAULT_AP);
   const [draw, setDrawRaw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
-  const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? 0);
+  const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
   const [gearSlotsUsed, setGearSlotsUsed] = useState<number>(() =>
     typeof window !== "undefined" ? (readGearData(gearSlotsStorageKey)?.slotsUsed ?? 0) : 0
   );

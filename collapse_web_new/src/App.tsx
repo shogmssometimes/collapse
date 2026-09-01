@@ -131,7 +131,7 @@ const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; on
   </>
 );
 
-const PlayerShell: React.FC<{ onBack: () => void; onGoHome?: () => void; children: React.ReactNode; chudDock?: React.ReactNode; actions?: React.ReactNode; hideHud?: boolean; onOpenHud?: () => void }> = ({ onBack, onGoHome, children, chudDock, actions, hideHud, onOpenHud }) => {
+const PlayerShell: React.FC<{ onBack: () => void; onGoHome?: () => void; children: React.ReactNode; chudDock?: React.ReactNode; actions?: React.ReactNode; hideHud?: boolean; onOpenHud?: () => void; centerContent?: React.ReactNode }> = ({ onBack, onGoHome, children, chudDock, actions, hideHud, onOpenHud, centerContent }) => {
   const openChud = () => {
     if (onOpenHud) {
       onOpenHud();
@@ -144,9 +144,13 @@ const PlayerShell: React.FC<{ onBack: () => void; onGoHome?: () => void; childre
     <DiceDock />
     <header className="topbar" style={{ position: 'relative' }}>
       <BackButton onBack={onBack} onGoHome={onGoHome ?? onBack} />
-      <button className="ghost-btn ghost-btn-icon" onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))} aria-label="Open dice roller" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.65)' }}>
-        <DiceIcon size={18} />
-      </button>
+      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {centerContent ?? (
+          <button className="ghost-btn ghost-btn-icon" onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))} aria-label="Open dice roller" style={{ color: 'rgba(255,255,255,0.65)' }}>
+            <DiceIcon size={18} />
+          </button>
+        )}
+      </div>
       <div className="topbar-actions">
         {!hideHud && (
           <button className="chud-top-btn" onClick={openChud} aria-label="Open HUD overlay">HUD</button>
@@ -502,6 +506,7 @@ export default function App() {
   const [route, setRoute] = useState<Route>(() => deriveRoute());
   const [hudReturnRoute, setHudReturnRoute] = useState<Route>("hub");
   const [charSlot, setCharSlot] = useState<number>(() => readActiveCharSlot());
+  const [opsMode, setOpsMode] = useState<'combat' | 'roleplay'>('combat');
   const matrixFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [matrixState, setMatrixState] = useState({ controlsOpen: false, nodesOpen: false });
 
@@ -603,13 +608,42 @@ export default function App() {
 
   if (route === "player-ops") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
+      <PlayerShell
+        key={route}
+        onBack={() => setRoute("hub")}
+        chudDock={chudDock}
+        onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}
+        centerContent={
+          <>
+            <button
+              type="button"
+              className={`mode-toggle${opsMode === 'roleplay' ? ' active' : ''}`}
+              onClick={() => setOpsMode('roleplay')}
+            >
+              Roleplay
+            </button>
+            <button className="ghost-btn ghost-btn-icon" onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))} aria-label="Open dice roller" style={{ color: 'rgba(255,255,255,0.65)' }}>
+              <DiceIcon size={18} />
+            </button>
+            <button
+              type="button"
+              className={`mode-toggle${opsMode === 'combat' ? ' active' : ''}`}
+              onClick={() => setOpsMode('combat')}
+            >
+              Combat
+            </button>
+          </>
+        }
+      >
         <DeckBuilder
           key={`player-ops-${charSlot}`}
           storageKey={deckStorageKey}
           chudStateStorageKey={chudStateKey(charSlot)}
           showBuilderSections={false}
           showOpsSections={true}
+          opsModeOverride={opsMode}
+          onOpsModeChange={setOpsMode}
+          hideOpsModeToggle={true}
           lockControlsInOps={false}
         />
       </PlayerShell>

@@ -21,7 +21,7 @@ import ViewDeckModal from './deckBuilder/ViewDeckModal'
 import HoldButton from './deckBuilder/HoldButton'
 
 const DEFAULT_BASE_TARGET = 21
-const DEFAULT_MIN_NULLS = 5
+const DEFAULT_MIN_NULLS = 1
 const DEFAULT_STORAGE_KEY = 'collapse.deck-builder.v2'
 const DEFAULT_MODIFIER_CAPACITY = 10
 const DEFAULT_CHUD_STATE_KEY = 'chud.state.v1'
@@ -54,6 +54,9 @@ type DeckBuilderProps = {
   syncWithChud?: boolean
   showActionReactionCards?: boolean
   independentPlay?: boolean
+  opsModeOverride?: 'combat' | 'roleplay'
+  onOpsModeChange?: (mode: 'combat' | 'roleplay') => void
+  hideOpsModeToggle?: boolean
 }
 
 export default function DeckBuilder({
@@ -84,6 +87,9 @@ export default function DeckBuilder({
   syncWithChud = true,
   showActionReactionCards = false,
   independentPlay = false,
+  opsModeOverride,
+  onOpsModeChange,
+  hideOpsModeToggle = false,
 }: DeckBuilderProps){
   const baseCards = baseCardsOverride ?? (Handbook.baseCards ?? [])
   const modCards = modCardsOverride ?? (Handbook.modCards ?? [])
@@ -133,7 +139,9 @@ export default function DeckBuilder({
   const [opsError, setOpsError] = useState<string | null>(null)
   const [shuffledRecently, setShuffledRecently] = useState(false)
   const [showViewDeck, setShowViewDeck] = useState(false)
-  const [opsMode, setOpsMode] = useState<'combat' | 'roleplay'>('combat')
+  const [internalOpsMode, setInternalOpsMode] = useState<'combat' | 'roleplay'>('combat')
+  const opsMode = opsModeOverride ?? internalOpsMode
+  const setOpsMode = onOpsModeChange ?? setInternalOpsMode
   const [reshuffleMessage, setReshuffleMessage] = useState<string | null>(null)
   const [pendingDeckPlay, setPendingDeckPlay] = useState<string[]>([])
   const handCount = (builderState.hand ?? []).length
@@ -326,6 +334,10 @@ export default function DeckBuilder({
 
   const overlayHasPending = pendingDeckPlay.length > 0
   const overlayBaseId = overlayHasPending ? pendingDeckPlay[0] : null
+  // A play started via the deck overlay (Roleplay tab / View Deck popup) is
+  // tagged 'roleplay'; one started from the hand carousel is tagged 'combat'.
+  // The queue itself is universal and shows in both modes regardless of origin.
+  const playOrigin: 'combat' | 'roleplay' = overlayHasPending ? 'roleplay' : 'combat'
   const overlayModCounts = useMemo(() => {
     if (!overlayHasPending) return {}
     return (activePlay?.mods ?? []).reduce<Record<string, number>>((acc, id) => {
@@ -575,22 +587,26 @@ export default function DeckBuilder({
     setOpsError(null)
   }
 
-  // Full Rest: return all Exiled and Null Space cards to the deck. The deck
-  // stays locked/built ("primed") but is marked unshuffled, so a Shuffle is
-  // required again before drawing.
+  // Full Rest: return all Exiled, Null Space, and Hand cards to the deck. The
+  // deck stays locked/built ("primed") but is marked unshuffled, so a Shuffle
+  // is required again before drawing.
   const fullRest = () => {
     setBuilderState((prev) => {
       const returnedDiscard = (prev.discard ?? []).map((d) => d.id)
       const returnedExile = prev.exile ?? []
-      const nextDeck = [...(prev.deck ?? []), ...returnedDiscard, ...returnedExile]
+      const returnedHand = (prev.hand ?? []).map((h) => h.id)
+      const nextDeck = [...(prev.deck ?? []), ...returnedDiscard, ...returnedExile, ...returnedHand]
       return {
         ...prev,
         deck: nextDeck,
         discard: [],
         exile: [],
+        hand: [],
         hasShuffledDeck: false,
       }
     })
+    setActivePlay(null)
+    setPendingDeckPlay([])
     setDeckSeed((s) => s + 1)
     setHasShuffledDeck(false)
     setOpsError('Shuffle the deck before drawing.')
@@ -910,6 +926,8 @@ export default function DeckBuilder({
         : (isQueuedModifier ? 'Queued' : null)
       const canPlayBase = isBase && !activePlay
       const canAttach = !isBase && !!activePlay
+      const isQueuedBase = isBase && !!activePlay && activePlay.baseHandIndex === index
+      const isAttachedToQueue = isQueuedBase || isQueuedModifier
       let modText: string | null = null
       let modTarget: string | null = null
       const details = card?.details ?? []
@@ -986,17 +1004,27 @@ export default function DeckBuilder({
           </div>
           <div className="hand-actions" style={{ justifyContent: isNull ? 'flex-end' : undefined }}>
             {isNull ? null : independentPlay ? (
-              <button onClick={() => playCardIndependently(id)}>Play {card?.name ?? id}</button>
+              <button onClick={() => playCardIndependently(index)}>Play {card?.name ?? id}</button>
             ) : isBase ? (
               <button onClick={() => startPlayBase(id, index)} disabled={!canPlayBase}>Play Base</button>
             ) : (
-              isQueuedModifier
-                ? <button onClick={() => detachModifier(index)}>Remove</button>
-                : <button onClick={() => attachModifier(id, index)} disabled={!canAttach}>Attach</button>
+              !isQueuedModifier && <button onClick={() => attachModifier(id, index)} disabled={!canAttach}>Attach</button>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <HoldButton label="Discard" holdMs={500} onHold={() => discardGroupFromHand(id, false, 'discarded')} />
-              <HoldButton label="Exile" holdMs={500} onHold={() => exileCardFromHand(id)} />
+              <HoldButton
+                label="Discard"
+                holdMs={500}
+                onHold={() => discardHandCardAtIndex(index, 'discarded')}
+                disabled={isAttachedToQueue}
+                ariaLabel={isAttachedToQueue ? `${card?.name ?? id} is attached to the play queue; clear it before discarding` : undefined}
+              />
+              <HoldButton
+                label="Exile"
+                holdMs={500}
+                onHold={() => exileHandCardAtIndex(index)}
+                disabled={isAttachedToQueue}
+                ariaLabel={isAttachedToQueue ? `${card?.name ?? id} is attached to the play queue; clear it before exiling` : undefined}
+              />
             </div>
           </div>
           {showAttachWarning && (
@@ -1031,39 +1059,46 @@ export default function DeckBuilder({
   const handDisplayCards = groupedHandStacks.length > 0 ? groupedHandStacks : [handGhostCard]
 
   // Move grouped items from hand to discard (single or all)
-  function discardGroupFromHand(cardId: string, all = false, origin: 'played' | 'discarded' = 'discarded') {
+  // Shifts activePlay's baseHandIndex/modIndices down when a hand card at
+  // `removedIndex` is spliced out, so the queue keeps pointing at the correct
+  // remaining cards instead of drifting onto whatever slid into that slot.
+  function shiftActivePlayIndices(prev: ActivePlay, removedIndex: number): ActivePlay {
+    if (!prev) return prev
+    const baseHandIndex = prev.baseHandIndex > removedIndex ? prev.baseHandIndex - 1 : prev.baseHandIndex
+    const modIndices = prev.modIndices.map((i) => (i > removedIndex ? i - 1 : i))
+    return { ...prev, baseHandIndex, modIndices }
+  }
+
+  // Removes the exact hand card at `index` (not just the first card sharing its
+  // id) and moves it to discard. Using the specific index avoids accidentally
+  // discarding a different copy of the same card that happens to be attached
+  // to the play queue.
+  function discardHandCardAtIndex(index: number, origin: 'played' | 'discarded' = 'discarded') {
     setBuilderState((prev) => {
       const hand = [...(prev.hand ?? [])]
-      const removed: { id: string; state: 'unspent' | 'played' }[] = []
-      if (all) {
-        for (let i = hand.length - 1; i >= 0; i--) {
-          if (hand[i].id === cardId) removed.push(hand.splice(i, 1)[0])
-        }
-      } else {
-        const idx = hand.findIndex((h) => h.id === cardId)
-        if (idx >= 0) removed.push(hand.splice(idx, 1)[0])
-      }
-      if (removed.length === 0) return prev
-      const discard = [...(prev.discard ?? []), ...removed.map(r => ({ id: r.id, origin }))]
+      if (index < 0 || index >= hand.length) return prev
+      const [removed] = hand.splice(index, 1)
+      const discard = [...(prev.discard ?? []), { id: removed.id, origin }]
       return { ...prev, hand, discard }
     })
+    setActivePlay((prev) => shiftActivePlayIndices(prev, index))
   }
 
   // Plays a single card independently (GM mode): no base/attach requirement, just
   // moves straight from hand to discard marked as "played".
-  function playCardIndependently(cardId: string) {
-    discardGroupFromHand(cardId, false, 'played')
+  function playCardIndependently(index: number) {
+    discardHandCardAtIndex(index, 'played')
   }
 
-  // Moves a single card straight from the hand to Exile.
-  function exileCardFromHand(cardId: string) {
+  // Moves the exact hand card at `index` straight to Exile.
+  function exileHandCardAtIndex(index: number) {
     setBuilderState((prev) => {
       const hand = [...(prev.hand ?? [])]
-      const idx = hand.findIndex((h) => h.id === cardId)
-      if (idx === -1) return prev
-      hand.splice(idx, 1)
-      return { ...prev, hand, exile: [...(prev.exile ?? []), cardId] }
+      if (index < 0 || index >= hand.length) return prev
+      const [removed] = hand.splice(index, 1)
+      return { ...prev, hand, exile: [...(prev.exile ?? []), removed.id] }
     })
+    setActivePlay((prev) => shiftActivePlayIndices(prev, index))
   }
 
   // Play flow handlers (use pure helpers)
@@ -1143,11 +1178,23 @@ export default function DeckBuilder({
       return
     }
 
-    // Hand-origin flow
+    // Hand-origin flow: remove the exact queued indices (base + mods), highest
+    // index first, so earlier splices don't shift the remaining indices out
+    // from under us.
     const sel = finalizeSelection(activePlay)
-    if (!sel) return
-    discardGroupFromHand(sel.baseId, false, 'played')
-    sel.mods.forEach((m) => discardGroupFromHand(m, false, 'played'))
+    if (!sel || !activePlay) return
+    const indices = [activePlay.baseHandIndex, ...activePlay.modIndices]
+      .filter((i) => i >= 0)
+      .sort((a, b) => b - a)
+    setBuilderState((prev) => {
+      const hand = [...(prev.hand ?? [])]
+      const removed: string[] = []
+      indices.forEach((i) => {
+        if (i >= 0 && i < hand.length) removed.push(hand.splice(i, 1)[0].id)
+      })
+      const discard = [...(prev.discard ?? []), ...removed.map((id) => ({ id, origin: 'played' as const }))]
+      return { ...prev, hand, discard }
+    })
     setActivePlay(null)
   }
 
@@ -1365,22 +1412,24 @@ export default function DeckBuilder({
 
       {showOpsSections && (
         <div className="page">
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
-            <button
-              type="button"
-              className={`mode-toggle${opsMode === 'roleplay' ? ' active' : ''}`}
-              onClick={() => setOpsMode('roleplay')}
-            >
-              Roleplay
-            </button>
-            <button
-              type="button"
-              className={`mode-toggle${opsMode === 'combat' ? ' active' : ''}`}
-              onClick={() => setOpsMode('combat')}
-            >
-              Combat
-            </button>
-          </div>
+          {!hideOpsModeToggle && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
+              <button
+                type="button"
+                className={`mode-toggle${opsMode === 'roleplay' ? ' active' : ''}`}
+                onClick={() => setOpsMode('roleplay')}
+              >
+                Roleplay
+              </button>
+              <button
+                type="button"
+                className={`mode-toggle${opsMode === 'combat' ? ' active' : ''}`}
+                onClick={() => setOpsMode('combat')}
+              >
+                Combat
+              </button>
+            </div>
+          )}
 
           {opsMode === 'combat' ? (
             <>
@@ -1397,7 +1446,7 @@ export default function DeckBuilder({
                   handCount={(builderState.hand ?? []).length}
                   handLimit={builderState.handLimit ?? DEFAULT_HAND_LIMIT}
                   activePlay={activePlay}
-                  pendingDeckPlayCount={pendingDeckPlay.length}
+                  playOrigin={playOrigin}
                   cardLookup={cardLookup}
                   onFinalizePlay={finalizePlay}
                   onCancelPlay={cancelPlay}
@@ -1470,10 +1519,10 @@ export default function DeckBuilder({
               needsBuild={!!needsBuild}
               needsShuffle={!!needsShuffle}
               activePlay={activePlay}
+              playOrigin={playOrigin}
               cardLookup={cardLookup}
-              activePlayCost={activePlayCost}
-              modifierCapacity={builderState.modifierCapacity}
               onFinalizePlay={finalizePlay}
+              onCancelPlay={cancelPlay}
             />
           )}
         </div>
@@ -1498,10 +1547,10 @@ export default function DeckBuilder({
         needsBuild={!!needsBuild}
         needsShuffle={!!needsShuffle}
         activePlay={activePlay}
+        playOrigin={playOrigin}
         cardLookup={cardLookup}
-        activePlayCost={activePlayCost}
-        modifierCapacity={builderState.modifierCapacity}
         onFinalizePlay={finalizePlay}
+        onCancelPlay={cancelPlay}
       />
 
     </>

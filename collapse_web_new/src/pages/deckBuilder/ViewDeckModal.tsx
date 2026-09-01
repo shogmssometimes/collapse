@@ -22,10 +22,10 @@ type ViewDeckModalProps = {
   needsBuild: boolean
   needsShuffle: boolean
   activePlay: ActivePlay
+  playOrigin: 'combat' | 'roleplay'
   cardLookup: Map<string, Card>
-  activePlayCost: number
-  modifierCapacity: number
   onFinalizePlay: () => void
+  onCancelPlay: () => void
 }
 
 export default function ViewDeckModal({
@@ -46,10 +46,10 @@ export default function ViewDeckModal({
   needsBuild,
   needsShuffle,
   activePlay,
+  playOrigin,
   cardLookup,
-  activePlayCost,
-  modifierCapacity,
   onFinalizePlay,
+  onCancelPlay,
 }: ViewDeckModalProps) {
   if (!show) return null
   return (
@@ -84,10 +84,10 @@ export default function ViewDeckModal({
           needsBuild={needsBuild}
           needsShuffle={needsShuffle}
           activePlay={activePlay}
+          playOrigin={playOrigin}
           cardLookup={cardLookup}
-          activePlayCost={activePlayCost}
-          modifierCapacity={modifierCapacity}
           onFinalizePlay={onFinalizePlay}
+          onCancelPlay={onCancelPlay}
         />
       </div>
     </div>

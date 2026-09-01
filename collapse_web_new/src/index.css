@@ -671,11 +671,11 @@ main {
   width: 65%;
   align-self: center;
   min-width: 62px;
-  padding: 0.195rem 0.55rem;
+  padding: 0.127rem 0.55rem;
   font-size: 0.6rem;
 }
 .ops-toolbar-column > .draw-health-btn .draw-health-label {
-  font-size: 0.84rem;
+  font-size: 1.531rem;
 }
 .ops-toolbar-column > .draw-health-btn .draw-health-percent {
   font-size: 0.47rem;

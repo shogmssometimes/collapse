@@ -31,12 +31,12 @@ export function CombatRangeCells({ className }: { className?: string } = {}) {
   return (
     <div className={`combat-info-row${className ? ` ${className}` : ""}`}>
       <div className="combat-info-cell">
-        <span className="combat-info-cell-label">FR</span>
-        <span className="combat-info-range-val">{swapped ? "0" : "−4"}</span>
+        <span className="combat-info-cell-label">CR</span>
+        <span className="combat-info-range-val">{swapped ? "+1" : "0"}</span>
       </div>
       <div className="combat-info-cell">
-        <span className="combat-info-cell-label">CR</span>
-        <span className="combat-info-range-val">{swapped ? "−4" : "0"}</span>
+        <span className="combat-info-cell-label">FR</span>
+        <span className="combat-info-range-val">{swapped ? "0" : "+1"}</span>
       </div>
     </div>
   );

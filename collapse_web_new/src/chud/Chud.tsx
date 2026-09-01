@@ -3,6 +3,9 @@ import "./chud.css";
 import type { CoreStats, GearSlotEntry, SaveState } from "../types/chud";
 import {
   DEFAULT_DRAW,
+  DEFAULT_AP,
+  DEFAULT_INVENTORY_SLOTS,
+  DEFAULT_HP_COUNTER,
   computeDerived,
 } from "../domain/chudStats";
 import { loadState, readGearData } from "../utils/chudPersistence";
@@ -33,10 +36,10 @@ export default function Chud() {
   const saved = loadState(STORAGE_KEY);
 
   const [core, setCore] = useState<CoreStats>(saved?.core ?? { vigor: 0, inference: 0, personality: 0 });
-  const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? 0);
-  const [ap, setApRaw] = useState<number>(saved?.ap ?? 0);
+  const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? DEFAULT_HP_COUNTER);
+  const [ap, setApRaw] = useState<number>(saved?.ap ?? DEFAULT_AP);
   const [draw, setDrawRaw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
-  const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? 0);
+  const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
   const [gearEntries, setGearEntries] = useState<GearSlotEntry[] | null>(() =>
     typeof window !== "undefined" ? (readGearData(GEAR_SLOTS_KEY)?.entries ?? null) : null
   );

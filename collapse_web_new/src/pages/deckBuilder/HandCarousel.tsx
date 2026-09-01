@@ -1,6 +1,7 @@
 import type { ActivePlay } from '../../utils/playFlow'
 import type { Card } from '../../domain/decks/DeckEngine'
 import type { CSSProperties, ReactNode } from 'react'
+import PlayQueueCard from './PlayQueueCard'
 
 type HandCarouselProps = {
   handListRef: React.MutableRefObject<HTMLDivElement | null>
@@ -14,7 +15,7 @@ type HandCarouselProps = {
   handCount: number
   handLimit: number
   activePlay: ActivePlay
-  pendingDeckPlayCount: number
+  playOrigin: 'combat' | 'roleplay'
   cardLookup: Map<string, Card>
   onFinalizePlay: () => void
   onCancelPlay: () => void
@@ -32,7 +33,7 @@ export default function HandCarousel({
   handCount,
   handLimit,
   activePlay,
-  pendingDeckPlayCount,
+  playOrigin,
   cardLookup,
   onFinalizePlay,
   onCancelPlay,
@@ -76,35 +77,15 @@ export default function HandCarousel({
             </button>
           </div>
         </div>
-        {activePlay && pendingDeckPlayCount === 0 && (
-          <div className="play-overlay" style={{ marginTop: 8 }}>
-            <div className="play-overlay-header">
-              <div>
-                <div className="muted text-body">Current Play</div>
-                <div className="play-overlay-title">{cardLookup.get(activePlay.baseId)?.name ?? activePlay.baseId}</div>
-              </div>
-              <button onClick={onCancelPlay}>Clear</button>
-            </div>
-            <div className="play-overlay-body">
-              <div className="play-overlay-list">
-                <div className="muted text-body">Base</div>
-                <div>{cardLookup.get(activePlay.baseId)?.name ?? activePlay.baseId}</div>
-              </div>
-              <div className="play-overlay-list">
-                <div className="muted text-body">Modifiers</div>
-                {activePlay.mods.length === 0 && <div className="muted">None</div>}
-                {activePlay.mods.map((m) => (
-                  <div key={m} className="play-overlay-mod">
-                    <span className="play-overlay-mod-name">{cardLookup.get(m)?.name ?? m}</span>
-                    <span className="play-attach-pill">Attached</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="play-overlay-actions">
-              <button onClick={onFinalizePlay}>Finalize Play</button>
-              <button onClick={onCancelPlay}>Cancel</button>
-            </div>
+        {activePlay?.baseId && (
+          <div style={{ marginTop: 8 }}>
+            <PlayQueueCard
+              activePlay={activePlay}
+              cardLookup={cardLookup}
+              origin={playOrigin}
+              onFinalizePlay={onFinalizePlay}
+              onCancelPlay={onCancelPlay}
+            />
           </div>
         )}
       </div>

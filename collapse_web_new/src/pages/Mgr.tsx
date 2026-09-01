@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CoreStats, SecondaryStats, StatReps } from "../types/chud";
-import { DEFAULT_SECONDARY, DEFAULT_STAT_REPS } from "../domain/chudStats";
+import { DEFAULT_SECONDARY, DEFAULT_STAT_REPS, DEFAULT_AP, DEFAULT_DRAW, DEFAULT_INVENTORY_SLOTS } from "../domain/chudStats";
 import { loadState } from "../utils/chudPersistence";
 import { Wallet } from "../chud/components/Wallet";
 import { SecondaryStatsPanel } from "../chud/panels/SecondaryStatsPanel";
@@ -19,9 +19,9 @@ export default function MgrPage({
   const saved = loadState(chudStateStorageKey);
 
   const [core, setCore] = useState<CoreStats>(saved?.core ?? { vigor: 0, inference: 0, personality: 0 });
-  const [ap, setAp] = useState<number>(saved?.ap ?? 0);
-  const [draw, setDraw] = useState<number>(saved?.draw ?? 0);
-  const [inventorySlots, setInventorySlots] = useState<number>(saved?.inventorySlots ?? 0);
+  const [ap, setAp] = useState<number>(saved?.ap ?? DEFAULT_AP);
+  const [draw, setDraw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
+  const [inventorySlots, setInventorySlots] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
 
   const [secondary, setSecondary] = useState<SecondaryStats>(saved?.secondary ?? DEFAULT_SECONDARY);
   const [statReps, setStatReps] = useState<StatReps>(saved?.statReps ?? DEFAULT_STAT_REPS);

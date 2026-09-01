@@ -87,9 +87,15 @@
   font-size: 1.76rem;
 }
 
-.aag-page2 .row-wt-dmg .combat-info-cell-label,
-.aag-page2 .combat-info-row.row-lg .combat-info-cell-label {
+.aag-page2 .row-wt-dmg .combat-info-cell-label {
   font-size: 0.77rem;
+}
+
+.aag-page2 .combat-info-row.row-lg .combat-info-cell-label {
+  font-size: 1.76rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: #f8fafc;
 }
 
 .aag-page2 .row-wt-dmg .combat-info-die,
@@ -100,7 +106,9 @@
 }
 
 .aag-page2 .combat-info-row.row-lg .combat-info-range-val {
-  font-size: 1.76rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 /* Row 3: AP | Draw | Capacity | Inventory Slots — 25% smaller, always
@@ -227,10 +235,10 @@
 }
 
 .aag-page2 .combat-info-range-val {
-  font-size: 1.6rem;
+  font-size: 0.95rem;
   font-family: var(--font-display, inherit);
-  font-weight: 400;
-  color: #f8fafc;
+  font-weight: 700;
+  color: var(--accent);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
@@ -248,10 +256,10 @@
 }
 
 .aag-page2 .combat-info-cell-label {
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.5);
+  font-size: 1.6rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: #f8fafc;
   font-family: var(--font-display, inherit);
   font-weight: 400;
 }

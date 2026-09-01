@@ -7,7 +7,7 @@ const CHUD_STATE_KEY = 'chud.state.v1'
 type QueuedAction = { id: string; action: string; ap: number; mode: 'ap' | 'reaction'; tokenCost: number }
 
 type CombatState = {
-  rangeSwapped: boolean  // false = CR:0 FR:-4, true = CR:-4 FR:0
+  rangeSwapped: boolean  // false = CR:0 FR:+1, true = CR:+1 FR:0
   durability: string
   damage: string
   reactionTokens: number
@@ -361,22 +361,22 @@ function RangeCell({ label, value }: { label: string; value: string }) {
       flex: '1 1 0',
     }}>
       <span style={{
-        fontSize: '0.65rem',
-        letterSpacing: '0.14em',
-        textTransform: 'uppercase',
-        color: 'var(--muted)',
-        fontFamily: 'var(--font-display)',
-        lineHeight: 1,
-      }}>
-        {label}
-      </span>
-      <span style={{
         fontSize: 'clamp(1.6rem, 10vw, 3.8rem)',
         fontWeight: 700,
         fontFamily: 'var(--font-display)',
         color: 'var(--accent)',
         lineHeight: 1,
         letterSpacing: '0.04em',
+      }}>
+        {label}
+      </span>
+      <span style={{
+        fontSize: 'clamp(1.1rem, 6vw, 2.1rem)',
+        fontWeight: 700,
+        letterSpacing: '0.04em',
+        color: 'var(--accent)',
+        fontFamily: 'var(--font-display)',
+        lineHeight: 1,
       }}>
         {value}
       </span>
@@ -458,21 +458,24 @@ export default function CombatPage() {
   }, [combat.reactionTokens, combat.turnLocked])
 
   // Long-pressing a queue chip removes it from the queue and refunds whatever AP or
-  // reaction tokens it had reserved.
+  // reaction tokens it had reserved. Turn lock is a "soft" lock: it only prevents
+  // spending new AP (see canAdd below), so removal/undo always stays available.
+  // If undoing empties the queue entirely while the turn was locked, the lock is
+  // released automatically — there's nothing left to protect.
   const removeFromQueue = useCallback((id: string) => {
-    if (combat.turnLocked) return
     setQueue(prev => {
       const item = prev.find(a => a.id === id)
       if (!item) return prev
+      const next = prev.filter(a => a.id !== id)
       if (item.mode === 'ap') {
-        setCombat(c => ({ ...c, spentAp: Math.max(0, c.spentAp - item.ap) }))
+        setCombat(c => ({ ...c, spentAp: Math.max(0, c.spentAp - item.ap), turnLocked: next.length === 0 ? false : c.turnLocked }))
       } else {
         // restore tokens only — AP was spent when buying tokens, not when using them
-        setCombat(c => ({ ...c, reactionTokens: c.reactionTokens + item.tokenCost }))
+        setCombat(c => ({ ...c, reactionTokens: c.reactionTokens + item.tokenCost, turnLocked: next.length === 0 ? false : c.turnLocked }))
       }
-      return prev.filter(a => a.id !== id)
+      return next
     })
-  }, [combat.turnLocked])
+  }, [])
 
   const apUsedByQueue = combat.spentAp
   const apUsedByTokens = combat.spentApOnTokens
@@ -482,8 +485,8 @@ export default function CombatPage() {
   const nextRtCost = nextTokenCost(combat.tokensBought)
   const canBuyToken = apRemaining >= nextRtCost
 
-  const crValue = combat.rangeSwapped ? '−4' : '0'
-  const frValue = combat.rangeSwapped ? '0' : '−4'
+  const crValue = combat.rangeSwapped ? '+1' : '0'
+  const frValue = combat.rangeSwapped ? '0' : '+1'
 
   return (
     <>
@@ -520,15 +523,41 @@ export default function CombatPage() {
       </div>
 
       {/* Action Menu */}
-      <h2 style={{
-        fontSize: '0.72rem',
-        letterSpacing: '0.16em',
-        textTransform: 'uppercase',
-        color: 'var(--muted)',
-        fontFamily: 'var(--font-display)',
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         margin: '28px 0 10px',
-        fontWeight: 400,
-      }}>Queue</h2>
+      }}>
+        <h2 style={{
+          fontSize: '0.72rem',
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: 'var(--muted)',
+          fontFamily: 'var(--font-display)',
+          margin: 0,
+          fontWeight: 400,
+        }}>Queue</h2>
+        {queue.length > 0 && (
+          <button
+            onClick={() => removeFromQueue(queue[queue.length - 1].id)}
+            style={{
+              fontSize: '0.68rem',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              fontFamily: 'var(--font-display)',
+              color: 'var(--muted)',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.18)',
+              borderRadius: 6,
+              padding: '4px 10px',
+              cursor: 'pointer',
+            }}
+          >
+            Undo
+          </button>
+        )}
+      </div>
 
       {/* Queue */}
       {queue.length > 0 && (
@@ -543,7 +572,12 @@ export default function CombatPage() {
           background: 'rgba(15,246,255,0.03)',
         }}>
           {queue.map(item => (
-            <QueueChip key={item.id} item={item} onRemove={() => removeFromQueue(item.id)} locked={combat.turnLocked} />
+            <QueueChip
+              key={item.id}
+              item={item}
+              onRemove={() => removeFromQueue(item.id)}
+              locked={combat.turnLocked && item.mode === 'ap'}
+            />
           ))}
         </div>
       )}
@@ -598,7 +632,7 @@ export default function CombatPage() {
                 key={i}
                 size={26}
                 isLast={i === combat.reactionTokens - 1}
-                canRefund={!combat.turnLocked}
+                canRefund={true}
                 onRefund={() => setCombat(prev => ({
                   ...prev,
                   reactionTokens: prev.reactionTokens - 1,
