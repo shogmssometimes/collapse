@@ -93,18 +93,7 @@ function writeMeters(nextMeters) {
 function createStyles() {
   const style = document.createElement('style')
   style.textContent = `
-    .chud-meters { margin-top: 4px; }
-    .chud-meters-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: none; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 6px 0 8px; cursor: pointer; color: rgba(248,250,252,0.65); font-size: 13px; font-family: var(--font-display, inherit); font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; }
-    .chud-meters.open .chud-meters-toggle { color: rgba(248,250,252,0.9); border-bottom-color: rgba(255,255,255,0.18); }
-    .chud-meters-chevron { font-size: 9px; opacity: 0.7; }
-    .chud-meters-body { display: none; padding: 8px 0 0; display: none; flex-direction: column; gap: 10px; }
-    .chud-meters.open .chud-meters-body { display: flex; }
-    .chud-wallet { margin-top: 4px; }
-    .chud-wallet-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: none; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 6px 0 8px; cursor: pointer; color: rgba(248,250,252,0.65); font-size: 13px; font-family: var(--font-display, inherit); font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; }
-    .chud-wallet.open .chud-wallet-toggle { color: rgba(248,250,252,0.9); border-bottom-color: rgba(255,255,255,0.18); }
-    .chud-wallet-chevron { font-size: 9px; opacity: 0.7; }
-    .chud-wallet-body { display: none; padding: 8px 0 0; flex-direction: column; gap: 10px; }
-    .chud-wallet.open .chud-wallet-body { display: flex; }
+    .chud-wallet { display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.08); }
     .chud-meter-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; overflow: hidden; background: linear-gradient(120deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.08); cursor: pointer; }
     .chud-meter-row::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); }
     .chud-meter-fill { position: absolute; inset: 0; width: 0%; background: var(--meter-accent, rgba(99,255,177,0.18)); opacity: 0.4; transition: width 180ms ease, opacity 120ms ease; }
@@ -182,13 +171,14 @@ function createStyles() {
     .chud-wallet-btn.debit  { background: linear-gradient(135deg, #0fa878, #3de8c0); color: #051a14; }
     .chud-wallet-btn.credit { background: linear-gradient(135deg, #9b1b4a, #ff6b9a); color: #fff; }
 
+    /* ── Short Rest tally ─────────────────────────────────────────────── */
+    .chud-tally { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; -webkit-user-select: none; }
+    .chud-tally-label { font-size: 13px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(248,250,252,0.65); }
+    .chud-tally-marks { display: flex; align-items: center; gap: 6px; color: rgba(15,246,255,0.85); }
+    .chud-tally-group { flex-shrink: 0; }
+
     /* ── Status Rolls Panel ───────────────────────────────────────────── */
-    .chud-status-rolls { margin-top: 4px; }
-    .chud-status-rolls-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: none; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 6px 0 8px; cursor: pointer; color: rgba(248,250,252,0.65); font-size: 13px; font-family: var(--font-display, inherit); font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; }
-    .chud-status-rolls.open .chud-status-rolls-toggle { color: rgba(248,250,252,0.9); border-bottom-color: rgba(255,255,255,0.18); }
-    .chud-status-rolls-chevron { font-size: 9px; opacity: 0.7; }
-    .chud-status-rolls-body { display: none; padding: 8px 0 0; flex-direction: column; gap: 8px; }
-    .chud-status-rolls.open .chud-status-rolls-body { display: flex; }
+    .chud-status-rolls { margin-top: 4px; display: flex; flex-direction: column; gap: 8px; }
     .status-roll-header { display: flex; gap: 6px; padding: 0 2px; }
     .status-roll-header span { font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(248,250,252,0.4); font-weight: 600; }
     .status-roll-header span.col-name { flex: 26 1 0; }
@@ -211,7 +201,7 @@ function createStyles() {
     .status-roll-value-btn { width: 24px; height: 24px; flex-shrink: 0; border-radius: 6px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .status-roll-value-btn:active { transform: scale(0.94); }
     .status-roll-value { min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; color: #6ac7ff; font-size: 12px; }
-    .status-roll-clear { flex: 10 1 0; min-width: 30px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.1); color: #f87171; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+    .status-roll-clear { flex: 8.5 1 0; min-width: 26px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.1); color: #f87171; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
     .status-roll-clear-progress { position: absolute; inset: 0; background: rgba(239,68,68,0.4); width: 0%; pointer-events: none; }
     .status-roll-clear-icon { position: relative; z-index: 1; }
     .status-roll-add { align-self: flex-start; margin-top: 2px; padding: 7px 14px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.26); background: transparent; color: rgba(248,250,252,0.65); font-size: 10px; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -223,22 +213,21 @@ function createStyles() {
     .chud-combat.open .chud-combat-toggle { color: rgba(248,250,252,0.9); border-bottom-color: rgba(255,255,255,0.18); }
     .chud-combat-chevron { font-size: 9px; opacity: 0.7; }
     .chud-combat-body { display: none; padding: 8px 0 0; }
-    .chud-combat-flags { display: flex; flex-direction: row; gap: 8px; align-items: stretch; }
     .chud-combat-body.open { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
     .combat-body-row { display: flex; gap: 8px; align-items: stretch; }
-    .combat-rt { flex: 26 1 0; min-width: 0; cursor: default; user-select: none; -webkit-user-select: none; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); }
+    .combat-rt { flex: 7 1 0; min-width: 0; cursor: default; user-select: none; -webkit-user-select: none; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); }
     .combat-rt-label { font-weight: 700; font-size: 8px; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase; }
     .combat-rt-val { display: none; }
     .combat-rt-pips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: center; flex: 1; }
     .combat-rt-pip { width: 14px; height: 14px; border-radius: 50%; background: rgba(255,200,60,0.75); box-shadow: 0 0 8px rgba(255,200,60,0.45); border: 1.5px solid rgba(255,200,60,1); flex-shrink: 0; }
     .combat-rt-none { font-size: 0.75rem; color: rgba(248,250,252,0.3); font-style: italic; }
-    .combat-chip-wrap { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+    .combat-chip-wrap { flex: 3 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
     .combat-chip-toggle { flex: 1; padding: 10px 8px; border: 1px solid rgba(74,222,128,0.4); border-radius: 10px; background: rgba(74,222,128,0.08); color: #4ade80; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms, transform 80ms; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .combat-chip-toggle:active { transform: scale(0.97); }
     .combat-chip-toggle[data-desynced="1"] { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.5); color: #f87171; }
 
     /* ── Range / Durability / Damage read-only row ── */
-    .combat-info-row { display: grid; grid-template-columns: 0.7fr 0.7fr 0.8fr 0.8fr 1fr; gap: 6px; align-items: stretch; }
+    .combat-info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: stretch; }
     .combat-info-cell { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px; padding: 8px 6px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); }
     .combat-info-cell-label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(248,250,252,0.45); font-family: var(--font-display, inherit); font-weight: 500; }
     .combat-info-range { display: flex; align-items: center; gap: 6px; }
@@ -249,7 +238,7 @@ function createStyles() {
     .combat-info-die { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; border: 2px solid rgba(15,246,255,0.55); background: rgba(15,246,255,0.06); color: #0ff6ff; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; font-family: var(--font-display, inherit); }
 
     /* ── Queue In Brief ── */
-    .combat-queue-brief { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 8px; background: rgba(8,13,23,0.92); border: 1px solid rgba(255,255,255,0.1); user-select: none; -webkit-user-select: none; touch-action: none; cursor: pointer; transition: border-color 0.3s, box-shadow 0.3s; flex: 74 1 0; min-width: 0; }
+    .combat-queue-brief { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 8px; background: rgba(8,13,23,0.92); border: 1px solid rgba(255,255,255,0.1); user-select: none; -webkit-user-select: none; touch-action: none; cursor: pointer; transition: border-color 0.3s, box-shadow 0.3s; width: 100%; box-sizing: border-box; }
     .combat-queue-brief-eyebrow { font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(248,250,252,0.45); text-align: center; }
     .combat-queue-brief-row { display: flex; align-items: baseline; justify-content: center; gap: 6px; min-width: 0; overflow: hidden; }
     .combat-queue-brief-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem; font-weight: 600; color: rgba(255,255,255,0.95); text-align: center; }
@@ -272,32 +261,8 @@ function writeWallet(balance) {
 }
 
 function buildWalletWidget() {
-  let open = readUI().walletOpen ?? true
   const container = document.createElement('div')
-  container.className = 'chud-wallet' + (open ? ' open' : '')
-
-  const toggleBtn = document.createElement('button')
-  toggleBtn.className = 'chud-wallet-toggle'
-  toggleBtn.setAttribute('data-touch-blocker-ignore', '')
-  const toggleLabel = document.createElement('span')
-  toggleLabel.textContent = 'Wallet'
-  const chevron = document.createElement('span')
-  chevron.className = 'chud-wallet-chevron'
-  chevron.textContent = open ? '\u25b2' : '\u25bc'
-  toggleBtn.appendChild(toggleLabel)
-  toggleBtn.appendChild(chevron)
-  container.appendChild(toggleBtn)
-
-  toggleBtn.addEventListener('click', () => {
-    open = !open
-    container.className = 'chud-wallet' + (open ? ' open' : '')
-    chevron.className = 'chud-wallet-chevron' + (open ? ' open' : '')
-    chevron.textContent = open ? '\u25b2' : '\u25bc'
-    writeUIKey('walletOpen', open)
-  })
-
-  const body = document.createElement('div')
-  body.className = 'chud-wallet-body'
+  container.className = 'chud-wallet'
 
   const header = document.createElement('div')
   header.className = 'chud-wallet-header'
@@ -310,7 +275,7 @@ function buildWalletWidget() {
   balanceWrap.appendChild(balanceEl)
   balanceWrap.appendChild(unitEl)
   header.appendChild(balanceWrap)
-  body.appendChild(header)
+  container.appendChild(header)
 
   const controls = document.createElement('div')
   controls.className = 'chud-wallet-controls'
@@ -333,8 +298,7 @@ function buildWalletWidget() {
   controls.appendChild(input)
   controls.appendChild(debitBtn)
   controls.appendChild(creditBtn)
-  body.appendChild(controls)
-  container.appendChild(body)
+  container.appendChild(controls)
 
   const refresh = () => { balanceEl.textContent = readWallet() }
   refresh()
@@ -481,25 +445,6 @@ function writeCombat(state) {
 }
 
 function buildCombatPanel() {
-  let open = readUI().combatOpen ?? true
-  const container = document.createElement('div')
-  container.className = 'chud-combat' + (open ? ' open' : '')
-
-  const toggleBtn = document.createElement('button')
-  toggleBtn.className = 'chud-combat-toggle'
-  toggleBtn.setAttribute('data-touch-blocker-ignore', '')
-  const toggleLabel = document.createElement('span')
-  toggleLabel.textContent = 'Combat'
-  const chevron = document.createElement('span')
-  chevron.className = 'chud-combat-chevron'
-  chevron.textContent = open ? '\u25b2' : '\u25bc'
-  toggleBtn.appendChild(toggleLabel)
-  toggleBtn.appendChild(chevron)
-  container.appendChild(toggleBtn)
-
-  const body = document.createElement('div')
-  body.className = 'chud-combat-body' + (open ? ' open' : '')
-
   const rtSection = document.createElement('div')
   rtSection.className = 'combat-rt'
   rtSection.setAttribute('data-touch-blocker-ignore', '')
@@ -560,45 +505,11 @@ function buildCombatPanel() {
   chipBtn.setAttribute('data-touch-blocker-ignore', '')
   chipWrap.appendChild(chipBtn)
 
-  // ── Range / Durability / Damage read-only row ──────────────────────────────
-  const infoRow = document.createElement('div')
-  infoRow.className = 'combat-info-row'
+  // Range/Damage read-only cells (CR/FR/Damage) have moved to the AAG page,
+  // outside this iframe, and are no longer built here.
 
-  // CR cell
-  const crCell = document.createElement('div')
-  crCell.className = 'combat-info-cell'
-  const crLbl = document.createElement('span'); crLbl.className = 'combat-info-cell-label'; crLbl.textContent = 'CR'
-  const crVal = document.createElement('span'); crVal.className = 'combat-info-range-val'
-  crCell.appendChild(crLbl); crCell.appendChild(crVal)
-
-  // FR cell
-  const frCell = document.createElement('div')
-  frCell.className = 'combat-info-cell'
-  const frLbl = document.createElement('span'); frLbl.className = 'combat-info-cell-label'; frLbl.textContent = 'FR'
-  const frVal = document.createElement('span'); frVal.className = 'combat-info-range-val'
-  frCell.appendChild(frLbl); frCell.appendChild(frVal)
-
-  // Durability cell
-  const duraCell = document.createElement('div')
-  duraCell.className = 'combat-info-cell'
-  const duraLbl = document.createElement('span'); duraLbl.className = 'combat-info-cell-label'; duraLbl.textContent = 'Dura'
-  const duraDie = document.createElement('div'); duraDie.className = 'combat-info-die'
-  duraCell.appendChild(duraLbl); duraCell.appendChild(duraDie)
-
-  // Damage cell
-  const dmgCell = document.createElement('div')
-  dmgCell.className = 'combat-info-cell'
-  const dmgLbl = document.createElement('span'); dmgLbl.className = 'combat-info-cell-label'; dmgLbl.textContent = 'DMG'
-  const dmgDie = document.createElement('div'); dmgDie.className = 'combat-info-die'
-  dmgCell.appendChild(dmgLbl); dmgCell.appendChild(dmgDie)
-
-  infoRow.appendChild(crCell); infoRow.appendChild(frCell); infoRow.appendChild(duraCell); infoRow.appendChild(dmgCell); infoRow.appendChild(chipWrap)
-  body.appendChild(infoRow)
-
-  // ── Row 2: Queue | Tokens ─────────────────────────────────────────────────
-  const row2 = document.createElement('div')
-  row2.className = 'combat-body-row'
-  body.appendChild(row2)
+  // Queue / Reaction Tokens / Chip Sync are relocated into the HP box (see
+  // queueSection built further below); they are no longer part of this panel's body.
 
   // ── Queue In Brief ────────────────────────────────────────────────────────
   const QUEUE_KEY = 'combat.queue.v1'
@@ -607,7 +518,6 @@ function buildCombatPanel() {
   const queueBrief = document.createElement('div')
   queueBrief.className = 'combat-queue-brief'
   queueBrief.setAttribute('data-touch-blocker-ignore', '')
-  row2.appendChild(queueBrief)
 
   let queueIdx = 0
   let qBriefHoldTimer = null
@@ -743,8 +653,14 @@ function buildCombatPanel() {
   queueBrief.addEventListener('pointercancel', () => { cancelQBriefHold(); qBriefSwipeStartX = null })
   queueBrief.addEventListener('contextmenu', (ev) => ev.preventDefault())
 
-  row2.appendChild(rtSection)
-  container.appendChild(body)
+  const queueSection = document.createElement('div')
+  queueSection.className = 'chud-hp-queue-section'
+  queueSection.appendChild(queueBrief)
+  const rtChipRow = document.createElement('div')
+  rtChipRow.className = 'viv-row'
+  rtChipRow.appendChild(rtSection)
+  rtChipRow.appendChild(chipWrap)
+  queueSection.appendChild(rtChipRow)
 
   const refresh = () => {
     const state = readCombat()
@@ -765,72 +681,88 @@ function buildCombatPanel() {
     const desynced = !!state.chipDesynced
     chipBtn.innerHTML = desynced ? 'Chip<br>Desynced' : 'Chip<br>Synced'
     chipBtn.dataset.desynced = desynced ? '1' : '0'
-    // range
-    const swapped = !!state.rangeSwapped
-    crVal.textContent = swapped ? '\u22124' : '0'
-    frVal.textContent = swapped ? '0' : '\u22124'
-    // dice
-    duraDie.textContent = (state.durability || 'd6').toUpperCase()
-    dmgDie.textContent  = (state.damage    || 'd4').toUpperCase()
     // queue brief
     renderQueueBrief()
   }
-
-  toggleBtn.addEventListener('click', () => {
-    open = !open
-    container.className = 'chud-combat' + (open ? ' open' : '')
-    body.className = 'chud-combat-body' + (open ? ' open' : '')
-    chevron.className = 'chud-combat-chevron' + (open ? ' open' : '')
-    chevron.textContent = open ? '\u25b2' : '\u25bc'
-    writeUIKey('combatOpen', open)
-  })
 
   chipBtn.addEventListener('click', () => {
     const s = readCombat(); writeCombat({ ...s, chipDesynced: !s.chipDesynced }); refresh()
   })
 
-  // ── Short Rest + Push It flags ────────────────────────────────────────────
+  // ── Short Rest tally ──────────────────────────────────────────────────────
   const CHUD_STATE_KEY = 'chud.state.v1'
-  const readChudFlags = () => {
-    try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); return { shortRest: !!s.shortRest, pushIt: !!s.pushIt } } catch { return { shortRest: false, pushIt: false } }
+  const readTally = (key) => {
+    try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); const v = s[key]; return typeof v === 'number' ? v : 0 } catch { return 0 }
   }
-  const writeChudFlag = (key, value) => {
+  const writeTally = (key, value) => {
     try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); s[key] = value; localStorage.setItem(CHUD_STATE_KEY, JSON.stringify(s)) } catch {}
   }
-  const flagsRow = document.createElement('div')
-  flagsRow.className = 'chud-combat-flags'
-  const makeFlag = (label, key) => {
-    const wrap = document.createElement('label')
-    wrap.className = 'chud-flag'
+  const makeTallyGroupSVG = (n) => {
+    const svgNS = 'http://www.w3.org/2000/svg'
+    const svg = document.createElementNS(svgNS, 'svg')
+    svg.classList.add('chud-tally-group')
+    svg.setAttribute('width', '26')
+    svg.setAttribute('height', '20')
+    svg.setAttribute('viewBox', '0 0 26 20')
+    const barX = [3, 9, 15, 21]
+    const shown = Math.min(n, 4)
+    for (let i = 0; i < shown; i++) {
+      const line = document.createElementNS(svgNS, 'line')
+      line.setAttribute('x1', String(barX[i])); line.setAttribute('y1', '2')
+      line.setAttribute('x2', String(barX[i])); line.setAttribute('y2', '18')
+      line.setAttribute('stroke', 'currentColor'); line.setAttribute('stroke-width', '2'); line.setAttribute('stroke-linecap', 'round')
+      svg.appendChild(line)
+    }
+    if (n >= 5) {
+      const diag = document.createElementNS(svgNS, 'line')
+      diag.setAttribute('x1', '1'); diag.setAttribute('y1', '18')
+      diag.setAttribute('x2', '23'); diag.setAttribute('y2', '2')
+      diag.setAttribute('stroke', 'currentColor'); diag.setAttribute('stroke-width', '2'); diag.setAttribute('stroke-linecap', 'round')
+      svg.appendChild(diag)
+    }
+    return svg
+  }
+  const makeTally = (label, key, max) => {
+    const wrap = document.createElement('div')
+    wrap.className = 'chud-tally'
     wrap.setAttribute('data-touch-blocker-ignore', '')
-    const cb = document.createElement('input')
-    cb.type = 'checkbox'
-    cb.checked = readChudFlags()[key]
-    const box = document.createElement('span')
-    box.className = 'chud-flag-box'
     const lbl = document.createElement('span')
-    lbl.className = 'chud-flag-label'
+    lbl.className = 'chud-tally-label'
     lbl.textContent = label
-    wrap.appendChild(cb); wrap.appendChild(box); wrap.appendChild(lbl)
-    wrap.addEventListener('click', (ev) => { ev.stopPropagation() })
-    cb.addEventListener('change', () => {
-      writeChudFlag(key, cb.checked)
-      wrap.classList.toggle('checked', cb.checked)
+    const marksWrap = document.createElement('div')
+    marksWrap.className = 'chud-tally-marks'
+    wrap.appendChild(lbl)
+    wrap.appendChild(marksWrap)
+
+    let count = Math.max(0, Math.min(max, readTally(key)))
+    const renderMarks = () => {
+      marksWrap.innerHTML = ''
+      marksWrap.appendChild(makeTallyGroupSVG(Math.max(0, Math.min(5, count))))
+      marksWrap.appendChild(makeTallyGroupSVG(Math.max(0, Math.min(5, count - 5))))
+    }
+    renderMarks()
+
+    wrap.addEventListener('click', (ev) => {
+      ev.stopPropagation()
+      count = count >= max ? 0 : count + 1
+      writeTally(key, count)
+      renderMarks()
       window.dispatchEvent(new StorageEvent('storage', { key: CHUD_STATE_KEY, newValue: localStorage.getItem(CHUD_STATE_KEY) }))
     })
-    const syncFlag = () => { const v = readChudFlags()[key]; cb.checked = v; wrap.classList.toggle('checked', v) }
-    window.addEventListener('storage', (ev) => { if (ev.key === CHUD_STATE_KEY) syncFlag() })
-    if (cb.checked) wrap.classList.add('checked')
+
+    const sync = () => { count = Math.max(0, Math.min(max, readTally(key))); renderMarks() }
+    window.addEventListener('storage', (ev) => { if (ev.key === CHUD_STATE_KEY) sync() })
+
     return wrap
   }
-  flagsRow.appendChild(makeFlag('Short Rest', 'shortRest'))
-  flagsRow.appendChild(makeFlag('Push It', 'pushIt'))
-  body.appendChild(flagsRow)
+  // Short Rest is a tally (0-10), mounted separately in Page 2. Push It has
+  // been removed entirely.
+  const shortRestFlag = makeTally('Short Rest', 'shortRestTally', 10)
   // ── end flags ─────────────────────────────────────────────────────────────
 
   refresh()
   window.addEventListener('storage', (ev) => { if (ev.key === COMBAT_KEY || ev.key === QUEUE_KEY) refresh() })
-  return container
+  return { queueSection, shortRestFlag }
 }
 
 function readStatusRolls() {
@@ -896,48 +828,24 @@ function buildStatusRollsPanel() {
       .slice(0, 6)
   }
 
-  let open = readUI().statusRollsOpen ?? true
   let rows = hydrateRows(readStatusRolls())
   const container = document.createElement('div')
-  container.className = 'chud-status-rolls' + (open ? ' open' : '')
-
-  const toggleBtn = document.createElement('button')
-  toggleBtn.className = 'chud-status-rolls-toggle'
-  toggleBtn.setAttribute('data-touch-blocker-ignore', '')
-  const toggleLabel = document.createElement('span')
-  toggleLabel.textContent = 'Set Rolls (Status Effects)'
-  const chevron = document.createElement('span')
-  chevron.className = 'chud-status-rolls-chevron'
-  chevron.textContent = open ? '\u25b2' : '\u25bc'
-  toggleBtn.appendChild(toggleLabel)
-  toggleBtn.appendChild(chevron)
-  container.appendChild(toggleBtn)
-
-  toggleBtn.addEventListener('click', () => {
-    open = !open
-    container.className = 'chud-status-rolls' + (open ? ' open' : '')
-    chevron.textContent = open ? '\u25b2' : '\u25bc'
-    writeUIKey('statusRollsOpen', open)
-  })
-
-  const body = document.createElement('div')
-  body.className = 'chud-status-rolls-body'
-  container.appendChild(body)
+  container.className = 'chud-status-rolls'
 
   const header = document.createElement('div')
   header.className = 'status-roll-header'
   header.innerHTML = '<span class="col-name">Name</span><span class="col-effect">Effect</span><span class="col-value">Set Roll</span><span class="col-clear">Clear</span>'
-  body.appendChild(header)
+  container.appendChild(header)
 
   const rowsWrap = document.createElement('div')
   rowsWrap.className = 'status-roll-rows'
-  body.appendChild(rowsWrap)
+  container.appendChild(rowsWrap)
 
   const addBtn = document.createElement('button')
   addBtn.className = 'status-roll-add'
   addBtn.textContent = 'Add Row'
   addBtn.setAttribute('data-touch-blocker-ignore', '')
-  body.appendChild(addBtn)
+  container.appendChild(addBtn)
 
   const persist = () => writeStatusRolls(rows)
 
@@ -1214,55 +1122,43 @@ function mountMeters() {
   if (!root) return false
   const panel = root.querySelector('.panel')
   if (!panel) return false
-  if (panel.querySelector('.chud-meters')) return true
-
-  const wrapper = document.createElement('div')
-  wrapper.className = 'chud-meters'
-
-  const metersToggle = document.createElement('button')
-  metersToggle.className = 'chud-meters-toggle'
-  metersToggle.setAttribute('data-touch-blocker-ignore', '')
-  const metersLabel = document.createElement('span')
-  metersLabel.textContent = 'Global Meters'
-  const metersChevron = document.createElement('span')
-  metersChevron.className = 'chud-meters-chevron'
-  metersChevron.textContent = '\u25bc'
-  metersToggle.appendChild(metersLabel)
-  metersToggle.appendChild(metersChevron)
-  wrapper.appendChild(metersToggle)
-  let metersOpen = readUI().metersOpen ?? true
-  wrapper.className = 'chud-meters' + (metersOpen ? ' open' : '')
-  metersChevron.textContent = metersOpen ? '\u25b2' : '\u25bc'
-  metersToggle.addEventListener('click', () => {
-    metersOpen = !metersOpen
-    wrapper.className = 'chud-meters' + (metersOpen ? ' open' : '')
-    metersChevron.textContent = metersOpen ? '\u25b2' : '\u25bc'
-    writeUIKey('metersOpen', metersOpen)
-  })
-
-  const metersBody = document.createElement('div')
-  metersBody.className = 'chud-meters-body'
-  wrapper.appendChild(metersBody)
+  if (panel.querySelector('.gcm')) return true
 
   const getMeters = () => readMeters()
   const setMeters = (next) => writeMeters(next)
 
+  // Grit/Collapse meter is extracted from Global Meters and mounted at its
+  // own anchor below Gear Mgmt (see chud-gcm-anchor below). Global Meters
+  // (Record/Influence) box has been removed entirely.
   const gcm = buildGritCollapseMeter(getMeters, setMeters)
-  metersBody.appendChild(gcm.container)
 
-  const rows = METERS.map((def) => buildMeterRow(def, getMeters, setMeters))
-  rows.forEach((r) => { metersBody.appendChild(r.row) })
-
-  const wallet = buildWalletWidget()
-  // Always append at end so React re-renders of accordion state can't shift position
-  const combatPanel = buildCombatPanel()
+  // Set Rolls (Status Effects) mounts inside the HP box, directly below the
+  // Reaction Tokens/Chip Sync row. Combat box (CR/FR) has been removed
+  // entirely; CR/FR now render read-only on the standalone AAG page, outside
+  // this iframe. Page 2 (including Damage die + Short Rest) also lives on
+  // the AAG page. Wallet + Reps now live on the standalone MGR page.
+  const { queueSection } = buildCombatPanel()
   const statusRollsPanel = buildStatusRollsPanel()
-  panel.appendChild(combatPanel)
-  panel.appendChild(statusRollsPanel)
-  panel.appendChild(wrapper)
-  panel.appendChild(wallet)
+  const setRollsAnchor = panel.querySelector('#chud-setrolls-anchor')
+  if (setRollsAnchor) {
+    setRollsAnchor.insertAdjacentElement('afterend', statusRollsPanel)
+  } else {
+    panel.appendChild(statusRollsPanel)
+  }
+  const gcmAnchor = panel.querySelector('#chud-gcm-anchor')
+  if (gcmAnchor) {
+    gcmAnchor.insertAdjacentElement('afterend', gcm.container)
+  } else {
+    panel.appendChild(gcm.container)
+  }
+  // Queue / Reaction Tokens / Chip Sync mount inside the HP box, directly
+  // below the HP bar.
+  const hpQueueAnchor = panel.querySelector('#chud-hp-queue-anchor')
+  if (hpQueueAnchor) {
+    hpQueueAnchor.insertAdjacentElement('afterend', queueSection)
+  }
 
-  const refreshAll = () => { gcm.update(); rows.forEach((r) => r.update()) }
+  const refreshAll = () => { gcm.update() }
   refreshAll()
 
   window.addEventListener('storage', (ev) => {

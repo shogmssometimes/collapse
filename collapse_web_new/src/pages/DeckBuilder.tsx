@@ -17,7 +17,7 @@ import DeckOpsPanel from './deckBuilder/DeckOpsPanel'
 import DiscardPile from './deckBuilder/DiscardPile'
 import ViewDeckModal from './deckBuilder/ViewDeckModal'
 
-const DEFAULT_BASE_TARGET = 26
+const DEFAULT_BASE_TARGET = 21
 const DEFAULT_MIN_NULLS = 5
 const DEFAULT_STORAGE_KEY = 'collapse.deck-builder.v2'
 const DEFAULT_MODIFIER_CAPACITY = 10
@@ -1086,7 +1086,7 @@ export default function DeckBuilder({
           </div>
           <section className="summary-stack">
             <div>
-              <div className="muted text-body">Base Cards</div>
+              <div className="muted text-body">Base Engrams</div>
               {showBaseCounters && <div className="stat-large">{simpleCounters ? baseTotal : `${baseTotal} / ${baseTarget}`}</div>}
               {showBaseAdjusters && (
                 <div className="counter-inline" role="group" aria-label="Adjust base cards" style={{ marginTop: 8 }}>

@@ -5,6 +5,8 @@ import CombatPage from "./pages/Combat";
 import NotesPage from "./pages/Notes";
 import CharMgmt, { CHAR_SWITCH_EVENT } from "./pages/CharMgmt";
 import ProfilePage from "./pages/Profile";
+import AagPage from "./pages/Aag";
+import MgrPage from "./pages/Mgr";
 import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey, profileKey, CHAR_ACTIVE_KEY } from "./utils/slotKeys";
 import { parseHashRoute } from "./utils/routing";
 import { DiceDock, DiceIcon, DICE_OPEN_EVENT } from "./components/DiceRoller";
@@ -16,7 +18,7 @@ function readActiveCharSlot(): number {
   return isNaN(n) || n < 1 || n > 3 ? 1 : n;
 }
 
-type Route = "hub" | "player" | "player-ops" | "chud" | "csmatrix" | "gear" | "combat" | "notes" | "char-mgmt" | "profile";
+type Route = "hub" | "player" | "player-ops" | "chud" | "csmatrix" | "gear" | "combat" | "notes" | "char-mgmt" | "profile" | "aag" | "mgr";
 type HubCard = {
   id: Route;
   title: string;
@@ -24,6 +26,57 @@ type HubCard = {
 };
 
 const buildPath = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+
+const BACK_LONG_PRESS_MS = 600;
+
+// Back button: a quick tap fires onBack (go to the previous page in the
+// current flow); a long-press fires onGoHome (jump straight to the hub).
+const BackButton: React.FC<{ onBack: () => void; onGoHome: () => void }> = ({ onBack, onGoHome }) => {
+  const timerRef = useRef<number | null>(null);
+  const firedRef = useRef(false);
+
+  const clearTimer = () => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handlePointerDown = () => {
+    firedRef.current = false;
+    clearTimer();
+    timerRef.current = window.setTimeout(() => {
+      firedRef.current = true;
+      onGoHome();
+    }, BACK_LONG_PRESS_MS);
+  };
+
+  const handlePointerUp = () => {
+    clearTimer();
+  };
+
+  const handleClick = () => {
+    if (firedRef.current) {
+      firedRef.current = false;
+      return;
+    }
+    onBack();
+  };
+
+  return (
+    <button
+      className="ghost-btn ghost-btn-icon"
+      onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      aria-label="Back (hold for main menu)"
+    >
+      <span aria-hidden="true">←</span>
+    </button>
+  );
+};
 
 const deriveRoute = (): Route => {
   const { segment, sub } = parseHashRoute();
@@ -38,13 +91,16 @@ const deriveRoute = (): Route => {
   if (segment === "notes") return "notes";
   if (segment === "char-mgmt") return "char-mgmt";
   if (segment === "profile") return "profile";
+  if (segment === "aag") return "aag";
+  if (segment === "mgr") return "mgr";
   return "hub";
 };
 
-const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; actions?: React.ReactNode; actionsClassName?: string; frameRef?: React.Ref<HTMLIFrameElement>; onFrameLoad?: () => void }> = ({
+const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; onGoHome?: () => void; actions?: React.ReactNode; actionsClassName?: string; frameRef?: React.Ref<HTMLIFrameElement>; onFrameLoad?: () => void }> = ({
   title,
   src,
   onBack,
+  onGoHome,
   actions,
   actionsClassName,
   frameRef,
@@ -54,9 +110,7 @@ const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; ac
   <DiceDock />
   <main className="route-view" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
     <header className="topbar" style={{ position: 'relative' }}>
-      <button className="ghost-btn ghost-btn-icon" onClick={onBack} aria-label="Back to hub">
-        <span aria-hidden="true">←</span>
-      </button>
+      <BackButton onBack={onBack} onGoHome={onGoHome ?? onBack} />
       <button className="ghost-btn ghost-btn-icon" onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))} aria-label="Open dice roller" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.65)' }}>
         <DiceIcon size={18} />
       </button>
@@ -77,22 +131,27 @@ const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; ac
   </>
 );
 
-const PlayerShell: React.FC<{ onBack: () => void; children: React.ReactNode; chudDock?: React.ReactNode }> = ({ onBack, children, chudDock }) => {
+const PlayerShell: React.FC<{ onBack: () => void; onGoHome?: () => void; children: React.ReactNode; chudDock?: React.ReactNode; actions?: React.ReactNode; hideHud?: boolean; onOpenHud?: () => void }> = ({ onBack, onGoHome, children, chudDock, actions, hideHud, onOpenHud }) => {
   const openChud = () => {
+    if (onOpenHud) {
+      onOpenHud();
+      return;
+    }
     if (typeof window !== "undefined") window.dispatchEvent(new Event("chud-open"));
   };
   return (
   <div className="player-shell" style={{ minHeight: "100vh", background: "var(--bg-dark)" }}>
     <DiceDock />
     <header className="topbar" style={{ position: 'relative' }}>
-      <button className="ghost-btn ghost-btn-icon" onClick={onBack} aria-label="Back to hub">
-        <span aria-hidden="true">←</span>
-      </button>
+      <BackButton onBack={onBack} onGoHome={onGoHome ?? onBack} />
       <button className="ghost-btn ghost-btn-icon" onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))} aria-label="Open dice roller" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.65)' }}>
         <DiceIcon size={18} />
       </button>
       <div className="topbar-actions">
-        <button className="chud-top-btn" onClick={openChud} aria-label="Open HUD overlay">HUD</button>
+        {!hideHud && (
+          <button className="chud-top-btn" onClick={openChud} aria-label="Open HUD overlay">HUD</button>
+        )}
+        {actions}
       </div>
     </header>
     {chudDock}
@@ -441,6 +500,7 @@ const HubLanding: React.FC<{
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => deriveRoute());
+  const [hudReturnRoute, setHudReturnRoute] = useState<Route>("hub");
   const [charSlot, setCharSlot] = useState<number>(() => readActiveCharSlot());
   const matrixFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [matrixState, setMatrixState] = useState({ controlsOpen: false, nodesOpen: false });
@@ -513,6 +573,8 @@ export default function App() {
         case "combat":    return "#/combat";
         case "char-mgmt": return "#/char-mgmt";
         case "profile":   return "#/profile";
+        case "aag":       return "#/aag";
+        case "mgr":       return "#/mgr";
         default:          return "#/hub";
       }
     })();
@@ -523,7 +585,7 @@ export default function App() {
 
   if (route === "player") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
         <DeckBuilder
           key={`player-${charSlot}`}
           storageKey={deckStorageKey}
@@ -541,7 +603,7 @@ export default function App() {
 
   if (route === "player-ops") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
         <DeckBuilder
           key={`player-ops-${charSlot}`}
           storageKey={deckStorageKey}
@@ -560,8 +622,57 @@ export default function App() {
         key={route}
         title="HUD"
         src={`${buildPath("")}chud/index.html?slot=${charSlot}`}
-        onBack={() => setRoute("hub")}
+        onBack={() => setRoute(hudReturnRoute)}
+        onGoHome={() => setRoute("hub")}
+        actions={
+          <button className="topbar-square-btn" onClick={() => setRoute("aag")}>
+            AAG
+          </button>
+        }
       />
+    );
+  }
+
+  if (route === "aag") {
+    return (
+      <PlayerShell
+        key={route}
+        onBack={() => setRoute("chud")}
+        onGoHome={() => setRoute("hub")}
+        chudDock={chudDock}
+        hideHud
+        actions={
+          <button className="topbar-square-btn" onClick={() => setRoute("chud")} aria-label="Close AAG">
+            XAAG
+          </button>
+        }
+      >
+        <AagPage
+          key={`aag-${charSlot}`}
+          chudStateStorageKey={chudStateKey(charSlot)}
+          gearSlotsStorageKey={gearSlotsKey(charSlot)}
+          onOpenMgr={() => setRoute("mgr")}
+        />
+      </PlayerShell>
+    );
+  }
+
+  if (route === "mgr") {
+    return (
+      <PlayerShell
+        key={route}
+        onBack={() => setRoute("aag")}
+        onGoHome={() => setRoute("hub")}
+        chudDock={chudDock}
+        hideHud
+        actions={
+          <button className="topbar-square-btn" onClick={() => setRoute("chud")} aria-label="Close AAG">
+            XAAG
+          </button>
+        }
+      >
+        <MgrPage chudStateStorageKey={chudStateKey(charSlot)} onCloseMgr={() => setRoute("aag")} />
+      </PlayerShell>
     );
   }
 
@@ -592,7 +703,7 @@ export default function App() {
 
   if (route === "notes") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
         <NotesPage key={`notes-${charSlot}`} storageKey={notesKey(charSlot)} />
       </PlayerShell>
     );
@@ -600,7 +711,7 @@ export default function App() {
 
   if (route === "gear") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
         <GearPage
           key={`gear-${charSlot}`}
           gearSlotsStorageKey={gearSlotsKey(charSlot)}
@@ -613,7 +724,7 @@ export default function App() {
 
   if (route === "combat") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
         <CombatPage />
       </PlayerShell>
     );
@@ -621,7 +732,7 @@ export default function App() {
 
   if (route === "char-mgmt") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
         <CharMgmt />
       </PlayerShell>
     );
@@ -629,7 +740,7 @@ export default function App() {
 
   if (route === "profile") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
         <ProfilePage key={`profile-${charSlot}`} storageKey={profileKey(charSlot)} charSlot={charSlot} />
       </PlayerShell>
     );
@@ -639,7 +750,7 @@ export default function App() {
     <>
       <DiceDock />
       {chudDock}
-      <HubLanding onNavigate={(next) => setRoute(next)} />
+      <HubLanding onNavigate={(next) => { setHudReturnRoute("hub"); setRoute(next); }} />
     </>
   );
 }

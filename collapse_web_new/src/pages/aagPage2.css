@@ -1,0 +1,315 @@
+/* Scoped styles for Page 2 (moved from the CHUD box onto the AAG page).
+   Class names mirror the cHUD design system (chud.css / meter-bridge.js) but
+   are duplicated here, without the global html/body/#root resets, so they
+   stay isolated to this page. */
+
+.aag-page2 {
+  --font-display: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+  --accent-red: #d42b2b;
+}
+
+.aag-page2 .mods {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aag-page2 .mods h3 {
+  margin: 0;
+  font-size: 0.75rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.55);
+  border-left: 2px solid var(--accent-red);
+  padding-left: 6px;
+}
+
+.aag-page2 .core-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.aag-page2 .approach-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Row 1: RDY chip on the left, MGR button right-justified */
+.aag-page2 .row-rdy-mgr {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.aag-page2 .row-rdy-mgr .chip {
+  flex: 0 1 auto;
+  min-width: 96px;
+}
+
+.aag-page2 .row-rdy-mgr .topbar-square-btn {
+  margin-left: auto;
+  align-self: center;
+  width: 110px;
+  flex: 0 0 auto;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+/* Row 2 (WT | Damage) and Row 4 (FR | CR, via .row-lg) share matching,
+   10%-larger sizing so all four cells look uniform. */
+.aag-page2 .row-wt-dmg {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.aag-page2 .row-wt-dmg > * {
+  flex: 1 1 0;
+}
+
+.aag-page2 .row-wt-dmg .core-card,
+.aag-page2 .row-wt-dmg .combat-info-cell,
+.aag-page2 .combat-info-row.row-lg .combat-info-cell {
+  padding: 11px 9px;
+  min-height: 66px;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+.aag-page2 .row-wt-dmg .core-label {
+  font-size: 0.77rem;
+}
+
+.aag-page2 .row-wt-dmg .core-value {
+  font-size: 1.76rem;
+}
+
+.aag-page2 .row-wt-dmg .combat-info-cell-label,
+.aag-page2 .combat-info-row.row-lg .combat-info-cell-label {
+  font-size: 0.77rem;
+}
+
+.aag-page2 .row-wt-dmg .combat-info-die,
+.aag-page2 .combat-info-row.row-lg .combat-info-die {
+  width: 39.6px;
+  height: 39.6px;
+  font-size: 12.1px;
+}
+
+.aag-page2 .combat-info-row.row-lg .combat-info-range-val {
+  font-size: 1.76rem;
+}
+
+/* Row 3: AP | Draw | Capacity | Inventory Slots — 25% smaller, always
+   4-across (including on mobile) */
+.aag-page2 .row-compact-4 {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.aag-page2 .row-compact-4 .core-card {
+  padding: 7.5px 6px;
+  border-radius: 5px;
+  gap: 3px;
+}
+
+.aag-page2 .row-compact-4 .core-label {
+  font-size: 0.525rem;
+}
+
+.aag-page2 .row-compact-4 .core-value {
+  font-size: 1.2rem;
+}
+
+.aag-page2 .row-compact-4 .chip {
+  padding: 6px 4.5px;
+  border-radius: 3px;
+  gap: 2px;
+}
+
+.aag-page2 .row-compact-4 .chip span {
+  font-size: 0.525rem;
+}
+
+.aag-page2 .row-compact-4 .chip strong {
+  font-size: 1.2rem;
+}
+
+.aag-page2 .core-card {
+  align-items: center;
+  text-align: center;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.aag-page2 .core-card.interactive {
+  cursor: pointer;
+}
+
+.aag-page2 .core-card.interactive:active {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04));
+}
+
+.aag-page2 .core-label {
+  font-size: 0.7rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+.aag-page2 .core-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aag-page2 .core-value {
+  font-size: 1.6rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: #f8fafc;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.aag-page2 .chip {
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  border-radius: 4px;
+  padding: 8px 6px;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aag-page2 .chip span {
+  font-size: 0.7rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.5);
+}
+
+.aag-page2 .chip strong {
+  font-size: 1.6rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: #f8fafc;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.aag-page2 .combat-info-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.aag-page2 .combat-info-row .combat-info-cell {
+  flex: 1 1 0;
+}
+
+.aag-page2 .combat-info-range-val {
+  font-size: 1.6rem;
+  font-family: var(--font-display, inherit);
+  font-weight: 400;
+  color: #f8fafc;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.aag-page2 .combat-info-cell {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.aag-page2 .combat-info-cell-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.5);
+  font-family: var(--font-display, inherit);
+  font-weight: 400;
+}
+
+.aag-page2 .combat-info-die {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 2px solid rgba(15, 246, 255, 0.55);
+  background: rgba(15, 246, 255, 0.06);
+  color: #0ff6ff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-family: var(--font-display, inherit);
+}
+
+.aag-page2 .chud-tally {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.aag-page2 .chud-tally:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.aag-page2 .chud-tally-label {
+  font-size: 0.7rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+.aag-page2 .chud-tally-marks {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(15, 246, 255, 0.85);
+}
+
+.aag-page2 .chud-tally-group {
+  flex-shrink: 0;
+}

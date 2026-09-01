@@ -47,8 +47,6 @@ type Combatant = {
   avatarUrl?: string; // optional hosted image URL (e.g. Imgur) shown as circle
   hp: number;
   maxHp: number;
-  viv: number;
-  maxViv: number;
   rdy: number;
   notes: NoteEntry[];
   partyId?: string; // set when imported from a Party slot
@@ -147,8 +145,6 @@ function makeCombatant(existing: Combatant[], type: CombatantType = "enemy"): Co
     icon: pickIcon(existing),
     hp: type === "enemy" ? 10 : 0,
     maxHp: type === "enemy" ? 10 : 0,
-    viv: type === "enemy" ? 0 : 0,
-    maxViv: type === "enemy" ? 99 : 0,
     rdy: 0,
     notes: [],
     setRoll: defaultSetRoll(),
@@ -726,8 +722,8 @@ const EditRow: React.FC<EditRowProps> = ({ c, index, isLast, onChange, onRemove,
             const nextType = c.type === "enemy" ? "player" : "enemy" as CombatantType;
             onChange(
               nextType === "player"
-                ? { ...c, type: "player", hp: 0, maxHp: 0, viv: 0, maxViv: 0 }
-                : { ...c, type: "enemy", icon: c.icon || ICONS[index % ICONS.length], hp: c.maxHp > 0 ? c.maxHp : 10, maxHp: c.maxHp > 0 ? c.maxHp : 10, viv: c.viv ?? 0, maxViv: c.maxViv > 0 ? c.maxViv : 99 }
+                ? { ...c, type: "player", hp: 0, maxHp: 0 }
+                : { ...c, type: "enemy", icon: c.icon || ICONS[index % ICONS.length], hp: c.maxHp > 0 ? c.maxHp : 10, maxHp: c.maxHp > 0 ? c.maxHp : 10 }
             );
           }}
           style={{
@@ -862,13 +858,13 @@ const EditRow: React.FC<EditRowProps> = ({ c, index, isLast, onChange, onRemove,
               style={INPUT}
             />
             <div style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: 6 }}>
-              HP starts at max in Run mode. VIV starts at 0.
+              HP starts at max in Run mode.
             </div>
           </div>
         </div>
       ) : (
         <div style={{ color: "var(--muted)", fontSize: "0.88rem", padding: "0.85rem 0.5rem", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, marginBottom: "0.6rem" }}>
-          Player placeholders do not track HP or VIV.
+          Player placeholders do not track HP.
         </div>
       )}
 
@@ -881,7 +877,7 @@ const EditRow: React.FC<EditRowProps> = ({ c, index, isLast, onChange, onRemove,
 
 // ── Run Card ──────────────────────────────────────────────────────────────────
 // Horizontal swipe on the card background navigates between combatants.
-// Vertical swipe / scroll on counters adjusts HP / Viv.
+// Vertical swipe / scroll on counters adjusts HP.
 
 type RunCardProps = {
   c: Combatant;
@@ -968,23 +964,17 @@ const RunCard: React.FC<RunCardProps> = ({ c, index, total, onChange, onPrev, on
 
       {/* Counters */}
       {c.type === "enemy" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.75rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1.75rem" }}>
           <Counter
             label="HP" value={c.hp} max={c.maxHp} accent="var(--accent-influence)"
             onChange={(v) => onChange({ ...c, hp: v })}
             onMaxChange={(v) => onChange({ ...c, maxHp: v, hp: Math.min(c.hp, v) })}
             large
           />
-          <Counter
-            label="VIV" value={c.viv} max={c.maxViv} accent="var(--accent)"
-            onChange={(v) => onChange({ ...c, viv: v })}
-            large
-            noMax
-          />
         </div>
       ) : (
         <div style={{ color: "var(--muted)", fontSize: "0.92rem", padding: "1rem", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10 }}>
-          Player placeholder — no HP/VIV values are tracked here.
+          Player placeholder — no HP values are tracked here.
         </div>
       )}
 
@@ -1530,7 +1520,7 @@ export default function GMCombatTracker() {
                     const next = {
                       ...prev,
                       combatants: sorted.map((c) =>
-                        c.type === "enemy" ? { ...c, hp: c.maxHp, viv: 0 } : c
+                        c.type === "enemy" ? { ...c, hp: c.maxHp } : c
                       ),
                     };
                     saveApp(next);

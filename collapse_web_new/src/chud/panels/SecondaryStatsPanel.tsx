@@ -1,11 +1,9 @@
-import { useSemiLongPress } from "../../hooks/useSemiLongPress";
 import { RepCard } from "../components/RepCard";
 import type { SecondaryStats, StatReps } from "../../types/chud";
 
-// "Reps" accordion: Major (secondary stat) reps + Minor (AP/Draw/Inventory) reps.
+// "Reps" section: Major (secondary stat) reps + Minor (AP/Draw/Inventory) reps.
+// Plain section (no accordion) — lives on the standalone MGR page.
 export function SecondaryStatsPanel({
-  open,
-  onToggleOpen,
   secondary,
   core,
   levelUpReady,
@@ -19,8 +17,6 @@ export function SecondaryStatsPanel({
   onResetStatRep,
   onConfirmStatLevelUp,
 }: {
-  open: boolean;
-  onToggleOpen: () => void;
   secondary: SecondaryStats;
   core: Record<string, number>;
   levelUpReady: Record<keyof SecondaryStats, boolean>;
@@ -34,60 +30,45 @@ export function SecondaryStatsPanel({
   onResetStatRep: (field: keyof StatReps) => void;
   onConfirmStatLevelUp: (field: keyof StatReps) => void;
 }) {
-  const toggleHandlers = useSemiLongPress(onToggleOpen);
-
   return (
-    <div className={`mods secondary-accordion${open ? " open" : ""}`}>
-      <button
-        type="button"
-        className="secondary-toggle"
-        {...toggleHandlers}
-      >
-        <span>Reps</span>
-        <span className="secondary-toggle-chevron">{open ? "▲" : "▼"}</span>
-      </button>
-      {open && (
-        <>
-          <div style={{ fontSize: '0.6rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(248,250,252,0.35)', paddingBottom: 4, paddingTop: 6, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Major</div>
-          <div className="core-grid secondary-grid">
-            {([
-              ["vigor", "VIG"],
-              ["inference", "INFER"],
-              ["personality", "PERSO"],
-            ] as Array<[keyof SecondaryStats, string]>).map(([field, label]) => (
-              <RepCard
-                key={field}
-                label={label}
-                reps={Number.isFinite(secondary[field]) ? secondary[field] : 0}
-                threshold={core[field] + 1}
-                ready={levelUpReady[field]}
-                onTap={() => onIncrementRep(field)}
-                onReset={() => onResetRep(field)}
-                onLevelUp={() => onConfirmLevelUp(field)}
-              />
-            ))}
-          </div>
-          <div style={{ fontSize: '0.6rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(248,250,252,0.35)', paddingBottom: 4, paddingTop: 10, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Minor</div>
-          <div className="core-grid secondary-grid" style={{ marginTop: 8 }}>
-            {([
-              ['invSlots', 'INV'],
-              ['ap', 'AP'],
-              ['draw', 'DRAW'],
-            ] as Array<[keyof StatReps, string]>).map(([field, label]) => (
-              <RepCard
-                key={field}
-                label={label}
-                reps={statReps[field]}
-                threshold={statRepThreshold(field)}
-                ready={statLevelUpReady[field]}
-                onTap={() => onIncrementStatRep(field)}
-                onReset={() => onResetStatRep(field)}
-                onLevelUp={() => onConfirmStatLevelUp(field)}
-              />
-            ))}
-          </div>
-        </>
-      )}
+    <div className="mods">
+      <div style={{ fontSize: '0.6rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(248,250,252,0.35)', paddingBottom: 4, paddingTop: 6, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>XP &amp; Levels</div>
+      <div className="core-grid secondary-grid">
+        {([
+          ["vigor", "VIG"],
+          ["inference", "INFER"],
+          ["personality", "PERSO"],
+        ] as Array<[keyof SecondaryStats, string]>).map(([field, label]) => (
+          <RepCard
+            key={field}
+            label={label}
+            reps={Number.isFinite(secondary[field]) ? secondary[field] : 0}
+            threshold={core[field] + 1}
+            ready={levelUpReady[field]}
+            onTap={() => onIncrementRep(field)}
+            onReset={() => onResetRep(field)}
+            onLevelUp={() => onConfirmLevelUp(field)}
+          />
+        ))}
+      </div>
+      <div className="core-grid secondary-grid" style={{ marginTop: 8 }}>
+        {([
+          ['invSlots', 'INV'],
+          ['ap', 'AP'],
+          ['draw', 'DRAW'],
+        ] as Array<[keyof StatReps, string]>).map(([field, label]) => (
+          <RepCard
+            key={field}
+            label={label}
+            reps={statReps[field]}
+            threshold={statRepThreshold(field)}
+            ready={statLevelUpReady[field]}
+            onTap={() => onIncrementStatRep(field)}
+            onReset={() => onResetStatRep(field)}
+            onLevelUp={() => onConfirmStatLevelUp(field)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

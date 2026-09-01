@@ -97,7 +97,47 @@ export function GearBriefWidget({
     ? `0 0 28px rgba(${accentR},${accentG},${accentB},0.6)`
     : isOverEncumbered ? '0 0 12px rgba(212,43,43,0.2)' : 'none';
 
-  if (count === 0 || activeCount === 0) return null;
+  if (count === 0 || activeCount === 0) {
+    return (
+      <div
+        style={{
+          flex: "7 1 0",
+          background: "rgba(8,13,23,0.92)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 8,
+          padding: "8px 10px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          minWidth: 0,
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "0.58rem",
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "var(--muted, #9aa0a6)",
+            textAlign: "center",
+          }}
+        >
+          In Brief
+        </span>
+        <span
+          style={{
+            fontStyle: "italic",
+            color: "rgba(248,250,252,0.25)",
+            fontSize: "0.78rem",
+            textAlign: "center",
+          }}
+        >
+          no inventory
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div

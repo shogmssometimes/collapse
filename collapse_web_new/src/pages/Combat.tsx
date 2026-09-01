@@ -492,8 +492,8 @@ export default function CombatPage() {
         <h1 style={{ margin: '0 0 4px 0' }}>Combat</h1>
       </div>
 
-      {/* Range / Durability / Damage — 3-up horizontal cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.9fr 0.9fr', gap: 8 }}>
+      {/* Range / Damage — 2-up horizontal cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.9fr', gap: 8 }}>
 
         {/* Range — tap to swap */}
         <div
@@ -506,15 +506,6 @@ export default function CombatPage() {
             <span style={{ fontSize: '1rem', color: 'var(--muted)', opacity: 0.5 }}>⇄</span>
             <RangeCell label="FR" value={frValue} />
           </div>
-        </div>
-
-        {/* Durability */}
-        <div style={{ ...ROW_STYLE, flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '0.68rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>Durability</span>
-          <DiceIcon
-            die={combat.durability}
-            onCycle={() => setCombat(prev => ({ ...prev, durability: cycleDie(prev.durability) }))}
-          />
         </div>
 
         {/* Damage */}

@@ -22,15 +22,21 @@ export const DIE_COLOR: Record<DieSides, string> = {
   4: '#ff6b6b', 6: '#ffa94d', 8: '#ffd43b', 10: '#69db7c', 12: '#4dabf7', 20: '#cc5de8',
 };
 
-// Acing: rolling max value on a die steps down to the next smallest standard
-// die size and adds another roll. Chain stops when a roll isn't max, or once
-// 1d4 has been rolled (smallest standard die).
+// Acing: rolling max value on a d10 steps down through d8, d6, d4, adding
+// another roll each time the new die also hits its max. d12 and d20 can
+// never ace, and acing only applies in TOTAL mode (never per-dice mode).
 export const ACE_STEP_DOWN: Record<DieSides, DieSides | null> = {
-  20: 12, 12: 10, 10: 8, 8: 6, 6: 4, 4: null,
+  20: null, 12: null, 10: 8, 8: 6, 6: 4, 4: null,
 };
 
-export function isAce(roll: DieRoll): boolean {
-  return roll.value === roll.sides;
+// A roll is "aced" only if it's the die that started the chain (a d10) or a
+// die that resulted from stepping down an existing ace chain (has
+// acedFrom set). An independently-rolled d8/d6/d4 hitting its max does not
+// ace on its own — acing can only be initiated via a d10 roll.
+export function isAce(roll: DieRoll, mode: ResultMode): boolean {
+  if (mode !== 'total') return false;
+  if (roll.value !== roll.sides) return false;
+  return roll.sides === 10 || roll.acedFrom !== undefined;
 }
 
 function diceReducer(state: DiceState, action: DiceAction): DiceState {
@@ -281,7 +287,7 @@ export const DiceDock: React.FC = () => {
                     const color = DIE_COLOR[roll.sides];
                     const rolling = roll.id === rollingId;
                     const glow = !rolling && ds.mode === 'per-dice' && hasTarget && roll.value >= ds.target;
-                    const aced = !rolling && isAce(roll);
+                    const aced = !rolling && isAce(roll, ds.mode);
                     const hasChild = ds.rolls.some(r => r.acedFrom === roll.id);
                     const canReroll = aced && !hasChild && ACE_STEP_DOWN[roll.sides] !== null;
                     const acedMaxed = aced && !hasChild && ACE_STEP_DOWN[roll.sides] === null;

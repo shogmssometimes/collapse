@@ -21,7 +21,7 @@ export function loadState(storageKey: string): Partial<SaveState> | null {
   }
 }
 
-export function readSavedUI(uiKey: string): { hpVivOpen?: boolean; statsOpen?: boolean; secondaryOpen?: boolean; gearOpen?: boolean } {
+export function readSavedUI(uiKey: string): { hpOpen?: boolean } {
   try {
     const raw = window.localStorage.getItem(uiKey);
     return raw ? JSON.parse(raw) : {};

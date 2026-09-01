@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:wght@400;700&display=optional');
 
 /* ── Design tokens (dossier theme) ──────────────────────────────────────── */
 :root {
@@ -41,7 +41,10 @@ body {
 /* ── App shell ───────────────────────────────────────────────────────────── */
 
 .app {
-  padding: 12px;
+  /* Extra top padding gives room for the HP card's glow/pulse box-shadow
+     (which bleeds upward) so it isn't clipped by the scroll container's
+     top edge. */
+  padding: 28px 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -156,7 +159,15 @@ body {
   box-shadow: 0 0 12px rgba(239, 68, 68, 0.55);
 }
 
-/* ── Viv + Counter row ───────────────────────────────────────────────────── */
+/* Wrapper (vanilla widget from meter-bridge.js) around the Queue brief +
+   Reaction Tokens/Chip Sync row, mounted below the HP bar. */
+.chud-hp-queue-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Stat row (generic flex row layout, e.g. WT/AP/Draw, Gear Mgmt) ──────── */
 
 .viv-row {
   display: flex;
@@ -166,12 +177,6 @@ body {
 .viv-row > * {
   flex: 1;
   min-width: 0;
-}
-
-/* viv-card is styled inline in the component (dynamic tier colors) */
-.viv-card {
-  /* padding mirrors stat-card but slightly tighter for compact fit */
-  padding: 10px 10px;
 }
 
 /* ── Core / Stat cards ───────────────────────────────────────────────────── */

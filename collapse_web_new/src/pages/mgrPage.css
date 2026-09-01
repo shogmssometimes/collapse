@@ -1,0 +1,289 @@
+/* Scoped styles for the MGR page (Wallet + Reps, moved out of the CHUD box).
+   Class names mirror the cHUD design system (chud.css / meter-bridge.js) but
+   are duplicated here, without the global html/body/#root resets, so they
+   stay isolated to this page. */
+
+.mgr-page {
+  --font-display: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+  --accent-red: #d42b2b;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mgr-page .mods {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Live preview of the Social Matrix (CS Matrix) app — same interactive
+   node hover/click behavior as the full standalone page, scaled down. */
+.mgr-page .csmatrix-preview {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #0a0c11;
+}
+
+.mgr-page .csmatrix-preview iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* Row 1: Wallet fits to the left of the XMGR toggle button, in the same
+   place as the MGR button's row on the AAG page. */
+.mgr-page .row-rdy-mgr {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mgr-page .row-rdy-mgr .topbar-square-btn {
+  align-self: center;
+  width: 110px;
+  flex: 0 0 auto;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.mgr-page .core-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.mgr-page .secondary-grid {
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 8px;
+}
+
+.mgr-page .core-card {
+  align-items: center;
+  text-align: center;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.mgr-page .core-card.interactive {
+  cursor: pointer;
+}
+
+.mgr-page .core-card.interactive:active {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04));
+}
+
+.mgr-page .core-label {
+  font-size: 0.7rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+/* ── Rep card ─────────────────────────────────────────────────────────────── */
+
+.mgr-page .rep-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  position: relative;
+  overflow: visible;
+  transition: border-color 300ms ease, box-shadow 300ms ease;
+}
+
+.mgr-page .rep-progress {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.mgr-page .rep-count-num {
+  font-size: 24px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: #e9f0ff;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.mgr-page .rep-sep {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.3);
+  margin: 0 1px;
+}
+
+.mgr-page .rep-threshold-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.mgr-page .rep-pips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.mgr-page .rep-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  transition: background 200ms ease;
+}
+
+.mgr-page .rep-pip.filled {
+  background: rgba(99, 255, 177, 0.7);
+}
+
+.mgr-page .rep-card.rep-ready {
+  border-color: rgba(255, 210, 60, 0.7);
+  box-shadow: 0 0 14px rgba(255, 200, 40, 0.35), 0 0 32px rgba(200, 150, 0, 0.18);
+  animation: mgr-rep-levelup-pulse 1.4s ease-in-out infinite;
+}
+
+.mgr-page .rep-pip.filled.ready {
+  background: #ffd23c;
+  box-shadow: 0 0 5px rgba(255, 210, 60, 0.8);
+}
+
+.mgr-page .rep-count-num.ready,
+.mgr-page .rep-card.rep-ready .rep-count-num {
+  color: #ffd23c;
+}
+
+.mgr-page .rep-levelup-badge {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, #b8860b, #ffd23c, #b8860b);
+  color: #1a1000;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 2px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  z-index: 10001;
+  animation: mgr-rep-badge-pop 1.4s ease-in-out infinite;
+}
+
+@keyframes mgr-rep-levelup-pulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(255, 200, 40, 0.35), 0 0 32px rgba(200, 150, 0, 0.18); }
+  50%       { box-shadow: 0 0 24px rgba(255, 210, 60, 0.65), 0 0 56px rgba(220, 170, 0, 0.3); }
+}
+
+@keyframes mgr-rep-badge-pop {
+  0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+  50%       { opacity: 0.75; transform: translateX(-50%) scale(1.08); }
+}
+
+/* ── Wallet ───────────────────────────────────────────────────────────────── */
+
+.mgr-page .chud-wallet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mgr-page .chud-wallet-balance {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #3de8c0;
+  font-variant-numeric: tabular-nums;
+}
+
+.mgr-page .chud-wallet-balance-unit {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(61, 232, 192, 0.55);
+  margin-left: 4px;
+  letter-spacing: 0.1em;
+}
+
+.mgr-page .chud-wallet-controls {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.mgr-page .chud-wallet-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 19px;
+  font-weight: 700;
+  color: #e9f0ff;
+  text-align: center;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.mgr-page .chud-wallet-input::-webkit-outer-spin-button,
+.mgr-page .chud-wallet-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.mgr-page .chud-wallet-input:focus {
+  border-color: rgba(61, 232, 192, 0.4);
+  box-shadow: 0 0 0 2px rgba(61, 232, 192, 0.1);
+}
+
+.mgr-page .chud-wallet-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 9px;
+  font-size: 24px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 120ms, transform 80ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mgr-page .chud-wallet-btn:active {
+  transform: scale(0.95);
+  opacity: 0.85;
+}
+
+.mgr-page .chud-wallet-btn.debit {
+  background: linear-gradient(135deg, #0fa878, #3de8c0);
+  color: #051a14;
+}
+
+.mgr-page .chud-wallet-btn.credit {
+  background: linear-gradient(135deg, #9b1b4a, #ff6b9a);
+  color: #fff;
+}

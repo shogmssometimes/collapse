@@ -30,8 +30,8 @@ export default function BaseCardGrid({
     <section className="compact">
       <div className="page-header" style={{ marginBottom: 6 }}>
         <div>
-          <h2 style={{ marginBottom: 4 }}>Base Cards</h2>
-          <p className="muted" style={{ marginTop: 0 }}>Add base cards until you reach {baseTarget} total base cards.</p>
+          <h2 style={{ marginBottom: 4 }}>Base Engrams</h2>
+          <p className="muted" style={{ marginTop: 0 }}>Add base engrams until you reach {baseTarget} total base engrams.</p>
         </div>
         <div className="muted text-body">Tap a card to adjust counts.</div>
       </div>

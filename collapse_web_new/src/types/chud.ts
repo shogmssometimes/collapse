@@ -30,7 +30,6 @@ export interface StatReps {
 export interface SaveState {
   core: CoreStats;
   hpCounter: number;
-  viv: number;
   approach: ApproachStats;
   wt: number;
   ap: number;
@@ -39,7 +38,6 @@ export interface SaveState {
   secondary?: SecondaryStats;
   statReps?: StatReps;
   shortRest?: boolean;
-  pushIt?: boolean;
 }
 
 export type GearSlotEntry = { name: string; units: string; qty: string };
