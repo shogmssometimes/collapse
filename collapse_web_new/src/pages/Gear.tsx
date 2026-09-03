@@ -156,7 +156,7 @@ function loadGearEntries(key: string = GEAR_SLOTS_KEY): SlotEntry[] {
 export type WardrobeEntry = { name: string; approach: string; quality: string }
 const WARDROBE_KEY = 'wardrobe.v1'
 const EMPTY_WARDROBE_ENTRY: WardrobeEntry = { name: '', approach: '', quality: '' }
-const WARDROBE_ROW_COUNT = 3
+const WARDROBE_ROW_COUNT = 4
 function loadWardrobe(key: string = WARDROBE_KEY): WardrobeEntry[] {
   try {
     const raw = localStorage.getItem(key)
