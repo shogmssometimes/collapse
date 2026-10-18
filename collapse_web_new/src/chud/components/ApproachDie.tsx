@@ -237,7 +237,7 @@ export function ApproachDie({
     if (!Number.isFinite(opposition)) return
     const computed = displayTotal - opposition
     setMargin(computed)
-    if (computed <= 0) {
+    if (computed === 0) {
       setChipDesynced(true)
     }
     setView("margin-result")
@@ -279,7 +279,11 @@ export function ApproachDie({
       </span>
 
       {(rolling || result) && createPortal(
-        <div className="approach-die-popup" onPointerDown={(event) => event.stopPropagation()}>
+        <div
+          className="approach-die-popup"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
           <button
             type="button"
             className="approach-die-popup-close"
@@ -364,9 +368,10 @@ export function ApproachDie({
             <div className="approach-margin-result">
               <div className="approach-margin-value">{margin > 0 ? `+${margin}` : margin}</div>
               <div className="approach-margin-sub">Margin</div>
-              {margin <= 0 ? (
+              {margin === 0 && (
                 <div className="approach-desync-banner">DESYNCED</div>
-              ) : (
+              )}
+              {margin > 0 && (
                 <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); handleRollDamage() }}>
                   Roll Damage ({margin}{dieLabel(damageDie)})
                 </button>
