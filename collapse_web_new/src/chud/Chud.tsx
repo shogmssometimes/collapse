@@ -140,8 +140,6 @@ export default function Chud() {
             inventorySlots={inventorySlots}
           />
 
-          {/* Combat box (CR/FR) removed; CR/FR now render on the AAG page. */}
-
         </section>
       </div>
     </div>

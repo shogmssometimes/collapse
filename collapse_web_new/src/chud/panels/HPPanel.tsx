@@ -50,11 +50,11 @@ export function HPPanel({
           <div className="bar-fill" style={{ width: `${hpFillPct}%` }} />
         </div>
       </div>
-      {/* Combat Queue / Reaction Tokens / Chip Sync (vanilla widget from
-          meter-bridge.js) mounts here, directly below the HP bar. */}
+      {/* Chip Sync (vanilla widget from meter-bridge.js) mounts here,
+          directly below the HP bar. */}
       <div id="chud-hp-queue-anchor" />
       {/* Set Rolls (Status Effects, vanilla widget from meter-bridge.js)
-          mounts here, directly below Reaction Tokens/Chip Sync. */}
+          mounts here, directly below Chip Sync. */}
       <div id="chud-setrolls-anchor" />
       <GearPanel
         gearEntries={gearEntries}

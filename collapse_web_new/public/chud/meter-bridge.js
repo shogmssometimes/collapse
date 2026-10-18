@@ -215,13 +215,7 @@ function createStyles() {
     .chud-combat-body { display: none; padding: 8px 0 0; }
     .chud-combat-body.open { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
     .combat-body-row { display: flex; gap: 8px; align-items: stretch; }
-    .combat-rt { flex: 7 1 0; min-width: 0; cursor: default; user-select: none; -webkit-user-select: none; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); }
-    .combat-rt-label { font-weight: 700; font-size: 8px; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase; }
-    .combat-rt-val { display: none; }
-    .combat-rt-pips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: center; flex: 1; }
-    .combat-rt-pip { width: 14px; height: 14px; border-radius: 50%; background: rgba(255,200,60,0.75); box-shadow: 0 0 8px rgba(255,200,60,0.45); border: 1.5px solid rgba(255,200,60,1); flex-shrink: 0; }
-    .combat-rt-none { font-size: 0.75rem; color: rgba(248,250,252,0.3); font-style: italic; }
-    .combat-chip-wrap { flex: 3 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+    .combat-chip-wrap { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
     .combat-chip-toggle { flex: 1; padding: 10px 8px; border: 1px solid rgba(74,222,128,0.4); border-radius: 10px; background: rgba(74,222,128,0.08); color: #4ade80; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms, transform 80ms; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .combat-chip-toggle:active { transform: scale(0.97); }
     .combat-chip-toggle[data-desynced="1"] { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.5); color: #f87171; }
@@ -236,15 +230,6 @@ function createStyles() {
     .combat-info-range-val { font-size: 22px; font-weight: 800; color: #0ff6ff; letter-spacing: 0.04em; font-family: var(--font-display, inherit); }
     .combat-info-range-arrow { font-size: 11px; color: rgba(248,250,252,0.3); margin-top: 8px; }
     .combat-info-die { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; border: 2px solid rgba(15,246,255,0.55); background: rgba(15,246,255,0.06); color: #0ff6ff; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; font-family: var(--font-display, inherit); }
-
-    /* ── Queue In Brief ── */
-    .combat-queue-brief { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 8px; background: rgba(8,13,23,0.92); border: 1px solid rgba(255,255,255,0.1); user-select: none; -webkit-user-select: none; touch-action: none; cursor: pointer; transition: border-color 0.3s, box-shadow 0.3s; width: 100%; box-sizing: border-box; }
-    .combat-queue-brief-eyebrow { font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(248,250,252,0.45); text-align: center; }
-    .combat-queue-brief-row { display: flex; align-items: baseline; justify-content: center; gap: 6px; min-width: 0; overflow: hidden; }
-    .combat-queue-brief-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem; font-weight: 600; color: rgba(255,255,255,0.95); text-align: center; }
-    .combat-queue-brief-badge { font-size: 0.75rem; font-variant-numeric: tabular-nums; flex-shrink: 0; color: #0ff6ff; }
-    .combat-queue-brief-badge.reaction { color: rgba(255,200,60,0.95); }
-    .combat-queue-brief-page { font-size: 0.6rem; color: rgba(248,250,252,0.3); text-align: center; letter-spacing: 0.06em; }
   `
   document.head.appendChild(style)
 }
@@ -445,59 +430,8 @@ function writeCombat(state) {
 }
 
 function buildCombatPanel() {
-  const rtSection = document.createElement('div')
-  rtSection.className = 'combat-rt'
-  rtSection.setAttribute('data-touch-blocker-ignore', '')
-
-  const rtLabel = document.createElement('span')
-  rtLabel.className = 'combat-rt-label'
-  rtLabel.textContent = 'Reaction Tokens'
-  const rtVal = document.createElement('span')
-  rtVal.className = 'combat-rt-val'
-
-  const rtPips = document.createElement('div')
-  rtPips.className = 'combat-rt-pips'
-
-  rtSection.appendChild(rtLabel)
-  rtSection.appendChild(rtVal)
-  rtSection.appendChild(rtPips)
-
-  // Long-press the Reaction Tokens widget to jump to the Combat page and make a selection.
-  const RT_HOLD_MS = 900
-  let rtHoldTimer = null
-  let rtHoldInterval = null
-  const cancelRtHold = () => {
-    if (rtHoldTimer) { clearTimeout(rtHoldTimer); rtHoldTimer = null }
-    if (rtHoldInterval) { clearInterval(rtHoldInterval); rtHoldInterval = null }
-    rtSection.style.borderColor = ''
-    rtSection.style.boxShadow = ''
-  }
-  const navigateToCombat = () => {
-    try {
-      const targetOrigin = window.location.origin && window.location.origin !== 'null' ? window.location.origin : '*'
-      window.parent.postMessage({ type: 'collapse-navigate', route: 'combat' }, targetOrigin)
-    } catch {}
-  }
-  rtSection.style.cursor = 'pointer'
-  rtSection.title = 'Hold to jump to Combat'
-  rtSection.addEventListener('pointerdown', () => {
-    const start = Date.now()
-    rtHoldInterval = setInterval(() => {
-      const pct = Math.min(((Date.now() - start) / RT_HOLD_MS) * 100, 100)
-      const glow = pct / 100
-      rtSection.style.borderColor = `rgba(255,200,60,${0.2 + 0.6 * glow})`
-      rtSection.style.boxShadow = `0 0 ${6 + 16 * glow}px rgba(255,200,60,${0.15 + 0.5 * glow})`
-    }, 30)
-    rtHoldTimer = setTimeout(() => {
-      cancelRtHold()
-      navigateToCombat()
-    }, RT_HOLD_MS)
-  })
-  rtSection.addEventListener('pointerup', cancelRtHold)
-  rtSection.addEventListener('pointerleave', cancelRtHold)
-  rtSection.addEventListener('pointercancel', cancelRtHold)
-  rtSection.addEventListener('contextmenu', ev => ev.preventDefault())
-
+  // Reaction Tokens and the action/reaction Queue have been removed (player
+  // side no longer tracks them here). Chip Sync is preserved below.
   const chipWrap = document.createElement('div')
   chipWrap.className = 'combat-chip-wrap'
   const chipBtn = document.createElement('button')
@@ -505,184 +439,15 @@ function buildCombatPanel() {
   chipBtn.setAttribute('data-touch-blocker-ignore', '')
   chipWrap.appendChild(chipBtn)
 
-  // Range/Damage read-only cells (CR/FR/Damage) have moved to the AAG page,
-  // outside this iframe, and are no longer built here.
-
-  // Queue / Reaction Tokens / Chip Sync are relocated into the HP box (see
-  // queueSection built further below); they are no longer part of this panel's body.
-
-  // ── Queue In Brief ────────────────────────────────────────────────────────
-  const QUEUE_KEY = 'combat.queue.v1'
-  const readQueue = () => { try { const r = localStorage.getItem(QUEUE_KEY); return r ? JSON.parse(r) : [] } catch { return [] } }
-
-  const queueBrief = document.createElement('div')
-  queueBrief.className = 'combat-queue-brief'
-  queueBrief.setAttribute('data-touch-blocker-ignore', '')
-
-  let queueIdx = 0
-  let qBriefHoldTimer = null
-  let qBriefHoldInterval = null
-  let qBriefHoldProgress = 0
-  let qBriefSwipeStartX = null
-  let qBriefHoldFired = false
-  const QUEUE_HOLD_MS = 1800
-
-  const formatActionName = (action) => {
-    if (action === 'Unspent Reaction Tokens') return 'Reaction Token (Unspent)'
-    return action
-  }
-
-  const writeQueue = (items) => {
-    try {
-      const json = JSON.stringify(items)
-      localStorage.setItem(QUEUE_KEY, json)
-      window.dispatchEvent(new StorageEvent('storage', { key: QUEUE_KEY, newValue: json, storageArea: window.localStorage }))
-    } catch {}
-  }
-
-  // Long-pressing a queued action "uses" it: remove it from the queue and refund
-  // whatever AP or reaction tokens it had reserved, mirroring the Combat page.
-  const expendQueueItem = (item) => {
-    const items = readQueue()
-    const idx = items.findIndex(i => i.id === item.id)
-    if (idx === -1) return
-    writeQueue(items.slice(0, idx).concat(items.slice(idx + 1)))
-    const state = readCombat()
-    if (item.mode === 'reaction') {
-      writeCombat({ ...state, reactionTokens: (state.reactionTokens || 0) + (item.tokenCost || 0) })
-    } else {
-      writeCombat({ ...state, spentAp: Math.max(0, (state.spentAp || 0) - (item.ap || 0)) })
-    }
-    if (queueIdx > 0) queueIdx -= 1
-  }
-
-  const cancelQBriefHold = () => {
-    if (qBriefHoldTimer) { clearTimeout(qBriefHoldTimer); qBriefHoldTimer = null }
-    if (qBriefHoldInterval) { clearInterval(qBriefHoldInterval); qBriefHoldInterval = null }
-    qBriefHoldProgress = 0
-    renderQueueBrief()
-  }
-
-  const renderQueueBrief = () => {
-    const items = readQueue()
-    queueBrief.innerHTML = ''
-    queueBrief.style.display = 'flex'
-    if (!items.length) {
-      queueBrief.style.borderColor = 'rgba(255,255,255,0.07)'
-      queueBrief.style.boxShadow = 'none'
-      const eyebrow = document.createElement('span')
-      eyebrow.className = 'combat-queue-brief-eyebrow'
-      eyebrow.textContent = 'Queue'
-      const empty = document.createElement('span')
-      empty.className = 'combat-queue-brief-name'
-      empty.style.cssText = 'font-style:italic;color:rgba(248,250,252,0.25);font-size:0.78rem;text-align:center;'
-      empty.textContent = 'no actions queued'
-      queueBrief.appendChild(eyebrow)
-      queueBrief.appendChild(empty)
-      return
-    }
-    const safeIdx = items.length > 0 ? queueIdx % items.length : 0
-    const item = items[safeIdx]
-    const glow = qBriefHoldProgress / 100
-    queueBrief.style.borderColor = qBriefHoldProgress > 0
-      ? `rgba(255,90,90,${0.3 + 0.7 * glow})`
-      : 'rgba(255,255,255,0.1)'
-    queueBrief.style.boxShadow = qBriefHoldProgress > 0
-      ? `0 0 ${6 + 20 * glow}px rgba(255,90,90,${0.2 + 0.5 * glow})`
-      : 'none'
-
-    const eyebrow = document.createElement('span')
-    eyebrow.className = 'combat-queue-brief-eyebrow'
-    eyebrow.textContent = 'Queue'
-
-    const row = document.createElement('div')
-    row.className = 'combat-queue-brief-row'
-
-    const name = document.createElement('span')
-    name.className = 'combat-queue-brief-name'
-    name.textContent = formatActionName(item.action)
-
-    const badge = document.createElement('span')
-    badge.className = 'combat-queue-brief-badge' + (item.mode === 'reaction' ? ' reaction' : '')
-    badge.textContent = item.mode === 'reaction' ? `${item.tokenCost}T` : `${item.ap}AP`
-
-    row.appendChild(name); row.appendChild(badge)
-
-    const pagination = document.createElement('span')
-    pagination.className = 'combat-queue-brief-page'
-    pagination.textContent = `${safeIdx + 1} / ${items.length}`
-
-    queueBrief.appendChild(eyebrow)
-    queueBrief.appendChild(row)
-    queueBrief.appendChild(pagination)
-  }
-
-  queueBrief.addEventListener('pointerdown', (ev) => {
-    qBriefSwipeStartX = ev.clientX
-    qBriefHoldProgress = 0
-    qBriefHoldFired = false
-    const start = Date.now()
-    qBriefHoldInterval = setInterval(() => {
-      qBriefHoldProgress = Math.min(((Date.now() - start) / QUEUE_HOLD_MS) * 100, 100)
-      renderQueueBrief()
-    }, 30)
-    qBriefHoldTimer = setTimeout(() => {
-      qBriefHoldFired = true
-      cancelQBriefHold()
-      const items = readQueue()
-      if (items.length > 0) {
-        expendQueueItem(items[queueIdx % items.length])
-        renderQueueBrief()
-      }
-    }, QUEUE_HOLD_MS)
-  })
-  queueBrief.addEventListener('pointerup', (ev) => {
-    const dx = qBriefSwipeStartX !== null ? ev.clientX - qBriefSwipeStartX : 0
-    const fired = qBriefHoldFired
-    cancelQBriefHold()
-    if (!fired && Math.abs(dx) < 28) {
-      const items = readQueue()
-      if (items.length > 1) {
-        queueIdx = (queueIdx + 1) % items.length
-        renderQueueBrief()
-      }
-    }
-    qBriefSwipeStartX = null
-  })
-  queueBrief.addEventListener('pointerleave', () => { cancelQBriefHold(); qBriefSwipeStartX = null })
-  queueBrief.addEventListener('pointercancel', () => { cancelQBriefHold(); qBriefSwipeStartX = null })
-  queueBrief.addEventListener('contextmenu', (ev) => ev.preventDefault())
-
-  const queueSection = document.createElement('div')
-  queueSection.className = 'chud-hp-queue-section'
-  queueSection.appendChild(queueBrief)
-  const rtChipRow = document.createElement('div')
-  rtChipRow.className = 'viv-row'
-  rtChipRow.appendChild(rtSection)
-  rtChipRow.appendChild(chipWrap)
-  queueSection.appendChild(rtChipRow)
+  const chipSection = document.createElement('div')
+  chipSection.className = 'chud-hp-queue-section'
+  chipSection.appendChild(chipWrap)
 
   const refresh = () => {
     const state = readCombat()
-    const tokens = Math.max(0, Math.min(6, state.reactionTokens ?? 0))
-    rtVal.textContent = tokens
-    rtPips.innerHTML = ''
-    for (let i = 0; i < tokens; i++) {
-      const pip = document.createElement('span')
-      pip.className = 'combat-rt-pip active'
-      rtPips.appendChild(pip)
-    }
-    if (tokens === 0) {
-      const none = document.createElement('span')
-      none.className = 'combat-rt-none'
-      none.textContent = 'none'
-      rtPips.appendChild(none)
-    }
     const desynced = !!state.chipDesynced
     chipBtn.innerHTML = desynced ? 'Chip<br>Desynced' : 'Chip<br>Synced'
     chipBtn.dataset.desynced = desynced ? '1' : '0'
-    // queue brief
-    renderQueueBrief()
   }
 
   chipBtn.addEventListener('click', () => {
@@ -761,8 +526,8 @@ function buildCombatPanel() {
   // ── end flags ─────────────────────────────────────────────────────────────
 
   refresh()
-  window.addEventListener('storage', (ev) => { if (ev.key === COMBAT_KEY || ev.key === QUEUE_KEY) refresh() })
-  return { queueSection, shortRestFlag }
+  window.addEventListener('storage', (ev) => { if (ev.key === COMBAT_KEY) refresh() })
+  return { chipSection, shortRestFlag }
 }
 
 function readStatusRolls() {
@@ -1133,11 +898,12 @@ function mountMeters() {
   const gcm = buildGritCollapseMeter(getMeters, setMeters)
 
   // Set Rolls (Status Effects) mounts inside the HP box, directly below the
-  // Reaction Tokens/Chip Sync row. Combat box (CR/FR) has been removed
-  // entirely; CR/FR now render read-only on the standalone AAG page, outside
-  // this iframe. Page 2 (including Damage die + Short Rest) also lives on
-  // the AAG page. Wallet + Reps now live on the standalone MGR page.
-  const { queueSection } = buildCombatPanel()
+  // Chip Sync control. Combat box (CR/FR) has been removed entirely; CR/FR
+  // now render read-only on the standalone AAG page, outside this iframe.
+  // Page 2 (including Damage die + Short Rest) also lives on the AAG page.
+  // Wallet + Reps now live on the standalone MGR page. Reaction Tokens and
+  // the action/reaction Queue have been removed (player side).
+  const { chipSection } = buildCombatPanel()
   const statusRollsPanel = buildStatusRollsPanel()
   const setRollsAnchor = panel.querySelector('#chud-setrolls-anchor')
   if (setRollsAnchor) {
@@ -1151,11 +917,10 @@ function mountMeters() {
   } else {
     panel.appendChild(gcm.container)
   }
-  // Queue / Reaction Tokens / Chip Sync mount inside the HP box, directly
-  // below the HP bar.
+  // Chip Sync mounts inside the HP box, directly below the HP bar.
   const hpQueueAnchor = panel.querySelector('#chud-hp-queue-anchor')
   if (hpQueueAnchor) {
-    hpQueueAnchor.insertAdjacentElement('afterend', queueSection)
+    hpQueueAnchor.insertAdjacentElement('afterend', chipSection)
   }
 
   const refreshAll = () => { gcm.update() }

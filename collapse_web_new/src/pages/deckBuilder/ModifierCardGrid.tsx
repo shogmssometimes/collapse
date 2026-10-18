@@ -28,6 +28,9 @@ type ModifierCardGridProps = {
   renderDetails: (card: Card) => React.ReactNode
 }
 
+// Prepare-only list: tap an Engram to add a copy, long-press (or right
+// click) to remove one. No rolling happens here — this page is purely for
+// equipping Engrams within Capacity; rolling happens in play/combat.
 export default function ModifierCardGrid({
   sectionRef,
   modifierOverlayPinned,
@@ -58,16 +61,16 @@ export default function ModifierCardGrid({
     <section ref={sectionRef} className="compact" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="modifier-header-row">
         <div className="modifier-header-text">
-          <h2 style={{ marginBottom: 4 }}>Modifier Cards</h2>
+          <h2 style={{ marginBottom: 4 }}>Engrams</h2>
         </div>
         <button
           type="button"
           className={`mod-helper-btn ${modifierOverlayPinned ? 'is-active' : ''}`}
           onClick={onToggleModifierHelper}
           aria-pressed={modifierOverlayPinned}
-          title="Pin the modifier counter helper"
+          title="Pin the Engrams Remaining helper"
         >
-          <span className="mod-helper-label">Counter Helper</span>
+          <span className="mod-helper-label">Engrams Remaining</span>
           <span className="mod-helper-state">{modCapacityRemaining} left</span>
         </button>
       </div>
@@ -86,7 +89,7 @@ export default function ModifierCardGrid({
         </button>
       </div>
 
-      <div className="card-grid mod-card-grid">
+      <div className="engram-list">
         {filteredModCards.map((card) => {
           const qty = modCounts[card.id] ?? 0
           const cost = card.cost ?? 0
@@ -111,17 +114,14 @@ export default function ModifierCardGrid({
           return (
             <div
               key={card.id}
-              className={`card mod-card ${isAttached ? 'is-selected' : ''}`}
+              className={`engram-list-item ${isAttached ? 'is-selected' : ''}`}
               data-touch-blocker-ignore
               {...modLongPressHandlers}
             >
-              <div className="card-header" style={{ gap: 12 }}>
-                <div className="card-title" style={{ minWidth: 0, flex: '1 1 auto' }}>
-                  <div className="card-name">{card.name}</div>
-                  <div className="muted text-body">Cost {cost}</div>
-                  {isAttached && <div className="accent text-footnote" style={{ marginTop: 4 }}>Attached</div>}
-                </div>
-                <div className="counter-value counter-pill" style={{ minWidth: 34, textAlign: 'center' }}>{qty}</div>
+              <div className="engram-list-title">
+                <div className="card-name">{card.name}</div>
+                <div className="muted text-body">Cost {cost}</div>
+                {isAttached && <div className="accent text-footnote" style={{ marginTop: 4 }}>Attached</div>}
               </div>
               {!canAddMore && <div className="capacity-reached">Capacity reached</div>}
               {showCardDetails && (!card.details || card.details.length === 0) && (
@@ -132,6 +132,9 @@ export default function ModifierCardGrid({
                 </div>
               )}
               {renderDetails(card)}
+              <div className="engram-list-counter-row">
+                <div className="counter-value counter-pill">{qty}</div>
+              </div>
             </div>
           )
         })}

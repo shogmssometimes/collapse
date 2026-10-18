@@ -36,6 +36,448 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
+.aag-page2 .approach-unit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.aag-page2 .approach-die-size-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin: 0 auto 2px;
+  width: min(100%, 240px);
+}
+
+.aag-page2 .approach-die-size-button {
+  position: relative;
+  width: 100%;
+  min-height: 68px;
+  border: 1px solid rgba(15, 246, 255, 0.38);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(15, 246, 255, 0.1), rgba(255, 255, 255, 0.02));
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.aag-page2 .approach-die-size-button.pressing {
+  border-color: #0ff6ff;
+  background: rgba(15, 246, 255, 0.18);
+  transform: scale(0.97);
+}
+
+.aag-page2 .approach-die-size-button.reset {
+  animation: approach-die-size-down 520ms ease;
+}
+
+.aag-page2 .approach-die-size-button.up {
+  animation: approach-die-size-up 520ms ease;
+}
+
+.aag-page2 .approach-die-size-value {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+}
+
+.aag-page2 .approach-die-size-hint,
+.aag-page2 .approach-die-size-instructions {
+  font-family: var(--font-display);
+  font-size: 0.57rem;
+  letter-spacing: 0.14em;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+.aag-page2 .approach-die-size-feedback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background: rgba(7, 10, 16, 0.84);
+  color: #0ff6ff;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.14em;
+  animation: approach-die-size-feedback 520ms ease;
+}
+
+.aag-page2 .approach-die-size-button.reset .approach-die-size-feedback {
+  color: #ff7777;
+}
+
+.aag-page2 .approach-die-size-button.limit .approach-die-size-feedback {
+  color: #ffd43b;
+}
+
+@keyframes approach-die-size-down {
+  25% { transform: translateY(3px) scale(0.97); box-shadow: 0 0 18px rgba(255, 92, 92, 0.36); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes approach-die-size-up {
+  25% { transform: translateY(-3px) scale(1.03); box-shadow: 0 0 18px rgba(15, 246, 255, 0.32); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes approach-die-size-feedback {
+  0% { opacity: 0; transform: scale(0.92); }
+  20%, 80% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.04); }
+}
+
+.aag-page2 .approach-die {
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-appearance: none;
+  color: inherit;
+  font: inherit;
+}
+
+.aag-page2 .approach-die:active {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+}
+
+.aag-page2 .approach-die.pressing {
+  border-color: var(--accent-red);
+  transform: scale(0.96);
+}
+
+.aag-page2 .approach-die.locked {
+  cursor: default;
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.aag-page2 .approach-die:disabled {
+  cursor: default;
+}
+
+.aag-page2 .approach-die.error {
+  animation: approach-die-error 420ms ease;
+  border-color: #ff5c5c;
+}
+
+.aag-page2 .approach-die-label {
+  font-size: 0.6rem;
+  font-family: var(--font-display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.72);
+}
+
+.aag-page2 .approach-die-value {
+  font-size: 0.85rem;
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  color: #f8fafc;
+}
+
+.aag-page2 .approach-die-sub {
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+.aag-page2 .approach-die-pips {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  min-height: 7px;
+}
+
+.aag-page2 .approach-die-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.aag-page2 .approach-die-pip.armed {
+  background: #0ff6ff;
+  border-color: #0ff6ff;
+  transform: scale(1.1);
+}
+
+@keyframes approach-die-error {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+/* Portaled to document.body — intentionally unscoped. */
+.approach-distribution-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(5, 7, 12, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.approach-distribution-popout {
+  width: min(320px, 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(15, 246, 255, 0.3);
+  background: linear-gradient(160deg, rgba(14, 18, 28, 0.97), rgba(8, 11, 18, 0.97));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.approach-distribution-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.approach-distribution-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f8fafc;
+}
+
+.approach-distribution-close {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(248, 250, 252, 0.8);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.approach-distribution-remaining {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.6);
+}
+
+.approach-distribution-remaining strong {
+  color: #0ff6ff;
+}
+
+.approach-distribution-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.approach-distribution-row-label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.85);
+}
+
+.approach-distribution-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.approach-distribution-row-value {
+  min-width: 1.4em;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.approach-distribution-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(15, 246, 255, 0.4);
+  background: rgba(15, 246, 255, 0.1);
+  color: #0ff6ff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.approach-distribution-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(248, 250, 252, 0.4);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Portaled to document.body (not a descendant of .aag-page2), so these rules
+   are intentionally unscoped. */
+.approach-die-popup {
+  position: fixed;
+  z-index: 200;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 260px;
+  max-width: min(88vw, 420px);
+  padding: 32px 36px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(10, 10, 14, 0.96);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: approach-die-popup-in 120ms ease;
+  font-family: var(--font-display, 'Bebas Neue', Impact, 'Arial Narrow', sans-serif);
+}
+
+.approach-die-popup-label {
+  font-size: 1.2rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.65);
+}
+
+.approach-die-popup-value {
+  font-size: 6.5rem;
+  color: #f8fafc;
+  line-height: 1;
+}
+
+.approach-die-popup-value.bad {
+  color: #ff5c5c;
+  text-shadow: 0 0 24px rgba(255, 92, 92, 0.5);
+}
+
+.approach-die-popup-value.good {
+  color: #ffd43b;
+  text-shadow: 0 0 24px rgba(255, 212, 59, 0.5);
+}
+
+.approach-die-popup-value.rolling {
+  color: rgba(248, 250, 252, 0.5);
+  animation: approach-die-rolling-tick 60ms linear infinite;
+}
+
+@keyframes approach-die-rolling-tick {
+  from { transform: scale(0.92); }
+  to { transform: scale(1); }
+}
+
+.approach-die-popup-die {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: rgba(248, 250, 252, 0.65);
+  text-align: center;
+}
+
+.approach-die-chip {
+  font: inherit;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.approach-die-chip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.approach-die-chip.overloaded {
+  background: rgba(212, 43, 43, 0.25);
+  border-color: var(--accent-red, #d42b2b);
+  color: #ffd43b;
+  font-weight: 700;
+}
+
+.approach-die-popup-pool {
+  margin-top: 6px;
+  font-size: 0.95rem;
+  color: rgba(248, 250, 252, 0.55);
+  text-align: center;
+}
+
+.approach-full-rest-btn {
+  margin-top: 10px;
+  width: 100%;
+  font: inherit;
+  color: rgba(248, 250, 252, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.approach-die-popup-die .roll-bad {
+  color: #ff5c5c;
+  font-weight: 700;
+}
+
+.approach-die-popup-die .roll-max {
+  color: #ffd43b;
+  font-weight: 700;
+}
+
+.approach-die-popup-step {
+  margin-top: 6px;
+  font-size: 1.15rem;
+  color: var(--accent-red, #d42b2b);
+  text-align: center;
+}
+
+@keyframes approach-die-popup-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
 /* Row 1: RDY chip on the left, MGR button right-justified */
 .aag-page2 .row-rdy-mgr {
   display: flex;
@@ -58,8 +500,7 @@
   padding-bottom: 10px;
 }
 
-/* Row 2 (WT | Damage) and Row 4 (FR | CR, via .row-lg) share matching,
-   10%-larger sizing so all four cells look uniform. */
+/* Row 2 (WT | Damage) is 10%-larger sizing so both cells look uniform. */
 .aag-page2 .row-wt-dmg {
   display: flex;
   flex-direction: row;
@@ -70,13 +511,15 @@
   flex: 1 1 0;
 }
 
-.aag-page2 .row-wt-dmg .core-card,
-.aag-page2 .row-wt-dmg .combat-info-cell,
-.aag-page2 .combat-info-row.row-lg .combat-info-cell {
+.aag-page2 .row-wt-dmg .core-card {
   padding: 11px 9px;
   min-height: 66px;
   box-sizing: border-box;
   justify-content: center;
+}
+
+.aag-page2 .row-wt-dmg .approach-die-size-control {
+  margin: 0;
 }
 
 .aag-page2 .row-wt-dmg .core-label {
@@ -87,62 +530,38 @@
   font-size: 1.76rem;
 }
 
-.aag-page2 .row-wt-dmg .combat-info-cell-label {
-  font-size: 0.77rem;
-}
-
-.aag-page2 .combat-info-row.row-lg .combat-info-cell-label {
-  font-size: 1.76rem;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  color: #f8fafc;
-}
-
-.aag-page2 .row-wt-dmg .combat-info-die,
-.aag-page2 .combat-info-row.row-lg .combat-info-die {
-  width: 39.6px;
-  height: 39.6px;
-  font-size: 12.1px;
-}
-
-.aag-page2 .combat-info-row.row-lg .combat-info-range-val {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--accent);
-}
-
 /* Row 3: AP | Draw | Capacity | Inventory Slots — 25% smaller, always
    4-across (including on mobile) */
-.aag-page2 .row-compact-4 {
+.aag-page2 .row-compact-3 {
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
 }
 
-.aag-page2 .row-compact-4 .core-card {
+.aag-page2 .row-compact-3 .core-card {
   padding: 7.5px 6px;
   border-radius: 5px;
   gap: 3px;
 }
 
-.aag-page2 .row-compact-4 .core-label {
+.aag-page2 .row-compact-3 .core-label {
   font-size: 0.525rem;
 }
 
-.aag-page2 .row-compact-4 .core-value {
+.aag-page2 .row-compact-3 .core-value {
   font-size: 1.2rem;
 }
 
-.aag-page2 .row-compact-4 .chip {
+.aag-page2 .row-compact-3 .chip {
   padding: 6px 4.5px;
   border-radius: 3px;
   gap: 2px;
 }
 
-.aag-page2 .row-compact-4 .chip span {
+.aag-page2 .row-compact-3 .chip span {
   font-size: 0.525rem;
 }
 
-.aag-page2 .row-compact-4 .chip strong {
+.aag-page2 .row-compact-3 .chip strong {
   font-size: 1.2rem;
 }
 
@@ -222,62 +641,6 @@
   color: #f8fafc;
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
-}
-
-.aag-page2 .combat-info-row {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-}
-
-.aag-page2 .combat-info-row .combat-info-cell {
-  flex: 1 1 0;
-}
-
-.aag-page2 .combat-info-range-val {
-  font-size: 0.95rem;
-  font-family: var(--font-display, inherit);
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-}
-
-.aag-page2 .combat-info-cell {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 6px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.aag-page2 .combat-info-cell-label {
-  font-size: 1.6rem;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  color: #f8fafc;
-  font-family: var(--font-display, inherit);
-  font-weight: 400;
-}
-
-.aag-page2 .combat-info-die {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: 2px solid rgba(15, 246, 255, 0.55);
-  background: rgba(15, 246, 255, 0.06);
-  color: #0ff6ff;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  font-family: var(--font-display, inherit);
 }
 
 .aag-page2 .chud-tally {

@@ -2,6 +2,7 @@ import React, {useEffect, useMemo, useState, useCallback, useRef} from 'react'
 import ImportExportJSON from '../components/ImportExportJSON'
 import { startPlaySelection, toggleAttach, finalizeSelection, cancelSelection, ActivePlay } from '../utils/playFlow'
 import { getModCapacityUsed, canAddModCardFrom } from '../utils/modCapacity'
+import { fullRestEngram, type EngramDef, type EquippedEngram } from '../domain/engrams'
 import Handbook from '../data/handbook'
 import { Card, CardDetail } from '../domain/decks/DeckEngine'
 import { buildDeckArray, shuffleInPlace, sumCounts, clamp } from '../utils/deckBuilding'
@@ -10,7 +11,6 @@ import { buildCostFilterOptions, buildStringFilterOptions, type FilterOption } f
 import { readChudCapacity, readChudDraw } from '../utils/chudStorage'
 import { useHandNavigation } from '../hooks/useHandNavigation'
 import { useScrollDetection } from '../hooks/useScrollDetection'
-import BaseCardGrid from './deckBuilder/BaseCardGrid'
 import ModifierCardGrid from './deckBuilder/ModifierCardGrid'
 import HandCarousel from './deckBuilder/HandCarousel'
 import DeckOpsPanel from './deckBuilder/DeckOpsPanel'
@@ -20,35 +20,31 @@ import ViewDeckContent from './deckBuilder/ViewDeckContent'
 import ViewDeckModal from './deckBuilder/ViewDeckModal'
 import HoldButton from './deckBuilder/HoldButton'
 
-const DEFAULT_BASE_TARGET = 21
 const DEFAULT_MIN_NULLS = 1
 const DEFAULT_STORAGE_KEY = 'collapse.deck-builder.v2'
 const DEFAULT_MODIFIER_CAPACITY = 10
+// Placeholder charge pool per Engram until per-Engram charge data is authored.
+const DEFAULT_ENGRAM_MAX_CHARGES = 3
 const DEFAULT_CHUD_STATE_KEY = 'chud.state.v1'
 
 type DeckBuilderProps = {
   storageKey?: string
   exportPrefix?: string
-  baseCardsOverride?: Card[]
   modCardsOverride?: Card[]
   nullCardOverride?: Card
   actionCardsOverride?: Card[]
   reactionCardsOverride?: Card[]
-  baseTarget?: number
   minNulls?: number
   modifierCapacityDefault?: number
   showCardDetails?: boolean
   simpleCounters?: boolean
   modCapacityAsCount?: boolean
-  baseInitialCount?: number
   modInitialCount?: number
   showBuilderSections?: boolean
   showOpsSections?: boolean
   showModifierCards?: boolean
   showModifierCardCounter?: boolean
   showModifierCapacity?: boolean
-  showBaseCounters?: boolean
-  showBaseAdjusters?: boolean
   lockControlsInOps?: boolean
   chudStateStorageKey?: string
   syncWithChud?: boolean
@@ -62,26 +58,21 @@ type DeckBuilderProps = {
 export default function DeckBuilder({
   storageKey = DEFAULT_STORAGE_KEY,
   exportPrefix = 'collapse-deck',
-  baseCardsOverride,
   modCardsOverride,
   nullCardOverride,
   actionCardsOverride,
   reactionCardsOverride,
-  baseTarget = DEFAULT_BASE_TARGET,
   minNulls = DEFAULT_MIN_NULLS,
   modifierCapacityDefault = DEFAULT_MODIFIER_CAPACITY,
   showCardDetails = true,
   simpleCounters = false,
   modCapacityAsCount = false,
-  baseInitialCount,
   modInitialCount,
   showBuilderSections = true,
   showOpsSections = true,
   showModifierCards = true,
   showModifierCardCounter = true,
   showModifierCapacity = true,
-  showBaseCounters = true,
-  showBaseAdjusters = true,
   lockControlsInOps = true,
   chudStateStorageKey = DEFAULT_CHUD_STATE_KEY,
   syncWithChud = true,
@@ -91,13 +82,13 @@ export default function DeckBuilder({
   onOpsModeChange,
   hideOpsModeToggle = false,
 }: DeckBuilderProps){
-  const baseCards = baseCardsOverride ?? (Handbook.baseCards ?? [])
+  // Base Engrams removed; deck composition is Engrams (mods) + nulls only.
+  const baseCards: Card[] = []
   const modCards = modCardsOverride ?? (Handbook.modCards ?? [])
   const nullCard = nullCardOverride ?? Handbook.nullCards?.[0]
   const actionCards = actionCardsOverride ?? []
   const reactionCards = reactionCardsOverride ?? []
 
-  const primaryBaseId = baseCards[0]?.id
   const primaryModId = modCards[0]?.id
   const primaryActionId = actionCards[0]?.id
   const primaryReactionId = reactionCards[0]?.id
@@ -112,17 +103,13 @@ export default function DeckBuilder({
         actionCounts: { ...(state.actionCounts ?? {}) },
         reactionCounts: { ...(state.reactionCounts ?? {}) },
       }
-      const totalBase = sumCounts(next.baseCounts)
       const totalMod = sumCounts(next.modCounts)
-      if (primaryBaseId && totalBase === 0) {
-        next.baseCounts[primaryBaseId] = baseInitialCount ?? baseTarget
-      }
       if (primaryModId && totalMod === 0) {
         next.modCounts[primaryModId] = modInitialCount ?? modifierCapacityDefault
       }
       return next
     },
-    [baseInitialCount, baseTarget, modInitialCount, modifierCapacityDefault, primaryBaseId, primaryModId, simpleCounters]
+    [modInitialCount, modifierCapacityDefault, primaryModId, simpleCounters]
   )
 
   const initialState = applyInitialCounts(loadState(baseCards, modCards, storageKey, minNulls, modifierCapacityDefault))
@@ -185,7 +172,6 @@ export default function DeckBuilder({
     window.localStorage.setItem(storageKey, JSON.stringify(payload))
   }, [builderState, storageKey, hasBuiltDeck, hasShuffledDeck])
 
-  const baseTotal = sumCounts(builderState.baseCounts)
   const modCapacityUsed = useMemo(
     () => (modCapacityAsCount ? sumCounts(builderState.modCounts) : getModCapacityUsed(modCards, builderState.modCounts)),
     [builderState.modCounts, modCards, modCapacityAsCount]
@@ -230,11 +216,10 @@ export default function DeckBuilder({
     [builderState, canAddModCardSnapshot]
   )
 
-  const baseValid = simpleCounters ? true : baseTotal === baseTarget
   const nullValid = builderState.nullCount >= minNulls
   const modValid = simpleCounters && modCapacityAsCount ? true : modCapacityUsed <= builderState.modifierCapacity
-  const deckIsValid = baseValid && nullValid && modValid
-  const lockLabel = builderState.isLocked && hasBuiltDeck && hasShuffledDeck ? 'Deck Locked + Shuffled' : (builderState.isLocked ? 'Deck Locked' : 'Deck Unlocked')
+  const deckIsValid = nullValid && modValid
+  const lockLabel = builderState.isLocked && hasBuiltDeck && hasShuffledDeck ? 'Engrams Locked + Shuffled' : (builderState.isLocked ? 'Engrams Locked' : 'Engrams Unlocked')
   const lockPill = builderState.isLocked ? <span className="lock-pill locked">{lockLabel}</span> : <span className="lock-pill unlocked">{lockLabel}</span>
 
   const costFilterOptions = useMemo(() => buildCostFilterOptions(modCards), [modCards])
@@ -297,7 +282,6 @@ export default function DeckBuilder({
       return acc
     }, {})
   }, [cardLookup])
-  const baseIdSet = useMemo(() => new Set(baseCards.map((c) => c.id)), [baseCards])
   const modIdSet = useMemo(() => new Set(modCards.map((c) => c.id)), [modCards])
   const nullId = nullCard?.id ?? null
 
@@ -596,6 +580,12 @@ export default function DeckBuilder({
       const returnedExile = prev.exile ?? []
       const returnedHand = (prev.hand ?? []).map((h) => h.id)
       const nextDeck = [...(prev.deck ?? []), ...returnedDiscard, ...returnedExile, ...returnedHand]
+      const nextEngramCharges: Record<string, number> = { ...prev.engramCharges }
+      for (const card of modCards) {
+        if ((prev.modCounts[card.id] ?? 0) <= 0) continue
+        const equipped: EquippedEngram = { defId: card.id, copies: prev.modCounts[card.id] ?? 0, charges: nextEngramCharges[card.id] ?? DEFAULT_ENGRAM_MAX_CHARGES }
+        nextEngramCharges[card.id] = fullRestEngram(equipped, engramDef(card.id)).charges
+      }
       return {
         ...prev,
         deck: nextDeck,
@@ -603,6 +593,7 @@ export default function DeckBuilder({
         exile: [],
         hand: [],
         hasShuffledDeck: false,
+        engramCharges: nextEngramCharges,
       }
     })
     setActivePlay(null)
@@ -667,47 +658,6 @@ export default function DeckBuilder({
   }
 
   // drawSize removed - we only allow Draw 1
-
-  const adjustBaseCount = (cardId: string, delta: number) => {
-    setBuilderState((prev) => {
-      const current = prev.baseCounts[cardId] ?? 0
-      const next = clamp(current + delta, 0)
-      const prevTotal = sumCounts(prev.baseCounts)
-      const newTotal = prevTotal - current + next
-      if (!simpleCounters && newTotal > baseTarget) return prev
-      return {
-        ...prev,
-        baseCounts: { ...prev.baseCounts, [cardId]: next },
-      }
-    })
-  }
-
-  const adjustPrimaryBaseCount = (delta: number) => {
-    if (!primaryBaseId) return
-    adjustBaseCount(primaryBaseId, delta)
-  }
-
-  // tap-to-add and long-press/right-click to remove (base cards)
-  const longPressTimer = useRef<number | null>(null)
-  const longPressFired = useRef(false)
-
-  const clearLongPress = () => {
-    if (longPressTimer.current) {
-      window.clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
-    }
-    longPressFired.current = false
-  }
-
-  const handleBaseIncrement = (cardId: string) => {
-    if (builderState.isLocked) return
-    adjustBaseCount(cardId, 1)
-  }
-
-  const handleBaseContext = (cardId: string) => {
-    if (builderState.isLocked) return
-    adjustBaseCount(cardId, -1)
-  }
 
   const adjustModCount = (cardId: string, delta: number) => {
     setBuilderState((prev) => {
@@ -776,17 +726,18 @@ export default function DeckBuilder({
     adjustModCount(cardId, -1)
   }
 
+  const engramDef = (cardId: string): EngramDef => ({
+    id: cardId,
+    name: cardId,
+    level: modCards.find((c) => c.id === cardId)?.cost ?? 0,
+    activation: 'standard',
+    maxCharges: DEFAULT_ENGRAM_MAX_CHARGES,
+  })
+
   const adjustNullCount = (delta: number) => {
     setBuilderState((prev) => ({
       ...prev,
       nullCount: clamp(prev.nullCount + delta, minNulls),
-    }))
-  }
-
-  const adjustModifierCapacity = (delta: number) => {
-    setBuilderState((prev) => ({
-      ...prev,
-      modifierCapacity: Math.max((prev.modifierCapacity ?? 0) + delta, 0),
     }))
   }
 
@@ -1210,7 +1161,7 @@ export default function DeckBuilder({
     if (!showCardDetails) return null
     if (!card.details || card.details.length === 0) return null
     return (
-      <dl className="card-details text-body" style={{marginTop:15,marginBottom:0,width:'100%'}}>
+      <dl className="card-details text-body" style={{marginTop:10,marginBottom:0,width:'100%'}}>
         {card.details.map((detail) => (
           <React.Fragment key={`${card.id}-${detail.label}`}>
             <dt style={{fontWeight:600}}>{detail.label}</dt>
@@ -1239,7 +1190,6 @@ export default function DeckBuilder({
     WebkitOverflowScrolling: 'touch',
   }
 
-  const skillGridClass = `card-grid base-card-grid skill-grid${showBuilderSections ? ' deck-builder-skill-grid' : ''}`
   const modifierOverlayVisible = !simpleCounters && showModifierCards && (modifierOverlayPinned || modifierOverlayInView)
   const toggleModifierHelper = useCallback(() => {
     setModifierOverlayPinned((prev) => !prev)
@@ -1265,7 +1215,7 @@ export default function DeckBuilder({
         <div className="page">
           <div className="page-header" style={{ alignItems: 'center', justifyContent: 'space-between', textAlign: 'center' }}>
             <div style={{ flex: '1 1 auto' }}>
-              <h1>Engram Deck Builder</h1>
+              <h1>Engram Manager</h1>
               <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <ImportExportJSON filenamePrefix={exportPrefix} />
               </div>
@@ -1273,52 +1223,23 @@ export default function DeckBuilder({
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
               {lockPill}
               <button onClick={() => toggleLockDeck()}>
-                {builderState.isLocked ? 'Unlock Deck' : 'Lock Deck'}
+                {builderState.isLocked ? 'Unlock Engrams' : 'Lock Engrams'}
               </button>
             </div>
           </div>
           <section className="summary-stack">
-            <div>
-              <div className="muted text-body">Base Engrams</div>
-              {showBaseCounters && <div className="stat-large">{simpleCounters ? baseTotal : `${baseTotal} / ${baseTarget}`}</div>}
-              {showBaseAdjusters && (
-                <div className="counter-inline" role="group" aria-label="Adjust base cards" style={{ marginTop: 8 }}>
-                  <button className="counter-btn" onClick={() => adjustPrimaryBaseCount(-1)} disabled={builderState.isLocked}>-</button>
-                  <div className="counter-value counter-pill">{primaryBaseId ? (builderState.baseCounts[primaryBaseId] ?? 0) : baseTotal}</div>
-                  <button className="counter-btn" onClick={() => adjustPrimaryBaseCount(1)} disabled={builderState.isLocked || (!simpleCounters && baseTotal >= baseTarget)}>+</button>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="muted text-body">Null Cards</div>
-              <div className="counter-inline" role="group" aria-label="Adjust null cards" style={{ marginTop: 4, justifyContent: 'center' }}>
-                <button className="counter-btn" onClick={() => adjustNullCount(-1)} disabled={builderState.nullCount <= minNulls || builderState.isLocked}>-</button>
-                <div className="counter-value counter-pill">{builderState.nullCount}</div>
-                <button className="counter-btn" onClick={() => adjustNullCount(1)} disabled={builderState.isLocked}>+</button>
-              </div>
-              {!nullValid && <div className="status-warning text-body">Minimum of {minNulls} Nulls required.</div>}
-            </div>
             {showModifierCapacity && (
               <div>
                 <div className="muted text-body">Capacity</div>
-                {chudCapacity !== null ? (
-                  <div style={{ marginTop: 4, textAlign: 'center' }}>
-                    <div className="counter-value counter-pill">{builderState.modifierCapacity}</div>
-                    <div className="muted text-body" style={{ marginTop: 4, fontSize: '0.75em' }}>Synced from HUD</div>
-                  </div>
-                ) : (
-                  <div className="counter-inline" role="group" aria-label="Adjust capacity" style={{ marginTop: 4, justifyContent: 'center' }}>
-                    <button className="counter-btn" onClick={() => adjustModifierCapacity(-1)}>-</button>
-                    <div className="counter-value counter-pill">{builderState.modifierCapacity}</div>
-                    <button className="counter-btn" onClick={() => adjustModifierCapacity(1)}>+</button>
-                  </div>
-                )}
+                <div style={{ marginTop: 4, textAlign: 'center' }}>
+                  <div className="counter-value counter-pill">{builderState.modifierCapacity}</div>
+                  <div className="muted text-body" style={{ marginTop: 4, fontSize: '0.75em' }}>From AAG Inference</div>
+                </div>
               </div>
             )}
             {showModifierCards && showModifierCardCounter && (
               <div>
-                <div className="muted text-body">Modifier Cards</div>
+                <div className="muted text-body">Engrams</div>
                 <div className="stat-large">
                   {simpleCounters && modCapacityAsCount ? modCapacityUsed : `${modCapacityUsed} / ${builderState.modifierCapacity}`}
                 </div>
@@ -1328,9 +1249,9 @@ export default function DeckBuilder({
                   <button className="counter-btn" onClick={() => adjustPrimaryModCount(1)} disabled={builderState.isLocked || (!simpleCounters && !canAddModCard(primaryModId ?? ''))}>+</button>
                 </div>
                 <div className="muted text-body" style={{ marginTop: 6 }}>
-                  {simpleCounters && modCapacityAsCount ? 'Mod Cards' : 'Mod Cards Used'}
+                  {simpleCounters && modCapacityAsCount ? 'Engrams' : 'Engrams Used'}
                 </div>
-                {!modValid && <div className="status-error text-body">Reduce modifier cards or raise capacity.</div>}
+                {!modValid && <div className="status-error text-body">Reduce Engrams or raise capacity.</div>}
               </div>
             )}
             {showActionReactionCards && primaryActionId && (
@@ -1356,27 +1277,12 @@ export default function DeckBuilder({
               </div>
             )}
             <div>
-              <div className="muted text-body">Deck Status</div>
-              <div className={`stat-large ${deckIsValid ? 'status-success' : 'status-error'}`}>{deckIsValid ? 'Ready' : 'Needs Attention'}</div>
-              <button onClick={resetBuilder} style={{ marginTop: 8 }}>Reset Builder</button>
+              <button onClick={resetBuilder} style={{ marginTop: 8 }}>Reset Engrams</button>
             </div>
           </section>
 
           {!simpleCounters && (
             <>
-              <BaseCardGrid
-                baseCards={baseCards}
-                baseTarget={baseTarget}
-                baseCounts={builderState.baseCounts}
-                activeBaseId={activePlay?.baseId ?? null}
-                isLocked={!!builderState.isLocked}
-                skillGridClass={skillGridClass}
-                longPressTimer={longPressTimer}
-                longPressFired={longPressFired}
-                onIncrement={handleBaseIncrement}
-                onContext={handleBaseContext}
-              />
-
               {showModifierCards && (
                 <ModifierCardGrid
                   sectionRef={modifierSectionRef}

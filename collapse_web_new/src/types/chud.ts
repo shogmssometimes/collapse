@@ -31,6 +31,9 @@ export interface SaveState {
   core: CoreStats;
   hpCounter: number;
   approach: ApproachStats;
+  approachDieSize?: import('../domain/approachDice').DieSides;
+  damageDieSize?: import('../domain/approachDice').DieSides;
+  approachOverloadSpent?: Partial<Record<keyof ApproachStats, number>>;
   wt: number;
   ap: number;
   draw: number;

@@ -195,7 +195,6 @@ export default function GMApp() {
     }
   }, [route]);
 
-  const gmBaseCards = useMemo<Card[]>(() => [{ id: "gm-base-1", name: "Base", type: "Base" }], []);
   const gmModCards  = useMemo<Card[]>(() => [{ id: "gm-mod-1",  name: "Mod",  type: "Modifier", cost: 1 }], []);
   const gmNullCard  = useMemo<Card>(() => ({ id: "gm-null", name: "Null", type: "Null" }), []);
   const gmActionCards   = useMemo<Card[]>(() => [{ id: "gm-action-1",   name: "Action",   type: "Action" }], []);
@@ -213,13 +212,11 @@ export default function GMApp() {
         <DeckBuilder
           storageKey={GM_STORAGE_KEY}
           exportPrefix={GM_EXPORT_PREFIX}
-          baseCardsOverride={gmBaseCards}
           modCardsOverride={gmModCards}
           nullCardOverride={gmNullCard}
           actionCardsOverride={gmActionCards}
           reactionCardsOverride={gmReactionCards}
           showActionReactionCards={true}
-          baseTarget={15}
           minNulls={5}
           modifierCapacityDefault={10}
           showCardDetails={false}
@@ -228,7 +225,6 @@ export default function GMApp() {
           showOpsSections={false}
           showModifierCards={true}
           showModifierCapacity={false}
-          showBaseCounters={true}
           syncWithChud={false}
         />
       </GMShell>
@@ -247,13 +243,11 @@ export default function GMApp() {
         <DeckBuilder
           storageKey={GM_STORAGE_KEY}
           exportPrefix={GM_EXPORT_PREFIX}
-          baseCardsOverride={gmBaseCards}
           modCardsOverride={gmModCards}
           nullCardOverride={gmNullCard}
           actionCardsOverride={gmActionCards}
           reactionCardsOverride={gmReactionCards}
           showActionReactionCards={true}
-          baseTarget={15}
           minNulls={5}
           modifierCapacityDefault={10}
           showCardDetails={false}

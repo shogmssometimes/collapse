@@ -1668,6 +1668,85 @@ code {
   margin-top: 0;
 }
 
+.engram-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.engram-list-item {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.engram-list-item.is-selected {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.engram-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.engram-list-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.engram-list-counter-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+/* Differentiate stacked label/value metadata inside an Engram's expanded
+   details: labels read as small muted section headers, values as the
+   prominent text, with breathing room and a divider between each pair. */
+.engram-list-item .card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  row-gap: 0;
+}
+
+.engram-list-item .card-details dt {
+  max-width: none;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(148, 213, 196, 0.85);
+  margin-top: 7px;
+}
+
+.engram-list-item .card-details dt:first-of-type {
+  margin-top: 0;
+}
+
+.engram-list-item .card-details dd {
+  font-size: 0.95rem;
+  color: rgba(248, 250, 252, 0.92);
+  margin-top: 2px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.engram-list-item .card-details dd:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 @keyframes pulse-warning {
   0% { opacity: 0.45; }
   50% { opacity: 1; }

@@ -32,6 +32,8 @@ export type DeckBuilderState = {
   handLimit?: number
   actionCounts?: CountMap
   reactionCounts?: CountMap
+  /** Charges remaining per owned Engram (mod card id), capped at DEFAULT_ENGRAM_MAX_CHARGES. */
+  engramCharges?: Record<string, number>
 }
 
 export const defaultState = (
@@ -56,6 +58,7 @@ export const defaultState = (
   handLimit: DEFAULT_HAND_LIMIT,
   actionCounts: {},
   reactionCounts: {},
+  engramCharges: {},
 })
 
 export const loadState = (
@@ -91,6 +94,7 @@ export const loadState = (
       savedDecks: parsed.savedDecks ?? {},
       actionCounts: parsed.actionCounts ?? {},
       reactionCounts: parsed.reactionCounts ?? {},
+      engramCharges: parsed.engramCharges ?? {},
     }
   } catch {
     return defaultState(baseCards, modCards, minNulls, defaultModCapacity)

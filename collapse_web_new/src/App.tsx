@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DeckBuilder from "./pages/DeckBuilder";
 import GearPage from "./pages/Gear";
-import CombatPage from "./pages/Combat";
 import NotesPage from "./pages/Notes";
 import CharMgmt, { CHAR_SWITCH_EVENT } from "./pages/CharMgmt";
 import ProfilePage from "./pages/Profile";
@@ -18,7 +17,7 @@ function readActiveCharSlot(): number {
   return isNaN(n) || n < 1 || n > 3 ? 1 : n;
 }
 
-type Route = "hub" | "player" | "player-ops" | "chud" | "csmatrix" | "gear" | "combat" | "notes" | "char-mgmt" | "profile" | "aag" | "mgr";
+type Route = "hub" | "player" | "chud" | "csmatrix" | "gear" | "notes" | "char-mgmt" | "profile" | "aag" | "mgr";
 type HubCard = {
   id: Route;
   title: string;
@@ -79,15 +78,13 @@ const BackButton: React.FC<{ onBack: () => void; onGoHome: () => void }> = ({ on
 };
 
 const deriveRoute = (): Route => {
-  const { segment, sub } = parseHashRoute();
+  const { segment } = parseHashRoute();
   if (segment === "player") {
-    if (sub === "ops") return "player-ops";
     return "player";
   }
   if (segment === "chud") return "chud";
   if (segment === "csmatrix") return "csmatrix";
   if (segment === "gear") return "gear";
-  if (segment === "combat") return "combat";
   if (segment === "notes") return "notes";
   if (segment === "char-mgmt") return "char-mgmt";
   if (segment === "profile") return "profile";
@@ -242,13 +239,8 @@ const ChudDock: React.FC<{ basePath: string; charSlot?: number }> = ({ basePath,
 const HUB_CARD_DEFS: HubCard[] = [
   {
     id: "player",
-    title: "Deck Builder",
-    description: "Player-facing tools with deck builder and ops.",
-  },
-  {
-    id: "player-ops",
-    title: "Deck Ops",
-    description: "Standalone deck operations for the player deck.",
+    title: "Engram Manager",
+    description: "Player-facing Engram preparation and management tools.",
   },
   {
     id: "csmatrix",
@@ -259,11 +251,6 @@ const HUB_CARD_DEFS: HubCard[] = [
     id: "gear",
     title: "Wardrobe & Gear",
     description: "Browse equipment and items.",
-  },
-  {
-    id: "combat",
-    title: "Combat",
-    description: "Combat tools and tracking.",
   },
   {
     id: "notes",
@@ -291,8 +278,8 @@ type HubOrderMode = "build" | "play" | "custom";
 const HUB_MODE_KEY = "hub.order.mode.v1";
 const HUB_CUSTOM_ORDER_KEY = "hub.order.custom.v1";
 
-const HUB_BUILD_ORDER: Route[] = ["csmatrix", "gear", "chud", "combat", "player", "profile", "char-mgmt", "player-ops", "notes"];
-const HUB_PLAY_ORDER: Route[] = ["chud", "player-ops", "csmatrix", "gear", "combat", "player", "notes", "profile", "char-mgmt"];
+const HUB_BUILD_ORDER: Route[] = ["csmatrix", "gear", "chud", "player", "profile", "char-mgmt", "notes"];
+const HUB_PLAY_ORDER: Route[] = ["chud", "csmatrix", "gear", "player", "notes", "profile", "char-mgmt"];
 
 function orderCards(order: Route[]): HubCard[] {
   const byId = new Map(HUB_CARD_DEFS.map(c => [c.id, c]));
@@ -506,7 +493,6 @@ export default function App() {
   const [route, setRoute] = useState<Route>(() => deriveRoute());
   const [hudReturnRoute, setHudReturnRoute] = useState<Route>("hub");
   const [charSlot, setCharSlot] = useState<number>(() => readActiveCharSlot());
-  const [opsMode, setOpsMode] = useState<'combat' | 'roleplay'>('combat');
   const matrixFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [matrixState, setMatrixState] = useState({ controlsOpen: false, nodesOpen: false });
 
@@ -571,11 +557,9 @@ export default function App() {
     const desiredHash = (() => {
       switch (route) {
         case "player":    return "#/player";
-        case "player-ops": return "#/player/ops";
         case "chud":      return "#/chud";
         case "csmatrix":  return "#/csmatrix";
         case "gear":      return "#/gear";
-        case "combat":    return "#/combat";
         case "char-mgmt": return "#/char-mgmt";
         case "profile":   return "#/profile";
         case "aag":       return "#/aag";
@@ -599,52 +583,6 @@ export default function App() {
           showModifierCards={true}
           showModifierCardCounter={false}
           showModifierCapacity={true}
-          showBaseCounters={true}
-          showBaseAdjusters={false}
-        />
-      </PlayerShell>
-    );
-  }
-
-  if (route === "player-ops") {
-    return (
-      <PlayerShell
-        key={route}
-        onBack={() => setRoute("hub")}
-        chudDock={chudDock}
-        onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}
-        centerContent={
-          <>
-            <button
-              type="button"
-              className={`mode-toggle${opsMode === 'roleplay' ? ' active' : ''}`}
-              onClick={() => setOpsMode('roleplay')}
-            >
-              Roleplay
-            </button>
-            <button className="ghost-btn ghost-btn-icon" onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))} aria-label="Open dice roller" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              <DiceIcon size={18} />
-            </button>
-            <button
-              type="button"
-              className={`mode-toggle${opsMode === 'combat' ? ' active' : ''}`}
-              onClick={() => setOpsMode('combat')}
-            >
-              Combat
-            </button>
-          </>
-        }
-      >
-        <DeckBuilder
-          key={`player-ops-${charSlot}`}
-          storageKey={deckStorageKey}
-          chudStateStorageKey={chudStateKey(charSlot)}
-          showBuilderSections={false}
-          showOpsSections={true}
-          opsModeOverride={opsMode}
-          onOpsModeChange={setOpsMode}
-          hideOpsModeToggle={true}
-          lockControlsInOps={false}
         />
       </PlayerShell>
     );
@@ -752,14 +690,6 @@ export default function App() {
           wardrobeStorageKey={wardrobeKey(charSlot)}
           chudStateStorageKey={chudStateKey(charSlot)}
         />
-      </PlayerShell>
-    );
-  }
-
-  if (route === "combat") {
-    return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
-        <CombatPage />
       </PlayerShell>
     );
   }
