@@ -181,12 +181,14 @@ function createStyles() {
     .chud-status-rolls { margin-top: 4px; display: flex; flex-direction: column; gap: 8px; }
     .status-roll-header { display: flex; gap: 6px; padding: 0 2px; }
     .status-roll-header span { font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(248,250,252,0.4); font-weight: 600; }
+    .status-roll-header span.col-dir { flex: 11 1 0; text-align: center; }
     .status-roll-header span.col-name { flex: 26 1 0; }
     .status-roll-header span.col-effect { flex: 42 1 0; }
     .status-roll-header span.col-value { flex: 22 1 0; text-align: center; }
     .status-roll-header span.col-clear { flex: 10 1 0; text-align: center; }
     .status-roll-rows { display: flex; flex-direction: column; gap: 6px; }
-    .status-roll-row { display: flex; gap: 6px; align-items: stretch; position: relative; }
+    .status-roll-row { display: flex; flex-direction: column; gap: 4px; position: relative; }
+    .status-roll-row-main { display: flex; gap: 6px; align-items: stretch; }
     .status-roll-name-wrap { position: relative; flex: 26 1 0; min-width: 0; }
     .status-roll-name-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 7px 8px; font-size: 11px; color: #e9f0ff; outline: none; }
     .status-roll-name-input:focus { border-color: rgba(61,232,192,0.45); }
@@ -206,6 +208,39 @@ function createStyles() {
     .status-roll-clear-icon { position: relative; z-index: 1; }
     .status-roll-add { align-self: flex-start; margin-top: 2px; padding: 7px 14px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.26); background: transparent; color: rgba(248,250,252,0.65); font-size: 10px; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase; }
     .status-roll-add:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Set Roll direction (applied by you vs applied to you) ───────── */
+    .status-roll-direction { flex: 11 1 0; min-width: 34px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: rgba(248,250,252,0.75); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; text-align: center; }
+    .status-roll-direction[data-dir="in"] { border-color: rgba(111,165,255,0.45); color: #8fb4ff; background: rgba(111,165,255,0.1); }
+    .status-roll-direction[data-dir="out"] { border-color: rgba(242,208,107,0.45); color: #f2d06b; background: rgba(242,208,107,0.1); }
+    .status-roll-save-wrap { display: flex; flex-direction: column; gap: 4px; margin-left: 40px; }
+    .status-roll-save-btn { margin-top: 4px; align-self: flex-start; padding: 5px 10px; border-radius: 7px; border: 1px solid rgba(111,165,255,0.4); background: rgba(111,165,255,0.1); color: #8fb4ff; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+    .status-roll-save-result { margin-top: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px; align-self: flex-start; }
+    .status-roll-save-result[data-outcome="pass"] { color: #4ade80; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.35); }
+    .status-roll-save-result[data-outcome="fail"] { color: #ff9f6b; background: rgba(255,159,107,0.1); border: 1px solid rgba(255,159,107,0.35); }
+
+    /* ── Rest widget (Short Rest / Dig Deep) ──────────────────────────── */
+    .chud-rest-widget { margin-top: 10px; }
+    .chud-rest-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: rgba(248,250,252,0.85); cursor: pointer; }
+    .chud-rest-trigger-label { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+    .chud-rest-trigger .chud-tally-marks { color: rgba(15,246,255,0.85); }
+    .chud-rest-overlay { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: rgba(4,6,12,0.6); }
+    .chud-rest-popup { position: relative; width: min(320px, 88vw); background: #0d1117; border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+    .chud-rest-popup-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #fff; font-weight: 700; cursor: pointer; }
+    .chud-rest-popup-title { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(248,250,252,0.9); text-align: center; }
+    .chud-rest-option-btn { padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: #e9f0ff; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+    .chud-rest-option-btn.digdeep { border-color: rgba(255,159,107,0.4); color: #ff9f6b; background: rgba(255,159,107,0.08); }
+    .chud-rest-dig-result { display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; }
+    .chud-rest-dig-dice { display: flex; gap: 10px; }
+    .chud-rest-dig-die { width: 40px; height: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #e9f0ff; background: rgba(255,255,255,0.05); }
+    .chud-rest-dig-lines { font-size: 13px; font-weight: 700; color: rgba(248,250,252,0.9); }
+    .chud-rest-dig-lines .lose { color: #ff6b9a; }
+    .chud-rest-dig-lines .gain { color: #f2d06b; }
+
+    /* ── Persistent Rest Banner (top of HUD, survives until cleared) ──── */
+    .chud-rest-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; margin-bottom: 10px; border-radius: 10px; border: 1px solid rgba(255,159,107,0.4); background: rgba(255,159,107,0.1); color: #ffd3b8; }
+    .chud-rest-banner-text { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
+    .chud-rest-banner-clear { flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
 
     /* ── Combat Panel ──────────────────────────────────────────────── */
     .chud-combat { margin-top: 4px; }
@@ -563,7 +598,32 @@ function buildStatusRollsPanel() {
   const normalizeName = (s) => String(s || '').trim().toLowerCase()
   const byName = new Map(STATUS_EFFECTS_CATALOG.map((it) => [normalizeName(it.name), it]))
   const clampStatusRoll = (n) => Math.max(0, Math.min(STATUS_ROLL_MAX, Number.isFinite(n) ? n : 0))
-  const newRow = () => ({ id: `sr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: '', effect: '', roll: 0 })
+  const newRow = () => ({ id: `sr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: '', effect: '', roll: 0, direction: 'in' })
+  const APPROACH_LABELS = [
+    ['force', 'Force'], ['finesse', 'Finesse'], ['guts', 'Guts'],
+    ['logic', 'Logic'], ['show', 'Show'], ['tell', 'Tell'],
+  ]
+  const readApproachState = () => {
+    try {
+      const s = JSON.parse(localStorage.getItem('chud.state.v1') || '{}')
+      const approach = s?.approach && typeof s.approach === 'object' ? s.approach : {}
+      const dieSize = Number(s?.approachDieSize) || 8
+      return { approach, dieSize }
+    } catch { return { approach: {}, dieSize: 8 } }
+  }
+  // Mirrors domain/approachDice.ts: roll each die once, explode once (one
+  // extra die, no re-chaining) when a die lands on its max face.
+  const rollApproachExplodeTotal = (count, dieSize) => {
+    let total = 0
+    for (let i = 0; i < Math.max(0, count); i++) {
+      const roll = 1 + Math.floor(Math.random() * dieSize)
+      total += roll
+      if (roll === dieSize) {
+        total += 1 + Math.floor(Math.random() * dieSize)
+      }
+    }
+    return total
+  }
   const hydrateRows = (rows) => {
     const safe = (Array.isArray(rows) ? rows : []).slice(0, STATUS_ROLL_MAX_ROWS).map((row, idx) => {
       const name = String(row?.name || '')
@@ -574,6 +634,7 @@ function buildStatusRollsPanel() {
         name,
         effect,
         roll: clampStatusRoll(Number(row?.roll ?? 0)),
+        direction: row?.direction === 'out' ? 'out' : 'in',
       }
     })
     while (safe.length < STATUS_ROLL_DEFAULT_ROWS) safe.push(newRow())
@@ -599,7 +660,7 @@ function buildStatusRollsPanel() {
 
   const header = document.createElement('div')
   header.className = 'status-roll-header'
-  header.innerHTML = '<span class="col-name">Name</span><span class="col-effect">Effect</span><span class="col-value">Set Roll</span><span class="col-clear">Clear</span>'
+  header.innerHTML = '<span class="col-dir">Dir</span><span class="col-name">Name</span><span class="col-effect">Effect</span><span class="col-value">Set Roll</span><span class="col-clear">Clear</span>'
   container.appendChild(header)
 
   const rowsWrap = document.createElement('div')
@@ -614,11 +675,98 @@ function buildStatusRollsPanel() {
 
   const persist = () => writeStatusRolls(rows)
 
+  const buildSaveSection = (row, persist) => {
+    const wrap = document.createElement('div')
+    wrap.className = 'status-roll-save-wrap'
+
+    const openBtn = document.createElement('button')
+    openBtn.className = 'status-roll-save-btn'
+    openBtn.textContent = 'Save'
+    openBtn.setAttribute('data-touch-blocker-ignore', '')
+
+    const controls = document.createElement('div')
+    controls.style.display = 'none'
+    controls.style.gap = '6px'
+    controls.style.alignItems = 'center'
+    controls.style.marginTop = '4px'
+
+    const select = document.createElement('select')
+    select.setAttribute('data-touch-blocker-ignore', '')
+    select.style.background = 'rgba(255,255,255,0.06)'
+    select.style.border = '1px solid rgba(255,255,255,0.18)'
+    select.style.borderRadius = '7px'
+    select.style.color = '#e9f0ff'
+    select.style.fontSize = '10px'
+    select.style.padding = '5px 6px'
+    APPROACH_LABELS.forEach(([key, label]) => {
+      const opt = document.createElement('option')
+      opt.value = key
+      opt.textContent = label
+      select.appendChild(opt)
+    })
+
+    const rollBtn = document.createElement('button')
+    rollBtn.className = 'status-roll-save-btn'
+    rollBtn.textContent = 'Roll Save'
+    rollBtn.setAttribute('data-touch-blocker-ignore', '')
+
+    const result = document.createElement('div')
+    result.className = 'status-roll-save-result'
+    result.style.display = 'none'
+
+    controls.appendChild(select)
+    controls.appendChild(rollBtn)
+
+    openBtn.addEventListener('click', () => {
+      const showing = controls.style.display !== 'none'
+      controls.style.display = showing ? 'none' : 'flex'
+    })
+
+    rollBtn.addEventListener('click', () => {
+      const { approach, dieSize } = readApproachState()
+      const rating = Number(approach?.[select.value]) || 0
+      const total = rollApproachExplodeTotal(rating, dieSize)
+      const target = row.roll
+      result.style.display = 'block'
+      if (total >= target) {
+        result.setAttribute('data-outcome', 'pass')
+        result.textContent = `SAVED — rolled ${total} vs ${target}`
+      } else {
+        const margin = target - total
+        row.roll = Math.max(0, target - margin)
+        persist()
+        result.setAttribute('data-outcome', 'fail')
+        result.textContent = `DECAYED -${margin} — rolled ${total} vs ${target}, now ${row.roll}`
+      }
+    })
+
+    wrap.appendChild(openBtn)
+    wrap.appendChild(controls)
+    wrap.appendChild(result)
+    return wrap
+  }
+
   const renderRows = () => {
     rowsWrap.innerHTML = ''
     rows.forEach((row, idx) => {
       const rowEl = document.createElement('div')
       rowEl.className = 'status-roll-row'
+
+      const dirBtn = document.createElement('button')
+      dirBtn.className = 'status-roll-direction'
+      dirBtn.setAttribute('data-touch-blocker-ignore', '')
+      const renderDir = () => {
+        dirBtn.setAttribute('data-dir', row.direction)
+        dirBtn.textContent = row.direction === 'out' ? 'OUT' : 'IN'
+        dirBtn.title = row.direction === 'out' ? 'Applied by you to others' : 'Applied to you'
+      }
+      renderDir()
+      dirBtn.addEventListener('click', () => {
+        row.direction = row.direction === 'out' ? 'in' : 'out'
+        renderDir()
+        persist()
+        renderRows()
+      })
 
       const nameWrap = document.createElement('div')
       nameWrap.className = 'status-roll-name-wrap'
@@ -795,10 +943,18 @@ function buildStatusRollsPanel() {
         clearBtn.addEventListener(evt, clearHold)
       })
 
-      rowEl.appendChild(nameWrap)
-      rowEl.appendChild(effectInput)
-      rowEl.appendChild(valueWrap)
-      rowEl.appendChild(clearBtn)
+      const mainRow = document.createElement('div')
+      mainRow.className = 'status-roll-row-main'
+      mainRow.appendChild(dirBtn)
+      mainRow.appendChild(nameWrap)
+      mainRow.appendChild(effectInput)
+      mainRow.appendChild(valueWrap)
+      mainRow.appendChild(clearBtn)
+
+      rowEl.appendChild(mainRow)
+      if (row.direction === 'in') {
+        rowEl.appendChild(buildSaveSection(row, persist))
+      }
       rowsWrap.appendChild(rowEl)
     })
     addBtn.disabled = rows.length >= STATUS_ROLL_MAX_ROWS
@@ -882,6 +1038,187 @@ function buildMeterRow(def, getMeters, setMeters) {
   return { row, update }
 }
 
+function buildRestWidget() {
+  const CHUD_STATE_KEY = 'chud.state.v1'
+  const REST_BANNER_KEY = 'chud.restBanner'
+
+  const readTally = () => {
+    try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); const v = s.shortRestTally; return typeof v === 'number' ? v : 0 } catch { return 0 }
+  }
+  const writeTally = (value) => {
+    try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); s.shortRestTally = value; localStorage.setItem(CHUD_STATE_KEY, JSON.stringify(s)) } catch {}
+    window.dispatchEvent(new StorageEvent('storage', { key: CHUD_STATE_KEY, newValue: localStorage.getItem(CHUD_STATE_KEY) }))
+  }
+  const readBanner = () => {
+    try { return JSON.parse(localStorage.getItem(REST_BANNER_KEY) || 'null') } catch { return null }
+  }
+  const writeBanner = (data) => {
+    try {
+      if (data) localStorage.setItem(REST_BANNER_KEY, JSON.stringify(data))
+      else localStorage.removeItem(REST_BANNER_KEY)
+    } catch {}
+    window.dispatchEvent(new StorageEvent('storage', { key: REST_BANNER_KEY, newValue: data ? JSON.stringify(data) : null }))
+  }
+  const makeTallyGroupSVG = (n) => {
+    const svgNS = 'http://www.w3.org/2000/svg'
+    const svg = document.createElementNS(svgNS, 'svg')
+    svg.classList.add('chud-tally-group')
+    svg.setAttribute('width', '26'); svg.setAttribute('height', '20'); svg.setAttribute('viewBox', '0 0 26 20')
+    const barX = [3, 9, 15, 21]
+    const shown = Math.min(n, 4)
+    for (let i = 0; i < shown; i++) {
+      const line = document.createElementNS(svgNS, 'line')
+      line.setAttribute('x1', String(barX[i])); line.setAttribute('y1', '2')
+      line.setAttribute('x2', String(barX[i])); line.setAttribute('y2', '18')
+      line.setAttribute('stroke', 'currentColor'); line.setAttribute('stroke-width', '2'); line.setAttribute('stroke-linecap', 'round')
+      svg.appendChild(line)
+    }
+    if (n >= 5) {
+      const diag = document.createElementNS(svgNS, 'line')
+      diag.setAttribute('x1', '1'); diag.setAttribute('y1', '18')
+      diag.setAttribute('x2', '23'); diag.setAttribute('y2', '2')
+      diag.setAttribute('stroke', 'currentColor'); diag.setAttribute('stroke-width', '2'); diag.setAttribute('stroke-linecap', 'round')
+      svg.appendChild(diag)
+    }
+    return svg
+  }
+
+  // ── Trigger button (bottom of HUD) ──────────────────────────────────────
+  const wrap = document.createElement('div')
+  wrap.className = 'chud-rest-widget'
+  const trigger = document.createElement('button')
+  trigger.className = 'chud-rest-trigger'
+  trigger.setAttribute('data-touch-blocker-ignore', '')
+  const label = document.createElement('span')
+  label.className = 'chud-rest-trigger-label'
+  label.textContent = 'Rest'
+  const marksWrap = document.createElement('div')
+  marksWrap.className = 'chud-tally-marks'
+  trigger.appendChild(label)
+  trigger.appendChild(marksWrap)
+  wrap.appendChild(trigger)
+
+  const renderMarks = () => {
+    const count = Math.max(0, Math.min(10, readTally()))
+    marksWrap.innerHTML = ''
+    marksWrap.appendChild(makeTallyGroupSVG(Math.min(5, count)))
+    marksWrap.appendChild(makeTallyGroupSVG(Math.max(0, Math.min(5, count - 5))))
+  }
+  renderMarks()
+
+  // ── Persistent banner (top of HUD; survives until cleared/overwritten) ──
+  const banner = document.createElement('div')
+  banner.className = 'chud-rest-banner'
+  banner.style.display = 'none'
+  const bannerText = document.createElement('span')
+  bannerText.className = 'chud-rest-banner-text'
+  const bannerClear = document.createElement('button')
+  bannerClear.className = 'chud-rest-banner-clear'
+  bannerClear.textContent = '✕'
+  bannerClear.setAttribute('data-touch-blocker-ignore', '')
+  banner.appendChild(bannerText)
+  banner.appendChild(bannerClear)
+
+  const renderBanner = () => {
+    const data = readBanner()
+    if (!data) { banner.style.display = 'none'; return }
+    banner.style.display = 'flex'
+    bannerText.textContent = `Dig Deep — Lose ${data.lose}, Gain ${data.gain} (rolled ${data.d1}, ${data.d2})`
+  }
+  renderBanner()
+  bannerClear.addEventListener('click', (ev) => { ev.stopPropagation(); writeBanner(null); renderBanner() })
+
+  // ── Popup (Short Rest / Dig Deep) — never auto-closes ───────────────────
+  let overlay = null
+  const closePopup = () => { if (overlay) { overlay.remove(); overlay = null } }
+  const openPopup = () => {
+    closePopup()
+    overlay = document.createElement('div')
+    overlay.className = 'chud-rest-overlay'
+    const popup = document.createElement('div')
+    popup.className = 'chud-rest-popup'
+    const closeBtn = document.createElement('button')
+    closeBtn.className = 'chud-rest-popup-close'
+    closeBtn.textContent = '✕'
+    closeBtn.setAttribute('data-touch-blocker-ignore', '')
+    closeBtn.addEventListener('click', (ev) => { ev.stopPropagation(); closePopup() })
+    popup.appendChild(closeBtn)
+
+    const title = document.createElement('div')
+    title.className = 'chud-rest-popup-title'
+    title.textContent = 'Rest'
+    popup.appendChild(title)
+
+    const body = document.createElement('div')
+    body.style.display = 'flex'
+    body.style.flexDirection = 'column'
+    body.style.gap = '10px'
+    popup.appendChild(body)
+
+    const rollDigDeep = () => {
+      const d1 = 1 + Math.floor(Math.random() * 4)
+      const d2 = 1 + Math.floor(Math.random() * 4)
+      const lose = Math.max(d1, d2)
+      const gain = Math.min(d1, d2)
+      writeBanner({ d1, d2, lose, gain, ts: Date.now() })
+      renderBanner()
+      body.innerHTML = ''
+      const result = document.createElement('div')
+      result.className = 'chud-rest-dig-result'
+      const dice = document.createElement('div')
+      dice.className = 'chud-rest-dig-dice'
+      ;[d1, d2].forEach((v) => {
+        const die = document.createElement('div')
+        die.className = 'chud-rest-dig-die'
+        die.textContent = String(v)
+        dice.appendChild(die)
+      })
+      const lines = document.createElement('div')
+      lines.className = 'chud-rest-dig-lines'
+      lines.innerHTML = `<div class="lose">Lose ${lose}</div><div class="gain">Gain ${gain}</div>`
+      result.appendChild(dice)
+      result.appendChild(lines)
+      body.appendChild(result)
+    }
+
+    const showOptions = () => {
+      body.innerHTML = ''
+      const shortBtn = document.createElement('button')
+      shortBtn.className = 'chud-rest-option-btn'
+      shortBtn.textContent = 'Short Rest'
+      shortBtn.setAttribute('data-touch-blocker-ignore', '')
+      shortBtn.addEventListener('click', () => {
+        const next = readTally() >= 10 ? 0 : readTally() + 1
+        writeTally(next)
+        renderMarks()
+        closePopup()
+      })
+      const digBtn = document.createElement('button')
+      digBtn.className = 'chud-rest-option-btn digdeep'
+      digBtn.textContent = 'Dig Deep'
+      digBtn.setAttribute('data-touch-blocker-ignore', '')
+      digBtn.addEventListener('click', rollDigDeep)
+      body.appendChild(shortBtn)
+      body.appendChild(digBtn)
+    }
+
+    showOptions()
+    popup.addEventListener('click', (ev) => ev.stopPropagation())
+    overlay.appendChild(popup)
+    overlay.addEventListener('click', () => closePopup())
+    document.body.appendChild(overlay)
+  }
+
+  trigger.addEventListener('click', (ev) => { ev.stopPropagation(); openPopup() })
+
+  window.addEventListener('storage', (ev) => {
+    if (ev.key === CHUD_STATE_KEY) renderMarks()
+    if (ev.key === REST_BANNER_KEY) renderBanner()
+  })
+
+  return { trigger: wrap, banner }
+}
+
 function mountMeters() {
   const root = document.getElementById('root')
   if (!root) return false
@@ -925,6 +1262,10 @@ function mountMeters() {
 
   const refreshAll = () => { gcm.update() }
   refreshAll()
+
+  const restWidget = buildRestWidget()
+  panel.insertBefore(restWidget.banner, panel.firstChild)
+  panel.appendChild(restWidget.trigger)
 
   window.addEventListener('storage', (ev) => {
     if (ev.key === STORAGE_KEY) refreshAll()

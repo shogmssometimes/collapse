@@ -186,7 +186,6 @@ export default function AagPage({
           approachOverloadSpent={approachOverloadSpent}
           onOverloadApproachDie={overloadApproachDie}
           onFullRestApproachDice={fullRestApproachDice}
-          chudStateStorageKey={chudStateStorageKey}
         />
       </div>
     </div>

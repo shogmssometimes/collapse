@@ -4,7 +4,6 @@ import { CoreStatCard } from "../components/CoreStatCard";
 import { ApproachDistributionPopout } from "../components/ApproachDistributionPopout";
 import { ApproachDie, type ApproachDieRollResult } from "../components/ApproachDie";
 import { ApproachDieSizeControl } from "../components/ApproachDieSizeControl";
-import { ShortRestTally } from "../components/ShortRestTally";
 import type { ApproachStats, CoreStats } from "../../types/chud";
 import type { DieSides } from "../../domain/approachDice";
 import { CORE_APPROACH_MAP, APPROACH_LABELS, CORE_LABELS } from "../../domain/coreApproachMap";
@@ -44,7 +43,6 @@ export function Page2Panel({
   approachOverloadSpent,
   onOverloadApproachDie,
   onFullRestApproachDice,
-  chudStateStorageKey,
 }: {
   onOpenMgr: () => void;
   readyness: number;
@@ -73,7 +71,6 @@ export function Page2Panel({
   approachOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
   onOverloadApproachDie: (field: keyof ApproachStats) => boolean;
   onFullRestApproachDice: () => void;
-  chudStateStorageKey: string;
 }) {
   const [openDistribution, setOpenDistribution] = useState<keyof CoreStats | null>(null);
 
@@ -138,9 +135,6 @@ export function Page2Panel({
           onDecr={onInventoryDecr}
         />
       </div>
-
-      {/* Row 4: Short Rest (tally-mark counter) */}
-      <ShortRestTally storageKey={chudStateStorageKey} />
 
       {/* Row 5: Core Stats */}
       <div className="mods">
