@@ -476,6 +476,167 @@
   text-align: center;
 }
 
+/* Set / Margin / Damage roll chain (Portaled to document.body, unscoped). */
+.approach-roll-path-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.approach-roll-path-btn {
+  flex: 1;
+  font: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: rgba(248, 250, 252, 0.9);
+  background: rgba(15, 246, 255, 0.08);
+  border: 1px solid rgba(15, 246, 255, 0.35);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.approach-roll-path-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.approach-margin-input,
+.approach-margin-result,
+.approach-damage-roll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.approach-margin-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.65);
+}
+
+.approach-margin-field,
+.approach-damage-wound-field input {
+  font: inherit;
+  font-size: 1.1rem;
+  text-align: center;
+  width: 100px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #f8fafc;
+  padding: 6px 8px;
+}
+
+/* Margin is intentionally color-neutral: a high or low/negative margin is
+   not inherently good or bad, so it never takes on the "good"/"bad" result
+   styling used elsewhere in this popup. */
+.approach-margin-value {
+  font-size: 4rem;
+  line-height: 1;
+  color: #f8fafc;
+}
+
+.approach-margin-sub {
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+.approach-desync-banner {
+  margin-top: 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  color: #f87171;
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+}
+
+.approach-damage-dice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.approach-damage-chip {
+  min-width: 2.2em;
+  text-align: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(248, 250, 252, 0.75);
+  font-size: 1rem;
+}
+
+.approach-damage-chip.success {
+  background: rgba(255, 212, 59, 0.18);
+  border-color: #ffd43b;
+  color: #ffd43b;
+  font-weight: 700;
+}
+
+.approach-damage-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.approach-damage-wound-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.approach-damage-wound-field label {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+.approach-damage-mode-toggle {
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: rgba(248, 250, 252, 0.75);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.approach-damage-success-count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.approach-damage-success-value {
+  font-size: 2.2rem;
+  color: #ffd43b;
+  line-height: 1;
+}
+
+.approach-damage-success-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.55);
+}
+
 .approach-full-rest-btn {
   margin-top: 10px;
   width: 100%;

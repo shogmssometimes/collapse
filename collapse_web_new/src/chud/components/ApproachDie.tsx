@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { ApproachRollResult, DieSides } from "../../domain/approachDice"
+import { rollFlatDice } from "../../domain/approachDice"
+import { addSetRollRow, setChipDesynced } from "../../utils/chudVanillaBridge"
 
 export type ApproachDieRollResult = ApproachRollResult
 
@@ -13,6 +15,8 @@ const VIBRATE_MIN_MS = 45
 const VIBRATE_STEP_MS = 18
 const VIBRATE_PULSE_MS = 28
 
+type PopupView = "result" | "margin-input" | "margin-result" | "damage"
+
 const dieLabel = (die: DieSides) => `D${die}`
 
 // Approach dice card: tapping arms one die (up to the Approach's available
@@ -21,11 +25,19 @@ const dieLabel = (die: DieSides) => `D${die}`
 // resets the armed count back to 0. Adding a point to an Approach (via the
 // Core distribution popout) already implies the extra die is available — no
 // separate "breakout" indicator is needed here.
+//
+// Past the initial Resolution roll, the popup offers two paths: send the sum
+// to the HUD's Set Roll list, or turn it into a Margin against an Opposition
+// roll. A positive Margin can then be spent on a flat (non-exploding) Damage
+// roll — individual dice are checked against a Wound Threshold/Target so the
+// player can read off how many "successes" they have to announce at the
+// table. None of this adjudicates anything; it only surfaces the numbers.
 export function ApproachDie({
   label,
   rating,
   available,
   die,
+  damageDie,
   onRoll,
   onOverload,
 }: {
@@ -35,6 +47,8 @@ export function ApproachDie({
   /** Dice currently available to arm (rating minus any Overloaded-and-spent dice). */
   available: number
   die: DieSides
+  /** Shared Damage die size, used for the post-Margin damage roll. */
+  damageDie: DieSides
   onRoll: (count: number) => ApproachDieRollResult
   /** Doubles one rolled die's value and spends it from the Overload pool. Returns false if the pool is exhausted. */
   onOverload?: (dieIndex: number) => boolean
@@ -45,6 +59,12 @@ export function ApproachDie({
   const [overloaded, setOverloaded] = useState<Set<number>>(new Set())
   const [rolling, setRolling] = useState(false)
   const [charging, setCharging] = useState(false)
+  const [view, setView] = useState<PopupView>("result")
+  const [oppositionInput, setOppositionInput] = useState("")
+  const [margin, setMargin] = useState<number | null>(null)
+  const [damageDice, setDamageDice] = useState<number[]>([])
+  const [woundValue, setWoundValue] = useState("")
+  const [woundMode, setWoundMode] = useState<"threshold" | "target">("threshold")
   const rollAnimTimer = useRef<number | null>(null)
   const errorFlashTimer = useRef<number | null>(null)
   const chargeStartTimer = useRef<number | null>(null)
@@ -62,6 +82,12 @@ export function ApproachDie({
     setResult(null)
     setRolling(false)
     setOverloaded(new Set())
+    setView("result")
+    setOppositionInput("")
+    setMargin(null)
+    setDamageDice([])
+    setWoundValue("")
+    setWoundMode("threshold")
     if (rollAnimTimer.current !== null) {
       window.clearInterval(rollAnimTimer.current)
       rollAnimTimer.current = null
@@ -115,6 +141,7 @@ export function ApproachDie({
     const rolled = onRoll(count)
     setResult(null)
     setOverloaded(new Set())
+    setView("result")
     setRolling(true)
     let ticks = 0
     rollAnimTimer.current = window.setInterval(() => {
@@ -200,6 +227,32 @@ export function ApproachDie({
     setOverloaded((prev) => new Set(prev).add(index))
   }
 
+  const handleSendToSet = () => {
+    addSetRollRow(displayTotal)
+    closePopup()
+  }
+
+  const handleConfirmMargin = () => {
+    const opposition = Number(oppositionInput)
+    if (!Number.isFinite(opposition)) return
+    const computed = displayTotal - opposition
+    setMargin(computed)
+    setChipDesynced(computed <= 0)
+    setView("margin-result")
+  }
+
+  const handleRollDamage = () => {
+    if (margin === null || margin <= 0) return
+    setDamageDice(rollFlatDice(margin, damageDie))
+    setView("damage")
+  }
+
+  const woundThresholdNumber = Number(woundValue)
+  const hasWoundValue = woundValue.trim() !== "" && Number.isFinite(woundThresholdNumber)
+  const isSuccess = (value: number) =>
+    hasWoundValue && (woundMode === "threshold" ? value > woundThresholdNumber : value === woundThresholdNumber)
+  const successCount = hasWoundValue ? damageDice.filter(isSuccess).length : 0
+
   return (
     <button
       ref={boxRef}
@@ -237,9 +290,10 @@ export function ApproachDie({
             X
           </button>
           <div className="approach-die-popup-label">{label}</div>
-          {rolling ? (
-            <div className="approach-die-popup-value rolling" aria-label="Rolling dice">…</div>
-          ) : result && (
+
+          {rolling && <div className="approach-die-popup-value rolling" aria-label="Rolling dice">…</div>}
+
+          {!rolling && result && view === "result" && (
             <>
               <div className={`approach-die-popup-value${hasExplosion ? " good" : ""}`}>
                 {displayTotal}
@@ -268,7 +322,89 @@ export function ApproachDie({
                   Overload pool: {overloadPoolRemaining}/{rating}
                 </div>
               )}
+              <div className="approach-roll-path-actions">
+                <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); handleSendToSet() }}>
+                  Send to Set
+                </button>
+                <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); setView("margin-input") }}>
+                  Create Margin
+                </button>
+              </div>
             </>
+          )}
+
+          {view === "margin-input" && (
+            <div className="approach-margin-input">
+              <label className="approach-margin-label" htmlFor={`opposition-${label}`}>
+                Opposition Roll
+              </label>
+              <input
+                id={`opposition-${label}`}
+                type="number"
+                inputMode="numeric"
+                className="approach-margin-field"
+                value={oppositionInput}
+                onChange={(e) => setOppositionInput(e.target.value)}
+                autoFocus
+              />
+              <button
+                type="button"
+                className="approach-roll-path-btn"
+                disabled={oppositionInput.trim() === ""}
+                onClick={(e) => { e.stopPropagation(); handleConfirmMargin() }}
+              >
+                Calculate Margin
+              </button>
+            </div>
+          )}
+
+          {view === "margin-result" && margin !== null && (
+            <div className="approach-margin-result">
+              <div className="approach-margin-value">{margin > 0 ? `+${margin}` : margin}</div>
+              <div className="approach-margin-sub">Margin</div>
+              {margin <= 0 ? (
+                <div className="approach-desync-banner">DESYNCED</div>
+              ) : (
+                <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); handleRollDamage() }}>
+                  Roll Damage ({margin}{dieLabel(damageDie)})
+                </button>
+              )}
+            </div>
+          )}
+
+          {view === "damage" && (
+            <div className="approach-damage-roll">
+              <div className="approach-damage-dice">
+                {damageDice.map((value, index) => (
+                  <span key={index} className={`approach-damage-chip${isSuccess(value) ? " success" : ""}`}>
+                    {value}
+                  </span>
+                ))}
+              </div>
+              <div className="approach-damage-controls">
+                <div className="approach-damage-wound-field">
+                  <label htmlFor={`wound-${label}`}>{woundMode === "threshold" ? "Wound Threshold" : "Wound Target"}</label>
+                  <input
+                    id={`wound-${label}`}
+                    type="number"
+                    inputMode="numeric"
+                    value={woundValue}
+                    onChange={(e) => setWoundValue(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="approach-damage-mode-toggle"
+                  onClick={(e) => { e.stopPropagation(); setWoundMode((m) => (m === "threshold" ? "target" : "threshold")) }}
+                >
+                  {woundMode === "threshold" ? "Switch to Target" : "Switch to Threshold"}
+                </button>
+              </div>
+              <div className="approach-damage-success-count">
+                <span className="approach-damage-success-value">{successCount}</span>
+                <span className="approach-damage-success-label">Successes</span>
+              </div>
+            </div>
           )}
         </div>,
         document.body

@@ -198,6 +198,7 @@ export function Page2Panel({
                   rating={rating}
                   available={available}
                   die={approachDieSize}
+                  damageDie={damageDieSize}
                   onRoll={(count) => onRollApproachDie(field, count)}
                   onOverload={() => onOverloadApproachDie(field)}
                 />

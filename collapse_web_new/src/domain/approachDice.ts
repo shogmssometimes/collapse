@@ -64,6 +64,23 @@ export function fullRestOverload(): number {
   return 0
 }
 
+/**
+ * Flat, non-exploding dice roll — used for the Damage roll (quantity =
+ * Margin) and any other "severity" style roll where the individual die
+ * faces matter more than a summed total. Only the initial Resolution
+ * (Approach) roll explodes.
+ */
+export function rollFlatDice(
+  count: number,
+  die: DieSides,
+  random: () => number = Math.random
+): number[] {
+  if (!Number.isSafeInteger(count) || count < 0) {
+    throw new RangeError("Dice count must be a non-negative integer.")
+  }
+  return Array.from({ length: count }, () => rollDie(die, random))
+}
+
 export function rollApproachDice(
   count: number,
   die: DieSides,

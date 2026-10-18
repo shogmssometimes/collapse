@@ -6,6 +6,7 @@ import {
   fullRestOverload,
   isDieSides,
   rollApproachDice,
+  rollFlatDice,
   spendOverloadDie,
   stepDown,
   stepUp,
@@ -77,5 +78,15 @@ describe("Approach dice", () => {
 
   it("rejects an invalid Approach rating when checking the Overload pool", () => {
     expect(() => availableApproachDice(-1, 0)).toThrow(/non-negative integer/)
+  })
+
+  it("rolls flat, non-exploding dice for Damage/Severity rolls", () => {
+    const result = rollFlatDice(3, 6, sequence(0.999, 0.5, 0))
+    expect(result).toEqual([6, 4, 1])
+  })
+
+  it("allows a flat roll of zero dice and rejects invalid counts", () => {
+    expect(rollFlatDice(0, 8, sequence())).toEqual([])
+    expect(() => rollFlatDice(-1, 8)).toThrow(/non-negative integer/)
   })
 })
