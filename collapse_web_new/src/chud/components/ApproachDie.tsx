@@ -4,16 +4,20 @@ import type { ApproachRollResult, DieSides } from "../../domain/approachDice"
 
 export type ApproachDieRollResult = ApproachRollResult
 
-const POPUP_TIMEOUT_MS = 5000
 const ROLL_ANIM_TICKS = 8
 const ROLL_ANIM_INTERVAL_MS = 60
-const LONG_PRESS_MS = 500
+const CHARGE_THRESHOLD_MS = 500
 const ERROR_FLASH_MS = 420
+const VIBRATE_START_MS = 180
+const VIBRATE_MIN_MS = 45
+const VIBRATE_STEP_MS = 18
+const VIBRATE_PULSE_MS = 28
 
 const dieLabel = (die: DieSides) => `D${die}`
 
 // Approach dice card: tapping arms one die (up to the Approach's available
-// pool); a long press rolls using however many dice are currently armed, then
+// pool); holding charges a roll (vibrating/stuttering as it "spins up") and
+// releasing fires the roll using however many dice are currently armed, then
 // resets the armed count back to 0. Adding a point to an Approach (via the
 // Core distribution popout) already implies the extra die is available — no
 // separate "breakout" indicator is needed here.
@@ -40,11 +44,11 @@ export function ApproachDie({
   const [result, setResult] = useState<ApproachDieRollResult | null>(null)
   const [overloaded, setOverloaded] = useState<Set<number>>(new Set())
   const [rolling, setRolling] = useState(false)
-  const [pressing, setPressing] = useState(false)
-  const popupTimer = useRef<number | null>(null)
+  const [charging, setCharging] = useState(false)
   const rollAnimTimer = useRef<number | null>(null)
   const errorFlashTimer = useRef<number | null>(null)
-  const longPressTimer = useRef<number | null>(null)
+  const chargeStartTimer = useRef<number | null>(null)
+  const vibrateTimer = useRef<number | null>(null)
   const suppressClick = useRef(false)
   const boxRef = useRef<HTMLButtonElement>(null)
 
@@ -58,33 +62,36 @@ export function ApproachDie({
     setResult(null)
     setRolling(false)
     setOverloaded(new Set())
-    if (popupTimer.current !== null) {
-      window.clearTimeout(popupTimer.current)
-      popupTimer.current = null
-    }
     if (rollAnimTimer.current !== null) {
       window.clearInterval(rollAnimTimer.current)
       rollAnimTimer.current = null
     }
   }, [])
 
+  // The result popup stays open until the player dismisses it (tap outside
+  // or the close button) — it never times out on its own.
   useEffect(() => {
     if (!result) return
-    popupTimer.current = window.setTimeout(closePopup, POPUP_TIMEOUT_MS)
     const handleOutside = (event: PointerEvent) => {
       if (boxRef.current && event.target instanceof Node && !boxRef.current.contains(event.target)) closePopup()
     }
     document.addEventListener("pointerdown", handleOutside)
-    return () => {
-      document.removeEventListener("pointerdown", handleOutside)
-      if (popupTimer.current !== null) window.clearTimeout(popupTimer.current)
-    }
+    return () => document.removeEventListener("pointerdown", handleOutside)
   }, [result, closePopup])
+
+  const stopVibration = () => {
+    if (vibrateTimer.current !== null) {
+      window.clearTimeout(vibrateTimer.current)
+      vibrateTimer.current = null
+    }
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(0)
+  }
 
   useEffect(() => () => {
     if (rollAnimTimer.current !== null) window.clearInterval(rollAnimTimer.current)
     if (errorFlashTimer.current !== null) window.clearTimeout(errorFlashTimer.current)
-    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current)
+    if (chargeStartTimer.current !== null) window.clearTimeout(chargeStartTimer.current)
+    stopVibration()
   }, [])
 
   const flashError = () => {
@@ -123,23 +130,53 @@ export function ApproachDie({
     }, ROLL_ANIM_INTERVAL_MS)
   }
 
-  const cancelLongPress = () => {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
+  // "Spins up" a held press: pulses the device (shrinking the interval each
+  // pulse to feel like it's accelerating) and keeps stuttering until the
+  // player releases, at which point the roll actually fires.
+  const startCharging = () => {
+    setCharging(true)
+    let delay = VIBRATE_START_MS
+    const pulse = () => {
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(VIBRATE_PULSE_MS)
+      delay = Math.max(VIBRATE_MIN_MS, delay - VIBRATE_STEP_MS)
+      vibrateTimer.current = window.setTimeout(pulse, delay)
     }
-    setPressing(false)
+    pulse()
+  }
+
+  const stopCharging = () => {
+    setCharging(false)
+    stopVibration()
+  }
+
+  const cancelPress = () => {
+    if (chargeStartTimer.current !== null) {
+      window.clearTimeout(chargeStartTimer.current)
+      chargeStartTimer.current = null
+    }
+    if (charging) stopCharging()
   }
 
   const handlePointerDown = () => {
     suppressClick.current = false
-    setPressing(true)
-    longPressTimer.current = window.setTimeout(() => {
-      longPressTimer.current = null
+    chargeStartTimer.current = window.setTimeout(() => {
+      chargeStartTimer.current = null
+      startCharging()
+    }, CHARGE_THRESHOLD_MS)
+  }
+
+  const handlePointerUp = () => {
+    if (chargeStartTimer.current !== null) {
+      // Released before the charge threshold — treat as a tap to arm.
+      window.clearTimeout(chargeStartTimer.current)
+      chargeStartTimer.current = null
+      return
+    }
+    if (charging) {
       suppressClick.current = true
-      setPressing(false)
+      stopCharging()
       rollArmed()
-    }, LONG_PRESS_MS)
+    }
   }
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -167,28 +204,38 @@ export function ApproachDie({
     <button
       ref={boxRef}
       type="button"
-      className={`approach-die${pressing ? " pressing" : ""}${errorFlash ? " error" : ""}`}
-      aria-label={`${label}: ${rating}D${die}, ${armed} armed of ${available} available. Tap to arm a die, hold to roll.`}
+      className={`approach-die${charging ? " charging" : ""}${errorFlash ? " error" : ""}`}
+      aria-label={`${label}: ${armed} armed of ${available} available. Tap to arm a die, hold to roll.`}
       onPointerDown={handlePointerDown}
-      onPointerUp={cancelLongPress}
-      onPointerLeave={cancelLongPress}
-      onPointerCancel={cancelLongPress}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={cancelPress}
+      onPointerCancel={cancelPress}
       onClick={handleClick}
       onContextMenu={(event) => event.preventDefault()}
     >
       <span className="approach-die-label">{label}</span>
-      <span className="approach-die-value">{rating}D{die}</span>
       <div className="approach-die-pips" aria-hidden="true">
         {Array.from({ length: available }, (_, index) => (
           <span key={index} className={`approach-die-pip${index < armed ? " armed" : ""}`} />
         ))}
       </div>
       <span className="approach-die-sub">
-        {available <= 0 ? "No dice" : errorFlash ? "No more dice" : "Tap: arm · Hold: roll"}
+        {available <= 0 ? "No dice" : errorFlash ? "No more dice" : charging ? "Release to roll…" : "Tap: arm · Hold: roll"}
       </span>
 
       {(rolling || result) && createPortal(
         <div className="approach-die-popup" onPointerDown={(event) => event.stopPropagation()}>
+          <button
+            type="button"
+            className="approach-die-popup-close"
+            onClick={(event) => {
+              event.stopPropagation()
+              closePopup()
+            }}
+            aria-label="Close roll result"
+          >
+            X
+          </button>
           <div className="approach-die-popup-label">{label}</div>
           {rolling ? (
             <div className="approach-die-popup-value rolling" aria-label="Rolling dice">…</div>
@@ -212,7 +259,7 @@ export function ApproachDie({
                   >
                     {dieLabel(result.die)}: {dieRoll.rolls.join(" + ")}
                     {dieRoll.rolls.length > 1 && " (explode)"}
-                    {overloaded.has(index) && " ×2"}
+                    {overloaded.has(index) && <span className="approach-die-chip-doubled">DOUBLED</span>}
                   </button>
                 ))}
               </div>

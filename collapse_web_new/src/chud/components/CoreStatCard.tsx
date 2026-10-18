@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
 const LONG_PRESS_MS = 550;
-const DOUBLE_TAP_MS = 350;
+const TRIPLE_TAP_MS = 500;
 
-// Core Stat card: tap = +1 (raise the pool), double-tap = -1, long-press =
+// Core Stat card: tap = +1 (raise the pool), triple-tap = -1, long-press =
 // open the Approach distribution popout for this stat.
 export function CoreStatCard({
   label,
@@ -64,7 +64,7 @@ export function CoreStatCard({
     }
     tapCount.current += 1;
     if (tapTimer.current !== null) window.clearTimeout(tapTimer.current);
-    if (tapCount.current === 2) {
+    if (tapCount.current === 3) {
       tapCount.current = 0;
       tapTimer.current = null;
       onDecr();
@@ -74,7 +74,7 @@ export function CoreStatCard({
       tapCount.current = 0;
       tapTimer.current = null;
       onIncr();
-    }, DOUBLE_TAP_MS);
+    }, TRIPLE_TAP_MS);
   };
 
   return (
@@ -82,7 +82,7 @@ export function CoreStatCard({
       className={`core-card interactive${pressing ? " pressing" : ""}`}
       role="button"
       tabIndex={0}
-      aria-label={`${label} ${value}. Tap to increase, double-tap to decrease, long-press to distribute into Approaches.`}
+      aria-label={`${label} ${value}. Tap to increase, triple-tap to decrease, long-press to distribute into Approaches.`}
       onPointerDown={handlePointerDown}
       onPointerUp={cancelLongPress}
       onPointerLeave={cancelLongPress}
