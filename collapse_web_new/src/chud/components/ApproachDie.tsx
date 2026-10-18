@@ -237,7 +237,9 @@ export function ApproachDie({
     if (!Number.isFinite(opposition)) return
     const computed = displayTotal - opposition
     setMargin(computed)
-    setChipDesynced(computed <= 0)
+    if (computed <= 0) {
+      setChipDesynced(true)
+    }
     setView("margin-result")
   }
 
