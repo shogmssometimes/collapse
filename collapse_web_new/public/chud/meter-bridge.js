@@ -213,9 +213,19 @@ function createStyles() {
     .status-roll-direction { flex: 13 1 0; min-width: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: rgba(248,250,252,0.75); font-size: 8px; font-weight: 700; letter-spacing: 0.02em; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; text-align: center; }
     .status-roll-direction[data-dir="in"] { border-color: rgba(111,165,255,0.45); color: #8fb4ff; background: rgba(111,165,255,0.1); }
     .status-roll-direction[data-dir="out"] { border-color: rgba(242,208,107,0.45); color: #f2d06b; background: rgba(242,208,107,0.1); }
-    .status-roll-save-wrap { display: flex; flex-direction: column; gap: 4px; margin-left: 40px; }
-    .status-roll-save-btn { margin-top: 4px; align-self: flex-start; padding: 5px 10px; border-radius: 7px; border: 1px solid rgba(111,165,255,0.4); background: rgba(111,165,255,0.1); color: #8fb4ff; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
-    .status-roll-save-result { margin-top: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px; align-self: flex-start; }
+    .status-roll-direction[data-holding="1"] { outline: 2px solid rgba(111,165,255,0.6); outline-offset: 1px; }
+
+    /* ── Save/Decay modal (opened via long-press on the Dir button) ──── */
+    .status-roll-save-overlay { position: fixed; inset: 0; z-index: 4000; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .status-roll-save-modal { width: 100%; max-width: 280px; background: #15181f; border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 16px; position: relative; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+    .status-roll-save-modal-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 7px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.1); color: #f87171; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .status-roll-save-modal-title { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(248,250,252,0.7); margin-bottom: 4px; }
+    .status-roll-save-modal-name { font-size: 14px; font-weight: 700; color: #e9f0ff; margin-bottom: 2px; }
+    .status-roll-save-modal-target { font-size: 10px; color: rgba(248,250,252,0.55); margin-bottom: 12px; }
+    .status-roll-save-modal-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .status-roll-save-modal-select { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); border-radius: 7px; color: #e9f0ff; font-size: 11px; padding: 7px 6px; }
+    .status-roll-save-btn { padding: 7px 14px; border-radius: 7px; border: 1px solid rgba(111,165,255,0.4); background: rgba(111,165,255,0.1); color: #8fb4ff; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+    .status-roll-save-result { margin-top: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 8px 10px; border-radius: 8px; }
     .status-roll-save-result[data-outcome="pass"] { color: #4ade80; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.35); }
     .status-roll-save-result[data-outcome="fail"] { color: #ff9f6b; background: rgba(255,159,107,0.1); border: 1px solid rgba(255,159,107,0.35); }
 
@@ -666,29 +676,39 @@ function buildStatusRollsPanel() {
 
   const persist = () => writeStatusRolls(rows)
 
-  const buildSaveSection = (row, persist) => {
-    const wrap = document.createElement('div')
-    wrap.className = 'status-roll-save-wrap'
+  // Opens a Save/Decay modal for the given row. The modal stays open until
+  // the user dismisses it via the X button — it never auto-closes.
+  const openSaveModal = (row, persist, renderRows) => {
+    const overlay = document.createElement('div')
+    overlay.className = 'status-roll-save-overlay'
 
-    const openBtn = document.createElement('button')
-    openBtn.className = 'status-roll-save-btn'
-    openBtn.textContent = 'Save'
-    openBtn.setAttribute('data-touch-blocker-ignore', '')
+    const modal = document.createElement('div')
+    modal.className = 'status-roll-save-modal'
+
+    const closeBtn = document.createElement('button')
+    closeBtn.className = 'status-roll-save-modal-close'
+    closeBtn.textContent = 'X'
+    closeBtn.setAttribute('data-touch-blocker-ignore', '')
+    closeBtn.addEventListener('click', () => overlay.remove())
+
+    const title = document.createElement('div')
+    title.className = 'status-roll-save-modal-title'
+    title.textContent = 'Save / Decay'
+
+    const name = document.createElement('div')
+    name.className = 'status-roll-save-modal-name'
+    name.textContent = row.name || 'Unnamed Effect'
+
+    const target = document.createElement('div')
+    target.className = 'status-roll-save-modal-target'
+    target.textContent = `Set Roll: ${row.roll}`
 
     const controls = document.createElement('div')
-    controls.style.display = 'none'
-    controls.style.gap = '6px'
-    controls.style.alignItems = 'center'
-    controls.style.marginTop = '4px'
+    controls.className = 'status-roll-save-modal-controls'
 
     const select = document.createElement('select')
+    select.className = 'status-roll-save-modal-select'
     select.setAttribute('data-touch-blocker-ignore', '')
-    select.style.background = 'rgba(255,255,255,0.06)'
-    select.style.border = '1px solid rgba(255,255,255,0.18)'
-    select.style.borderRadius = '7px'
-    select.style.color = '#e9f0ff'
-    select.style.fontSize = '10px'
-    select.style.padding = '5px 6px'
     APPROACH_LABELS.forEach(([key, label]) => {
       const opt = document.createElement('option')
       opt.value = key
@@ -708,33 +728,34 @@ function buildStatusRollsPanel() {
     controls.appendChild(select)
     controls.appendChild(rollBtn)
 
-    openBtn.addEventListener('click', () => {
-      const showing = controls.style.display !== 'none'
-      controls.style.display = showing ? 'none' : 'flex'
-    })
-
     rollBtn.addEventListener('click', () => {
       const { approach, dieSize } = readApproachState()
       const rating = Number(approach?.[select.value]) || 0
       const total = rollApproachExplodeTotal(rating, dieSize)
-      const target = row.roll
+      const atRollTime = row.roll
       result.style.display = 'block'
-      if (total >= target) {
+      if (total >= atRollTime) {
         result.setAttribute('data-outcome', 'pass')
-        result.textContent = `SAVED — rolled ${total} vs ${target}`
+        result.textContent = `SAVED — rolled ${total} vs ${atRollTime}`
       } else {
-        const margin = target - total
-        row.roll = Math.max(0, target - margin)
+        const margin = atRollTime - total
+        row.roll = Math.max(0, atRollTime - margin)
         persist()
+        target.textContent = `Set Roll: ${row.roll}`
         result.setAttribute('data-outcome', 'fail')
-        result.textContent = `DECAYED -${margin} — rolled ${total} vs ${target}, now ${row.roll}`
+        result.textContent = `DECAYED -${margin} — rolled ${total} vs ${atRollTime}, now ${row.roll}`
+        renderRows()
       }
     })
 
-    wrap.appendChild(openBtn)
-    wrap.appendChild(controls)
-    wrap.appendChild(result)
-    return wrap
+    modal.appendChild(closeBtn)
+    modal.appendChild(title)
+    modal.appendChild(name)
+    modal.appendChild(target)
+    modal.appendChild(controls)
+    modal.appendChild(result)
+    overlay.appendChild(modal)
+    document.body.appendChild(overlay)
   }
 
   const renderRows = () => {
@@ -749,14 +770,43 @@ function buildStatusRollsPanel() {
       const renderDir = () => {
         dirBtn.setAttribute('data-dir', row.direction)
         dirBtn.textContent = row.direction === 'out' ? 'TRGT' : 'YOU'
-        dirBtn.title = row.direction === 'out' ? 'Applied by you to a Target' : 'Applied to You'
+        dirBtn.title = row.direction === 'out' ? 'Applied by you to a Target' : 'Applied to You (long-press for Save/Decay)'
       }
       renderDir()
-      dirBtn.addEventListener('click', () => {
-        row.direction = row.direction === 'out' ? 'in' : 'out'
-        renderDir()
-        persist()
-        renderRows()
+      // Quick tap toggles YOU/TRGT; a long press (on a YOU row) opens the
+      // Save/Decay modal instead, so the page never jumps/reflows inline.
+      let dirHoldTimer = null
+      let dirLongPressed = false
+      const DIR_HOLD_MS = 500
+      const clearDirHold = () => {
+        if (dirHoldTimer) { clearTimeout(dirHoldTimer); dirHoldTimer = null }
+        dirBtn.removeAttribute('data-holding')
+      }
+      dirBtn.addEventListener('pointerdown', (ev) => {
+        if (ev.button === 2) return
+        dirLongPressed = false
+        clearDirHold()
+        dirHoldTimer = setTimeout(() => {
+          dirLongPressed = true
+          clearDirHold()
+          if (row.direction === 'in') {
+            openSaveModal(row, persist, renderRows)
+          }
+        }, DIR_HOLD_MS)
+        dirBtn.setAttribute('data-holding', '1')
+      })
+      dirBtn.addEventListener('pointerup', () => {
+        clearDirHold()
+        if (!dirLongPressed) {
+          row.direction = row.direction === 'out' ? 'in' : 'out'
+          renderDir()
+          persist()
+          renderRows()
+        }
+        dirLongPressed = false
+      })
+      ;['pointerleave', 'pointercancel'].forEach((evt) => {
+        dirBtn.addEventListener(evt, () => { clearDirHold(); dirLongPressed = false })
       })
 
       const nameWrap = document.createElement('div')
@@ -943,9 +993,6 @@ function buildStatusRollsPanel() {
       mainRow.appendChild(clearBtn)
 
       rowEl.appendChild(mainRow)
-      if (row.direction === 'in') {
-        rowEl.appendChild(buildSaveSection(row, persist))
-      }
       rowsWrap.appendChild(rowEl)
     })
     addBtn.disabled = rows.length >= STATUS_ROLL_MAX_ROWS
