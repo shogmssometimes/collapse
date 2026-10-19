@@ -167,6 +167,104 @@
   padding-bottom: 10px;
 }
 
+/* Damage Die size control (shared component with the HUD's Approach die) */
+.aag-page2 .approach-die-size-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin: 0 auto 2px;
+  width: min(100%, 240px);
+}
+
+.aag-page2 .approach-die-size-button {
+  position: relative;
+  width: 100%;
+  min-height: 68px;
+  border: 1px solid rgba(15, 246, 255, 0.38);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(15, 246, 255, 0.1), rgba(255, 255, 255, 0.02));
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.aag-page2 .approach-die-size-button.pressing {
+  border-color: #0ff6ff;
+  background: rgba(15, 246, 255, 0.18);
+  transform: scale(0.97);
+}
+
+.aag-page2 .approach-die-size-button.reset {
+  animation: approach-die-size-down 520ms ease;
+}
+
+.aag-page2 .approach-die-size-button.up {
+  animation: approach-die-size-up 520ms ease;
+}
+
+.aag-page2 .approach-die-size-value {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+}
+
+.aag-page2 .approach-die-size-hint,
+.aag-page2 .approach-die-size-instructions {
+  font-family: var(--font-display);
+  font-size: 0.57rem;
+  letter-spacing: 0.14em;
+  color: rgba(248, 250, 252, 0.55);
+}
+
+.aag-page2 .approach-die-size-feedback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background: rgba(7, 10, 16, 0.84);
+  color: #0ff6ff;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.14em;
+  animation: approach-die-size-feedback 520ms ease;
+}
+
+.aag-page2 .approach-die-size-button.reset .approach-die-size-feedback {
+  color: #ff7777;
+}
+
+.aag-page2 .approach-die-size-button.limit .approach-die-size-feedback {
+  color: #ffd43b;
+}
+
+@keyframes approach-die-size-down {
+  25% { transform: translateY(3px) scale(0.97); box-shadow: 0 0 18px rgba(255, 92, 92, 0.36); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes approach-die-size-up {
+  25% { transform: translateY(-3px) scale(1.03); box-shadow: 0 0 18px rgba(15, 246, 255, 0.32); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes approach-die-size-feedback {
+  0% { opacity: 0; transform: scale(0.92); }
+  20%, 80% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.04); }
+}
+
+
 /* Row 2 (WT | Damage) is 10%-larger sizing so both cells look uniform. */
 .aag-page2 .row-wt-dmg {
   display: flex;
