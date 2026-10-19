@@ -210,7 +210,7 @@ function createStyles() {
     .status-roll-add:disabled { opacity: 0.35; cursor: not-allowed; }
 
     /* ── Set Roll direction (applied by you vs applied to you) ───────── */
-    .status-roll-direction { flex: 11 1 0; min-width: 34px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: rgba(248,250,252,0.75); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; text-align: center; }
+    .status-roll-direction { flex: 13 1 0; min-width: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: rgba(248,250,252,0.75); font-size: 8px; font-weight: 700; letter-spacing: 0.02em; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; text-align: center; }
     .status-roll-direction[data-dir="in"] { border-color: rgba(111,165,255,0.45); color: #8fb4ff; background: rgba(111,165,255,0.1); }
     .status-roll-direction[data-dir="out"] { border-color: rgba(242,208,107,0.45); color: #f2d06b; background: rgba(242,208,107,0.1); }
     .status-roll-save-wrap { display: flex; flex-direction: column; gap: 4px; margin-left: 40px; }
@@ -219,23 +219,14 @@ function createStyles() {
     .status-roll-save-result[data-outcome="pass"] { color: #4ade80; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.35); }
     .status-roll-save-result[data-outcome="fail"] { color: #ff9f6b; background: rgba(255,159,107,0.1); border: 1px solid rgba(255,159,107,0.35); }
 
-    /* ── Rest widget (Short Rest / Dig Deep) ──────────────────────────── */
-    .chud-rest-widget { margin-top: 10px; }
-    .chud-rest-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: rgba(248,250,252,0.85); cursor: pointer; }
+    /* ── Rest widget (Short Rest / Dig Deep / Full Rest stack) ────────── */
+    .chud-rest-widget { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .chud-rest-stack-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: rgba(248,250,252,0.85); cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+    .chud-rest-stack-btn:active { transform: scale(0.98); }
+    .chud-rest-stack-btn.digdeep { border-color: rgba(255,159,107,0.4); color: #ff9f6b; background: rgba(255,159,107,0.08); justify-content: center; }
+    .chud-rest-stack-btn.fullrest { border-color: rgba(111,165,255,0.4); color: #8fb4ff; background: rgba(111,165,255,0.08); justify-content: center; text-align: center; }
     .chud-rest-trigger-label { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
-    .chud-rest-trigger .chud-tally-marks { color: rgba(15,246,255,0.85); }
-    .chud-rest-overlay { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: rgba(4,6,12,0.6); }
-    .chud-rest-popup { position: relative; width: min(320px, 88vw); background: #0d1117; border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-    .chud-rest-popup-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #fff; font-weight: 700; cursor: pointer; }
-    .chud-rest-popup-title { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(248,250,252,0.9); text-align: center; }
-    .chud-rest-option-btn { padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: #e9f0ff; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
-    .chud-rest-option-btn.digdeep { border-color: rgba(255,159,107,0.4); color: #ff9f6b; background: rgba(255,159,107,0.08); }
-    .chud-rest-dig-result { display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; }
-    .chud-rest-dig-dice { display: flex; gap: 10px; }
-    .chud-rest-dig-die { width: 40px; height: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #e9f0ff; background: rgba(255,255,255,0.05); }
-    .chud-rest-dig-lines { font-size: 13px; font-weight: 700; color: rgba(248,250,252,0.9); }
-    .chud-rest-dig-lines .lose { color: #ff6b9a; }
-    .chud-rest-dig-lines .gain { color: #f2d06b; }
+    .chud-rest-stack-btn .chud-tally-marks { color: rgba(15,246,255,0.85); }
 
     /* ── Persistent Rest Banner (top of HUD, survives until cleared) ──── */
     .chud-rest-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; margin-bottom: 10px; border-radius: 10px; border: 1px solid rgba(255,159,107,0.4); background: rgba(255,159,107,0.1); color: #ffd3b8; }
@@ -757,8 +748,8 @@ function buildStatusRollsPanel() {
       dirBtn.setAttribute('data-touch-blocker-ignore', '')
       const renderDir = () => {
         dirBtn.setAttribute('data-dir', row.direction)
-        dirBtn.textContent = row.direction === 'out' ? 'OUT' : 'IN'
-        dirBtn.title = row.direction === 'out' ? 'Applied by you to others' : 'Applied to you'
+        dirBtn.textContent = row.direction === 'out' ? 'TRGT' : 'YOU'
+        dirBtn.title = row.direction === 'out' ? 'Applied by you to a Target' : 'Applied to You'
       }
       renderDir()
       dirBtn.addEventListener('click', () => {
@@ -1041,12 +1032,26 @@ function buildMeterRow(def, getMeters, setMeters) {
 function buildRestWidget() {
   const CHUD_STATE_KEY = 'chud.state.v1'
   const REST_BANNER_KEY = 'chud.restBanner'
+  const APPROACH_FIELDS = ['force', 'finesse', 'guts', 'logic', 'show', 'tell']
 
   const readTally = () => {
     try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); const v = s.shortRestTally; return typeof v === 'number' ? v : 0 } catch { return 0 }
   }
   const writeTally = (value) => {
     try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); s.shortRestTally = value; localStorage.setItem(CHUD_STATE_KEY, JSON.stringify(s)) } catch {}
+    window.dispatchEvent(new StorageEvent('storage', { key: CHUD_STATE_KEY, newValue: localStorage.getItem(CHUD_STATE_KEY) }))
+  }
+  // Full Rest restores the entire Approach Overload pool — mirrors
+  // domain/approachDice.ts's fullRestOverload() (resets spent count to 0
+  // for every Approach field).
+  const writeFullRest = () => {
+    try {
+      const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}')
+      const resetSpent = {}
+      APPROACH_FIELDS.forEach((f) => { resetSpent[f] = 0 })
+      s.approachOverloadSpent = resetSpent
+      localStorage.setItem(CHUD_STATE_KEY, JSON.stringify(s))
+    } catch {}
     window.dispatchEvent(new StorageEvent('storage', { key: CHUD_STATE_KEY, newValue: localStorage.getItem(CHUD_STATE_KEY) }))
   }
   const readBanner = () => {
@@ -1083,20 +1088,34 @@ function buildRestWidget() {
     return svg
   }
 
-  // ── Trigger button (bottom of HUD) ──────────────────────────────────────
+  // ── Stacked action buttons (bottom of HUD) ──────────────────────────────
   const wrap = document.createElement('div')
   wrap.className = 'chud-rest-widget'
-  const trigger = document.createElement('button')
-  trigger.className = 'chud-rest-trigger'
-  trigger.setAttribute('data-touch-blocker-ignore', '')
-  const label = document.createElement('span')
-  label.className = 'chud-rest-trigger-label'
-  label.textContent = 'Rest'
+
+  const shortBtn = document.createElement('button')
+  shortBtn.className = 'chud-rest-stack-btn short'
+  shortBtn.setAttribute('data-touch-blocker-ignore', '')
+  const shortLabel = document.createElement('span')
+  shortLabel.className = 'chud-rest-trigger-label'
+  shortLabel.textContent = 'Short Rest'
   const marksWrap = document.createElement('div')
   marksWrap.className = 'chud-tally-marks'
-  trigger.appendChild(label)
-  trigger.appendChild(marksWrap)
-  wrap.appendChild(trigger)
+  shortBtn.appendChild(shortLabel)
+  shortBtn.appendChild(marksWrap)
+
+  const digBtn = document.createElement('button')
+  digBtn.className = 'chud-rest-stack-btn digdeep'
+  digBtn.textContent = 'Dig Deep'
+  digBtn.setAttribute('data-touch-blocker-ignore', '')
+
+  const fullBtn = document.createElement('button')
+  fullBtn.className = 'chud-rest-stack-btn fullrest'
+  fullBtn.textContent = 'Full Rest (restore Overload dice)'
+  fullBtn.setAttribute('data-touch-blocker-ignore', '')
+
+  wrap.appendChild(shortBtn)
+  wrap.appendChild(digBtn)
+  wrap.appendChild(fullBtn)
 
   const renderMarks = () => {
     const count = Math.max(0, Math.min(10, readTally()))
@@ -1105,6 +1124,13 @@ function buildRestWidget() {
     marksWrap.appendChild(makeTallyGroupSVG(Math.max(0, Math.min(5, count - 5))))
   }
   renderMarks()
+
+  shortBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation()
+    const next = readTally() >= 10 ? 0 : readTally() + 1
+    writeTally(next)
+    renderMarks()
+  })
 
   // ── Persistent banner (top of HUD; survives until cleared/overwritten) ──
   const banner = document.createElement('div')
@@ -1128,88 +1154,20 @@ function buildRestWidget() {
   renderBanner()
   bannerClear.addEventListener('click', (ev) => { ev.stopPropagation(); writeBanner(null); renderBanner() })
 
-  // ── Popup (Short Rest / Dig Deep) — never auto-closes ───────────────────
-  let overlay = null
-  const closePopup = () => { if (overlay) { overlay.remove(); overlay = null } }
-  const openPopup = () => {
-    closePopup()
-    overlay = document.createElement('div')
-    overlay.className = 'chud-rest-overlay'
-    const popup = document.createElement('div')
-    popup.className = 'chud-rest-popup'
-    const closeBtn = document.createElement('button')
-    closeBtn.className = 'chud-rest-popup-close'
-    closeBtn.textContent = '✕'
-    closeBtn.setAttribute('data-touch-blocker-ignore', '')
-    closeBtn.addEventListener('click', (ev) => { ev.stopPropagation(); closePopup() })
-    popup.appendChild(closeBtn)
+  digBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation()
+    const d1 = 1 + Math.floor(Math.random() * 4)
+    const d2 = 1 + Math.floor(Math.random() * 4)
+    const lose = Math.max(d1, d2)
+    const gain = Math.min(d1, d2)
+    writeBanner({ d1, d2, lose, gain, ts: Date.now() })
+    renderBanner()
+  })
 
-    const title = document.createElement('div')
-    title.className = 'chud-rest-popup-title'
-    title.textContent = 'Rest'
-    popup.appendChild(title)
-
-    const body = document.createElement('div')
-    body.style.display = 'flex'
-    body.style.flexDirection = 'column'
-    body.style.gap = '10px'
-    popup.appendChild(body)
-
-    const rollDigDeep = () => {
-      const d1 = 1 + Math.floor(Math.random() * 4)
-      const d2 = 1 + Math.floor(Math.random() * 4)
-      const lose = Math.max(d1, d2)
-      const gain = Math.min(d1, d2)
-      writeBanner({ d1, d2, lose, gain, ts: Date.now() })
-      renderBanner()
-      body.innerHTML = ''
-      const result = document.createElement('div')
-      result.className = 'chud-rest-dig-result'
-      const dice = document.createElement('div')
-      dice.className = 'chud-rest-dig-dice'
-      ;[d1, d2].forEach((v) => {
-        const die = document.createElement('div')
-        die.className = 'chud-rest-dig-die'
-        die.textContent = String(v)
-        dice.appendChild(die)
-      })
-      const lines = document.createElement('div')
-      lines.className = 'chud-rest-dig-lines'
-      lines.innerHTML = `<div class="lose">Lose ${lose}</div><div class="gain">Gain ${gain}</div>`
-      result.appendChild(dice)
-      result.appendChild(lines)
-      body.appendChild(result)
-    }
-
-    const showOptions = () => {
-      body.innerHTML = ''
-      const shortBtn = document.createElement('button')
-      shortBtn.className = 'chud-rest-option-btn'
-      shortBtn.textContent = 'Short Rest'
-      shortBtn.setAttribute('data-touch-blocker-ignore', '')
-      shortBtn.addEventListener('click', () => {
-        const next = readTally() >= 10 ? 0 : readTally() + 1
-        writeTally(next)
-        renderMarks()
-        closePopup()
-      })
-      const digBtn = document.createElement('button')
-      digBtn.className = 'chud-rest-option-btn digdeep'
-      digBtn.textContent = 'Dig Deep'
-      digBtn.setAttribute('data-touch-blocker-ignore', '')
-      digBtn.addEventListener('click', rollDigDeep)
-      body.appendChild(shortBtn)
-      body.appendChild(digBtn)
-    }
-
-    showOptions()
-    popup.addEventListener('click', (ev) => ev.stopPropagation())
-    overlay.appendChild(popup)
-    overlay.addEventListener('click', () => closePopup())
-    document.body.appendChild(overlay)
-  }
-
-  trigger.addEventListener('click', (ev) => { ev.stopPropagation(); openPopup() })
+  fullBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation()
+    writeFullRest()
+  })
 
   window.addEventListener('storage', (ev) => {
     if (ev.key === CHUD_STATE_KEY) renderMarks()

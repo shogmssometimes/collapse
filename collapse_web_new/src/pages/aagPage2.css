@@ -637,18 +637,6 @@
   color: rgba(248, 250, 252, 0.55);
 }
 
-.approach-full-rest-btn {
-  margin-top: 10px;
-  width: 100%;
-  font: inherit;
-  color: rgba(248, 250, 252, 0.85);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 10px;
-  padding: 8px;
-  cursor: pointer;
-}
-
 .approach-die-popup-die .roll-bad {
   color: #ff5c5c;
   font-weight: 700;

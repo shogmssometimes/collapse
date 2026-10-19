@@ -3,7 +3,6 @@ import type { ApproachStats, CoreStats } from "../types/chud";
 import { DEFAULT_APPROACH, DEFAULT_DRAW, DEFAULT_WT, DEFAULT_AP, DEFAULT_INVENTORY_SLOTS, computeDerived } from "../domain/chudStats";
 import {
   DEFAULT_DIE_SIZE,
-  fullRestOverload,
   isDieSides,
   rollApproachDice,
   spendOverloadDie,
@@ -102,14 +101,6 @@ export default function AagPage({
     return true;
   }, [approach, approachOverloadSpent]);
 
-  const fullRestApproachDice = useCallback(() => {
-    setApproachOverloadSpent((prev) => {
-      const next: Partial<Record<keyof ApproachStats, number>> = { ...prev };
-      for (const field of Object.keys(next) as Array<keyof ApproachStats>) next[field] = fullRestOverload();
-      return next;
-    });
-  }, []);
-
   const derived = computeDerived(core);
   const isOverEncumbered = gearSlotsUsed > inventorySlots;
 
@@ -185,7 +176,6 @@ export default function AagPage({
           onRollApproachDie={rollApproachDie}
           approachOverloadSpent={approachOverloadSpent}
           onOverloadApproachDie={overloadApproachDie}
-          onFullRestApproachDice={fullRestApproachDice}
         />
       </div>
     </div>

@@ -42,7 +42,6 @@ export function Page2Panel({
   onRollApproachDie,
   approachOverloadSpent,
   onOverloadApproachDie,
-  onFullRestApproachDice,
 }: {
   onOpenMgr: () => void;
   readyness: number;
@@ -70,7 +69,6 @@ export function Page2Panel({
   onRollApproachDie: (field: keyof ApproachStats, count: number) => ApproachDieRollResult;
   approachOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
   onOverloadApproachDie: (field: keyof ApproachStats) => boolean;
-  onFullRestApproachDice: () => void;
 }) {
   const [openDistribution, setOpenDistribution] = useState<keyof CoreStats | null>(null);
 
@@ -200,9 +198,6 @@ export function Page2Panel({
             );
           })}
         </div>
-        <button type="button" className="approach-full-rest-btn" onClick={onFullRestApproachDice}>
-          Full Rest (restore Overload dice)
-        </button>
       </div>
     </div>
   );
