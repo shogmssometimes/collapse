@@ -305,23 +305,32 @@ export function ApproachDie({
                 {displayTotal}
               </div>
               <div className="approach-die-popup-die">
-                {result.dice.map((dieRoll, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className={`approach-die-chip${overloaded.has(index) ? " overloaded" : ""}`}
-                    disabled={!onOverload || overloaded.has(index) || overloadPoolRemaining <= 0}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      handleToggleOverload(index)
-                    }}
-                    title={onOverload ? "Tap to Overload: double this die, spend 1 from the Approach pool" : undefined}
-                  >
-                    {dieLabel(result.die)}: {dieRoll.rolls.join(" + ")}
-                    {dieRoll.rolls.length > 1 && " (explode)"}
-                    {overloaded.has(index) && <span className="approach-die-chip-doubled">DOUBLED</span>}
-                  </button>
-                ))}
+                {result.dice.map((dieRoll, index) => {
+                  const didExplode = dieRoll.rolls.length > 1
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      className={`approach-die-chip${overloaded.has(index) ? " overloaded" : ""}${didExplode ? " exploded" : ""}`}
+                      disabled={!onOverload || overloaded.has(index) || overloadPoolRemaining <= 0 || didExplode}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        handleToggleOverload(index)
+                      }}
+                      title={
+                        didExplode
+                          ? "Exploded dice can't be Overloaded"
+                          : onOverload
+                          ? "Tap to Overload: double this die, spend 1 from the Approach pool"
+                          : undefined
+                      }
+                    >
+                      {dieLabel(result.die)}: {dieRoll.rolls.join(" + ")}
+                      {didExplode && <span className="approach-die-chip-exploded">EXPLODE</span>}
+                      {overloaded.has(index) && <span className="approach-die-chip-doubled">DOUBLED</span>}
+                    </button>
+                  )
+                })}
               </div>
               {onOverload && (
                 <div className="approach-die-popup-pool">

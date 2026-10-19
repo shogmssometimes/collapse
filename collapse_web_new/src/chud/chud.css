@@ -983,12 +983,31 @@ body::after {
   font-weight: 700;
 }
 
+.approach-die-chip.exploded {
+  background: rgba(15, 246, 255, 0.12);
+  border-color: #0ff6ff;
+  color: #f8fafc;
+}
+
 .approach-die-chip-doubled {
   display: inline-block;
   margin-left: 6px;
   padding: 1px 6px;
   border-radius: 999px;
   background: #ffd43b;
+  color: #0a0a0e;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+}
+
+.approach-die-chip-exploded {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #0ff6ff;
   color: #0a0a0e;
   font-size: 0.65rem;
   font-weight: 800;
