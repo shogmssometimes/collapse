@@ -229,20 +229,6 @@ function createStyles() {
     .status-roll-save-result[data-outcome="pass"] { color: #4ade80; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.35); }
     .status-roll-save-result[data-outcome="fail"] { color: #ff9f6b; background: rgba(255,159,107,0.1); border: 1px solid rgba(255,159,107,0.35); }
 
-    /* ── Rest widget (Short Rest / Dig Deep / Full Rest stack) ────────── */
-    .chud-rest-widget { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-    .chud-rest-stack-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: rgba(248,250,252,0.85); cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
-    .chud-rest-stack-btn:active { transform: scale(0.98); }
-    .chud-rest-stack-btn.digdeep { border-color: rgba(255,159,107,0.4); color: #ff9f6b; background: rgba(255,159,107,0.08); justify-content: center; }
-    .chud-rest-stack-btn.fullrest { border-color: rgba(111,165,255,0.4); color: #8fb4ff; background: rgba(111,165,255,0.08); justify-content: center; text-align: center; }
-    .chud-rest-trigger-label { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
-    .chud-rest-stack-btn .chud-tally-marks { color: rgba(15,246,255,0.85); }
-
-    /* ── Persistent Rest Banner (top of HUD, survives until cleared) ──── */
-    .chud-rest-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; margin-bottom: 10px; border-radius: 10px; border: 1px solid rgba(255,159,107,0.4); background: rgba(255,159,107,0.1); color: #ffd3b8; }
-    .chud-rest-banner-text { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
-    .chud-rest-banner-clear { flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
-
     /* ── Combat Panel ──────────────────────────────────────────────── */
     .chud-combat { margin-top: 4px; }
     .chud-combat-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: none; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 6px 0 8px; cursor: pointer; color: rgba(248,250,252,0.65); font-size: 13px; font-family: var(--font-display, inherit); font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; }
@@ -1076,154 +1062,6 @@ function buildMeterRow(def, getMeters, setMeters) {
   return { row, update }
 }
 
-function buildRestWidget() {
-  const CHUD_STATE_KEY = 'chud.state.v1'
-  const REST_BANNER_KEY = 'chud.restBanner'
-  const APPROACH_FIELDS = ['force', 'finesse', 'guts', 'logic', 'show', 'tell']
-
-  const readTally = () => {
-    try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); const v = s.shortRestTally; return typeof v === 'number' ? v : 0 } catch { return 0 }
-  }
-  const writeTally = (value) => {
-    try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); s.shortRestTally = value; localStorage.setItem(CHUD_STATE_KEY, JSON.stringify(s)) } catch {}
-    window.dispatchEvent(new StorageEvent('storage', { key: CHUD_STATE_KEY, newValue: localStorage.getItem(CHUD_STATE_KEY) }))
-  }
-  // Full Rest restores the entire Approach Overload pool — mirrors
-  // domain/approachDice.ts's fullRestOverload() (resets spent count to 0
-  // for every Approach field).
-  const writeFullRest = () => {
-    try {
-      const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}')
-      const resetSpent = {}
-      APPROACH_FIELDS.forEach((f) => { resetSpent[f] = 0 })
-      s.approachOverloadSpent = resetSpent
-      localStorage.setItem(CHUD_STATE_KEY, JSON.stringify(s))
-    } catch {}
-    window.dispatchEvent(new StorageEvent('storage', { key: CHUD_STATE_KEY, newValue: localStorage.getItem(CHUD_STATE_KEY) }))
-  }
-  const readBanner = () => {
-    try { return JSON.parse(localStorage.getItem(REST_BANNER_KEY) || 'null') } catch { return null }
-  }
-  const writeBanner = (data) => {
-    try {
-      if (data) localStorage.setItem(REST_BANNER_KEY, JSON.stringify(data))
-      else localStorage.removeItem(REST_BANNER_KEY)
-    } catch {}
-    window.dispatchEvent(new StorageEvent('storage', { key: REST_BANNER_KEY, newValue: data ? JSON.stringify(data) : null }))
-  }
-  const makeTallyGroupSVG = (n) => {
-    const svgNS = 'http://www.w3.org/2000/svg'
-    const svg = document.createElementNS(svgNS, 'svg')
-    svg.classList.add('chud-tally-group')
-    svg.setAttribute('width', '26'); svg.setAttribute('height', '20'); svg.setAttribute('viewBox', '0 0 26 20')
-    const barX = [3, 9, 15, 21]
-    const shown = Math.min(n, 4)
-    for (let i = 0; i < shown; i++) {
-      const line = document.createElementNS(svgNS, 'line')
-      line.setAttribute('x1', String(barX[i])); line.setAttribute('y1', '2')
-      line.setAttribute('x2', String(barX[i])); line.setAttribute('y2', '18')
-      line.setAttribute('stroke', 'currentColor'); line.setAttribute('stroke-width', '2'); line.setAttribute('stroke-linecap', 'round')
-      svg.appendChild(line)
-    }
-    if (n >= 5) {
-      const diag = document.createElementNS(svgNS, 'line')
-      diag.setAttribute('x1', '1'); diag.setAttribute('y1', '18')
-      diag.setAttribute('x2', '23'); diag.setAttribute('y2', '2')
-      diag.setAttribute('stroke', 'currentColor'); diag.setAttribute('stroke-width', '2'); diag.setAttribute('stroke-linecap', 'round')
-      svg.appendChild(diag)
-    }
-    return svg
-  }
-
-  // ── Stacked action buttons (bottom of HUD) ──────────────────────────────
-  const wrap = document.createElement('div')
-  wrap.className = 'chud-rest-widget'
-
-  const shortBtn = document.createElement('button')
-  shortBtn.className = 'chud-rest-stack-btn short'
-  shortBtn.setAttribute('data-touch-blocker-ignore', '')
-  const shortLabel = document.createElement('span')
-  shortLabel.className = 'chud-rest-trigger-label'
-  shortLabel.textContent = 'Short Rest'
-  const marksWrap = document.createElement('div')
-  marksWrap.className = 'chud-tally-marks'
-  shortBtn.appendChild(shortLabel)
-  shortBtn.appendChild(marksWrap)
-
-  const digBtn = document.createElement('button')
-  digBtn.className = 'chud-rest-stack-btn digdeep'
-  digBtn.textContent = 'Dig Deep'
-  digBtn.setAttribute('data-touch-blocker-ignore', '')
-
-  const fullBtn = document.createElement('button')
-  fullBtn.className = 'chud-rest-stack-btn fullrest'
-  fullBtn.textContent = 'Full Rest (restore Overload dice)'
-  fullBtn.setAttribute('data-touch-blocker-ignore', '')
-
-  wrap.appendChild(shortBtn)
-  wrap.appendChild(digBtn)
-  wrap.appendChild(fullBtn)
-
-  const renderMarks = () => {
-    const count = Math.max(0, Math.min(10, readTally()))
-    marksWrap.innerHTML = ''
-    marksWrap.appendChild(makeTallyGroupSVG(Math.min(5, count)))
-    marksWrap.appendChild(makeTallyGroupSVG(Math.max(0, Math.min(5, count - 5))))
-  }
-  renderMarks()
-
-  shortBtn.addEventListener('click', (ev) => {
-    ev.stopPropagation()
-    const next = readTally() >= 10 ? 0 : readTally() + 1
-    writeTally(next)
-    renderMarks()
-  })
-
-  // ── Persistent banner (top of HUD; survives until cleared/overwritten) ──
-  const banner = document.createElement('div')
-  banner.className = 'chud-rest-banner'
-  banner.style.display = 'none'
-  const bannerText = document.createElement('span')
-  bannerText.className = 'chud-rest-banner-text'
-  const bannerClear = document.createElement('button')
-  bannerClear.className = 'chud-rest-banner-clear'
-  bannerClear.textContent = '✕'
-  bannerClear.setAttribute('data-touch-blocker-ignore', '')
-  banner.appendChild(bannerText)
-  banner.appendChild(bannerClear)
-
-  const renderBanner = () => {
-    const data = readBanner()
-    if (!data) { banner.style.display = 'none'; return }
-    banner.style.display = 'flex'
-    bannerText.textContent = `Dig Deep — Lose ${data.lose}, Gain ${data.gain} (rolled ${data.d1}, ${data.d2})`
-  }
-  renderBanner()
-  bannerClear.addEventListener('click', (ev) => { ev.stopPropagation(); writeBanner(null); renderBanner() })
-
-  digBtn.addEventListener('click', (ev) => {
-    ev.stopPropagation()
-    const d1 = 1 + Math.floor(Math.random() * 4)
-    const d2 = 1 + Math.floor(Math.random() * 4)
-    const lose = Math.max(d1, d2)
-    const gain = Math.min(d1, d2)
-    writeBanner({ d1, d2, lose, gain, ts: Date.now() })
-    renderBanner()
-  })
-
-  fullBtn.addEventListener('click', (ev) => {
-    ev.stopPropagation()
-    writeFullRest()
-  })
-
-  window.addEventListener('storage', (ev) => {
-    if (ev.key === CHUD_STATE_KEY) renderMarks()
-    if (ev.key === REST_BANNER_KEY) renderBanner()
-  })
-
-  return { trigger: wrap, banner }
-}
-
 function mountMeters() {
   const root = document.getElementById('root')
   if (!root) return false
@@ -1267,10 +1105,6 @@ function mountMeters() {
 
   const refreshAll = () => { gcm.update() }
   refreshAll()
-
-  const restWidget = buildRestWidget()
-  panel.insertBefore(restWidget.banner, panel.firstChild)
-  panel.appendChild(restWidget.trigger)
 
   window.addEventListener('storage', (ev) => {
     if (ev.key === STORAGE_KEY) refreshAll()

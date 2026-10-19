@@ -32,215 +32,6 @@
   gap: 8px;
 }
 
-.aag-page2 .approach-grid {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.aag-page2 .approach-unit {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  position: relative;
-}
-
-.aag-page2 .approach-die-size-control {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  margin: 0 auto 2px;
-  width: min(100%, 240px);
-}
-
-.aag-page2 .approach-die-size-button {
-  position: relative;
-  width: 100%;
-  min-height: 68px;
-  border: 1px solid rgba(15, 246, 255, 0.38);
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(15, 246, 255, 0.1), rgba(255, 255, 255, 0.02));
-  color: #f8fafc;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  cursor: pointer;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
-}
-
-.aag-page2 .approach-die-size-button.pressing {
-  border-color: #0ff6ff;
-  background: rgba(15, 246, 255, 0.18);
-  transform: scale(0.97);
-}
-
-.aag-page2 .approach-die-size-button.reset {
-  animation: approach-die-size-down 520ms ease;
-}
-
-.aag-page2 .approach-die-size-button.up {
-  animation: approach-die-size-up 520ms ease;
-}
-
-.aag-page2 .approach-die-size-value {
-  font-family: var(--font-display);
-  font-size: 1.7rem;
-  line-height: 1;
-  letter-spacing: 0.08em;
-}
-
-.aag-page2 .approach-die-size-hint,
-.aag-page2 .approach-die-size-instructions {
-  font-family: var(--font-display);
-  font-size: 0.57rem;
-  letter-spacing: 0.14em;
-  color: rgba(248, 250, 252, 0.55);
-}
-
-.aag-page2 .approach-die-size-feedback {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  border-radius: inherit;
-  background: rgba(7, 10, 16, 0.84);
-  color: #0ff6ff;
-  font-family: var(--font-display);
-  font-size: 1rem;
-  letter-spacing: 0.14em;
-  animation: approach-die-size-feedback 520ms ease;
-}
-
-.aag-page2 .approach-die-size-button.reset .approach-die-size-feedback {
-  color: #ff7777;
-}
-
-.aag-page2 .approach-die-size-button.limit .approach-die-size-feedback {
-  color: #ffd43b;
-}
-
-@keyframes approach-die-size-down {
-  25% { transform: translateY(3px) scale(0.97); box-shadow: 0 0 18px rgba(255, 92, 92, 0.36); }
-  100% { transform: translateY(0) scale(1); }
-}
-
-@keyframes approach-die-size-up {
-  25% { transform: translateY(-3px) scale(1.03); box-shadow: 0 0 18px rgba(15, 246, 255, 0.32); }
-  100% { transform: translateY(0) scale(1); }
-}
-
-@keyframes approach-die-size-feedback {
-  0% { opacity: 0; transform: scale(0.92); }
-  20%, 80% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.04); }
-}
-
-.aag-page2 .approach-die {
-  position: relative;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
-  padding: 6px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-appearance: none;
-  color: inherit;
-  font: inherit;
-}
-
-.aag-page2 .approach-die:active {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
-}
-
-.aag-page2 .approach-die.pressing {
-  border-color: var(--accent-red);
-  transform: scale(0.96);
-}
-
-.aag-page2 .approach-die.charging {
-  border-color: #ffd43b;
-  animation: approach-die-charging 220ms ease-in-out infinite;
-}
-
-.aag-page2 .approach-die.locked {
-  cursor: default;
-  opacity: 0.55;
-  border-style: dashed;
-}
-
-.aag-page2 .approach-die:disabled {
-  cursor: default;
-}
-
-.aag-page2 .approach-die.error {
-  animation: approach-die-error 420ms ease;
-  border-color: #ff5c5c;
-}
-
-@keyframes approach-die-charging {
-  0%, 100% { transform: translateX(0) scale(1.0); box-shadow: 0 0 10px rgba(255, 212, 59, 0.25); }
-  25% { transform: translateX(-2px) scale(1.02); }
-  50% { transform: translateX(0) scale(0.99); box-shadow: 0 0 18px rgba(255, 212, 59, 0.5); }
-  75% { transform: translateX(2px) scale(1.02); }
-}
-
-.aag-page2 .approach-die-label {
-  font-size: 0.6rem;
-  font-family: var(--font-display);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.72);
-}
-
-.aag-page2 .approach-die-sub {
-  font-size: 0.55rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.55);
-}
-
-.aag-page2 .approach-die-pips {
-  display: flex;
-  justify-content: center;
-  gap: 3px;
-  min-height: 7px;
-}
-
-.aag-page2 .approach-die-pip {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
-}
-
-.aag-page2 .approach-die-pip.armed {
-  background: #0ff6ff;
-  border-color: #0ff6ff;
-  transform: scale(1.1);
-}
-
-@keyframes approach-die-error {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-4px); }
-  40% { transform: translateX(4px); }
-  60% { transform: translateX(-3px); }
-  80% { transform: translateX(3px); }
-}
-
 /* Portaled to document.body — intentionally unscoped. */
 .approach-distribution-backdrop {
   position: fixed;
@@ -354,312 +145,7 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
-/* Portaled to document.body (not a descendant of .aag-page2), so these rules
-   are intentionally unscoped. */
-.approach-die-popup {
-  position: fixed;
-  z-index: 200;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  min-width: 260px;
-  max-width: min(88vw, 420px);
-  padding: 32px 36px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(10, 10, 14, 0.96);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  animation: approach-die-popup-in 120ms ease;
-  font-family: var(--font-display, 'Bebas Neue', Impact, 'Arial Narrow', sans-serif);
-}
 
-.approach-die-popup-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(248, 250, 252, 0.8);
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.approach-die-popup-label {
-  font-size: 1.2rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.65);
-}
-
-.approach-die-popup-value {
-  font-size: 6.5rem;
-  color: #f8fafc;
-  line-height: 1;
-}
-
-.approach-die-popup-value.bad {
-  color: #ff5c5c;
-  text-shadow: 0 0 24px rgba(255, 92, 92, 0.5);
-}
-
-.approach-die-popup-value.good {
-  color: #ffd43b;
-  text-shadow: 0 0 24px rgba(255, 212, 59, 0.5);
-}
-
-.approach-die-popup-value.rolling {
-  color: rgba(248, 250, 252, 0.5);
-  animation: approach-die-rolling-tick 60ms linear infinite;
-}
-
-@keyframes approach-die-rolling-tick {
-  from { transform: scale(0.92); }
-  to { transform: scale(1); }
-}
-
-.approach-die-popup-die {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: center;
-  font-size: 1.1rem;
-  color: rgba(248, 250, 252, 0.65);
-  text-align: center;
-}
-
-.approach-die-chip {
-  font: inherit;
-  color: inherit;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-
-.approach-die-chip:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.approach-die-chip.overloaded {
-  background: rgba(255, 212, 59, 0.14);
-  border-color: #ffd43b;
-  color: #f8fafc;
-  font-weight: 700;
-}
-
-.approach-die-chip-doubled {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: #ffd43b;
-  color: #0a0a0e;
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  vertical-align: middle;
-}
-
-.approach-die-popup-pool {
-  margin-top: 6px;
-  font-size: 0.95rem;
-  color: rgba(248, 250, 252, 0.55);
-  text-align: center;
-}
-
-/* Set / Margin / Damage roll chain (Portaled to document.body, unscoped). */
-.approach-roll-path-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  width: 100%;
-}
-
-.approach-roll-path-btn {
-  flex: 1;
-  font: inherit;
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  color: rgba(248, 250, 252, 0.9);
-  background: rgba(15, 246, 255, 0.08);
-  border: 1px solid rgba(15, 246, 255, 0.35);
-  border-radius: 8px;
-  padding: 8px 10px;
-  cursor: pointer;
-}
-
-.approach-roll-path-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.approach-margin-input,
-.approach-margin-result,
-.approach-damage-roll {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.approach-margin-label {
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.65);
-}
-
-.approach-margin-field,
-.approach-damage-wound-field input {
-  font: inherit;
-  font-size: 1.1rem;
-  text-align: center;
-  width: 100px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  color: #f8fafc;
-  padding: 6px 8px;
-}
-
-/* Margin is intentionally color-neutral: a high or low/negative margin is
-   not inherently good or bad, so it never takes on the "good"/"bad" result
-   styling used elsewhere in this popup. */
-.approach-margin-value {
-  font-size: 4rem;
-  line-height: 1;
-  color: #f8fafc;
-}
-
-.approach-margin-sub {
-  font-size: 0.75rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.55);
-}
-
-.approach-desync-banner {
-  margin-top: 4px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(239, 68, 68, 0.14);
-  border: 1px solid rgba(239, 68, 68, 0.55);
-  color: #f87171;
-  font-size: 0.85rem;
-  letter-spacing: 0.14em;
-}
-
-.approach-damage-dice {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: center;
-}
-
-.approach-damage-chip {
-  min-width: 2.2em;
-  text-align: center;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: rgba(248, 250, 252, 0.75);
-  font-size: 1rem;
-}
-
-.approach-damage-chip.success {
-  background: rgba(255, 212, 59, 0.18);
-  border-color: #ffd43b;
-  color: #ffd43b;
-  font-weight: 700;
-}
-
-.approach-damage-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.approach-damage-wound-field {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.approach-damage-wound-field label {
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.55);
-}
-
-.approach-damage-mode-toggle {
-  font: inherit;
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  color: rgba(248, 250, 252, 0.75);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-}
-
-.approach-damage-success-count {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.approach-damage-success-value {
-  font-size: 2.2rem;
-  color: #ffd43b;
-  line-height: 1;
-}
-
-.approach-damage-success-label {
-  font-size: 0.65rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.55);
-}
-
-.approach-die-popup-die .roll-bad {
-  color: #ff5c5c;
-  font-weight: 700;
-}
-
-.approach-die-popup-die .roll-max {
-  color: #ffd43b;
-  font-weight: 700;
-}
-
-.approach-die-popup-step {
-  margin-top: 6px;
-  font-size: 1.15rem;
-  color: var(--accent-red, #d42b2b);
-  text-align: center;
-}
-
-@keyframes approach-die-popup-in {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
-
-/* Row 1: RDY chip on the left, MGR button right-justified */
 .aag-page2 .row-rdy-mgr {
   display: flex;
   flex-direction: row;
@@ -863,5 +349,97 @@
 }
 
 .aag-page2 .chud-tally-group {
+  flex-shrink: 0;
+}
+
+/* ── Rest widget (Short Rest / Dig Deep / Full Rest) — moved here from the
+   HUD, which now hosts the Approach dice instead. ───────────────────────── */
+.aag-page2 .rest-widget {
+  margin-top: 6px;
+}
+
+.aag-page2 .rest-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 159, 107, 0.4);
+  background: rgba(255, 159, 107, 0.1);
+  color: #ffd3b8;
+}
+
+.aag-page2 .rest-banner-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.aag-page2 .rest-banner-clear {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.aag-page2 .rest-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aag-page2 .rest-stack-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(248, 250, 252, 0.85);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.aag-page2 .rest-stack-btn:active {
+  transform: scale(0.98);
+}
+
+.aag-page2 .rest-stack-btn.digdeep {
+  border-color: rgba(255, 159, 107, 0.4);
+  color: #ff9f6b;
+  background: rgba(255, 159, 107, 0.08);
+  justify-content: center;
+}
+
+.aag-page2 .rest-stack-btn.fullrest {
+  border-color: rgba(111, 165, 255, 0.4);
+  color: #8fb4ff;
+  background: rgba(111, 165, 255, 0.08);
+  justify-content: center;
+  text-align: center;
+}
+
+.aag-page2 .rest-tally-marks {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(15, 246, 255, 0.85);
+}
+
+.aag-page2 .rest-tally-group {
   flex-shrink: 0;
 }

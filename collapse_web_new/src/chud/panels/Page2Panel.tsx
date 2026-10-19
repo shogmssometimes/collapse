@@ -1,20 +1,20 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { StatCard } from "../components/StatCard";
 import { CoreStatCard } from "../components/CoreStatCard";
 import { ApproachDistributionPopout } from "../components/ApproachDistributionPopout";
-import { ApproachDie, type ApproachDieRollResult } from "../components/ApproachDie";
 import { ApproachDieSizeControl } from "../components/ApproachDieSizeControl";
 import type { ApproachStats, CoreStats } from "../../types/chud";
 import type { DieSides } from "../../domain/approachDice";
 import { CORE_APPROACH_MAP, APPROACH_LABELS, CORE_LABELS } from "../../domain/coreApproachMap";
 
-// Page 2 (AAG): 6 rows —
+// Page 2 (AAG): —
 //   1. Readyness | MGR button
 //   2. WT | Damage die
 //   3. AP | Capacity | Inventory Slots
-//   4. Short Rest tally
-//   5. Core Stats (long-press opens the Approach distribution popout)
-//   6. Approach (tap arms a die, hold rolls the armed dice)
+//   4. Core Stats (long-press opens the Approach distribution popout)
+// The Approach dice cards (tap-arm / hold-roll) and the Short Rest / Dig
+// Deep / Full Rest stack live elsewhere now — Approach moved to the HUD,
+// Rest moved to the bottom of this page (see RestWidget below).
 export function Page2Panel({
   onOpenMgr,
   readyness,
@@ -33,15 +33,10 @@ export function Page2Panel({
   onCoreChange,
   approach,
   onApproachChange,
-  approachDieSize,
-  onApproachDieSizeIncrease,
-  onApproachDieSizeReset,
   damageDieSize,
   onDamageDieSizeIncrease,
   onDamageDieSizeReset,
-  onRollApproachDie,
-  approachOverloadSpent,
-  onOverloadApproachDie,
+  restWidget,
 }: {
   onOpenMgr: () => void;
   readyness: number;
@@ -60,15 +55,10 @@ export function Page2Panel({
   onCoreChange: (field: keyof CoreStats, updater: (v: number) => number) => void;
   approach: ApproachStats;
   onApproachChange: (field: keyof ApproachStats, updater: (v: number) => number) => void;
-  approachDieSize: DieSides;
-  onApproachDieSizeIncrease: () => DieSides;
-  onApproachDieSizeReset: () => DieSides;
   damageDieSize: DieSides;
   onDamageDieSizeIncrease: () => DieSides;
   onDamageDieSizeReset: () => DieSides;
-  onRollApproachDie: (field: keyof ApproachStats, count: number) => ApproachDieRollResult;
-  approachOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
-  onOverloadApproachDie: (field: keyof ApproachStats) => boolean;
+  restWidget?: ReactNode;
 }) {
   const [openDistribution, setOpenDistribution] = useState<keyof CoreStats | null>(null);
 
@@ -77,18 +67,6 @@ export function Page2Panel({
       ["vigor", CORE_LABELS.vigor],
       ["inference", CORE_LABELS.inference],
       ["personality", CORE_LABELS.personality],
-    ],
-    []
-  );
-
-  const approachStats = useMemo<Array<[keyof ApproachStats, string]>>(
-    () => [
-      ["force", APPROACH_LABELS.force],
-      ["guts", APPROACH_LABELS.guts],
-      ["show", APPROACH_LABELS.show],
-      ["finesse", APPROACH_LABELS.finesse],
-      ["logic", APPROACH_LABELS.logic],
-      ["tell", APPROACH_LABELS.tell],
     ],
     []
   );
@@ -170,35 +148,7 @@ export function Page2Panel({
         );
       })()}
 
-      {/* Row 6: Approach */}
-      <div className="mods">
-        <h3>Approach</h3>
-        <ApproachDieSizeControl
-          die={approachDieSize}
-          onIncrease={onApproachDieSizeIncrease}
-          onReset={onApproachDieSizeReset}
-        />
-        <div className="core-grid approach-grid">
-          {approachStats.map(([field, label]) => {
-            const rating = approach[field];
-            const spent = approachOverloadSpent[field] ?? 0;
-            const available = Math.max(0, rating - Math.min(Math.max(spent, 0), rating));
-            return (
-              <div className="approach-unit" key={field}>
-                <ApproachDie
-                  label={label}
-                  rating={rating}
-                  available={available}
-                  die={approachDieSize}
-                  damageDie={damageDieSize}
-                  onRoll={(count) => onRollApproachDie(field, count)}
-                  onOverload={() => onOverloadApproachDie(field)}
-                />
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {restWidget}
     </div>
   );
 }

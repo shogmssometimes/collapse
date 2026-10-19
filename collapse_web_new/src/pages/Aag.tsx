@@ -1,18 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ApproachStats, CoreStats } from "../types/chud";
 import { DEFAULT_APPROACH, DEFAULT_DRAW, DEFAULT_WT, DEFAULT_AP, DEFAULT_INVENTORY_SLOTS, computeDerived } from "../domain/chudStats";
-import {
-  DEFAULT_DIE_SIZE,
-  isDieSides,
-  rollApproachDice,
-  spendOverloadDie,
-  stepUp,
-  type DieSides,
-} from "../domain/approachDice";
-import type { ApproachDieRollResult } from "../chud/components/ApproachDie";
+import { isDieSides, stepUp, type DieSides } from "../domain/approachDice";
 import { clampApproachToCore } from "../domain/coreApproachMap";
 import { loadState, readGearData } from "../utils/chudPersistence";
 import { Page2Panel } from "../chud/panels/Page2Panel";
+import { RestWidget } from "../chud/components/RestWidget";
 import "./aagPage2.css";
 
 const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 4;
@@ -32,14 +25,8 @@ export default function AagPage({
 
   const [core, setCore] = useState<CoreStats>(saved?.core ?? { vigor: 0, inference: 0, personality: 0 });
   const [approach, setApproach] = useState<ApproachStats>(() => clampApproachToCore(saved?.approach ?? DEFAULT_APPROACH, saved?.core ?? { vigor: 0, inference: 0, personality: 0 }));
-  const [approachDieSize, setApproachDieSize] = useState<DieSides>(
-    isDieSides(saved?.approachDieSize) ? saved.approachDieSize : DEFAULT_DIE_SIZE
-  );
   const [damageDieSize, setDamageDieSize] = useState<DieSides>(
     isDieSides(saved?.damageDieSize) ? saved.damageDieSize : DEFAULT_DAMAGE_DIE_SIZE
-  );
-  const [approachOverloadSpent, setApproachOverloadSpent] = useState<Partial<Record<keyof ApproachStats, number>>>(
-    saved?.approachOverloadSpent ?? {}
   );
   const [wt, setWtRaw] = useState<number>(saved?.wt ?? DEFAULT_WT);
   const [ap, setApRaw] = useState<number>(saved?.ap ?? DEFAULT_AP);
@@ -76,17 +63,6 @@ export default function AagPage({
     []
   );
 
-  const increaseApproachDieSize = useCallback((): DieSides => {
-    const nextDie = stepUp(approachDieSize);
-    setApproachDieSize(nextDie);
-    return nextDie;
-  }, [approachDieSize]);
-
-  const resetApproachDieSize = useCallback((): DieSides => {
-    setApproachDieSize(DEFAULT_DIE_SIZE);
-    return DEFAULT_DIE_SIZE;
-  }, []);
-
   const increaseDamageDieSize = useCallback((): DieSides => {
     const nextDie = stepUp(damageDieSize);
     setDamageDieSize(nextDie);
@@ -98,19 +74,6 @@ export default function AagPage({
     return DEFAULT_DAMAGE_DIE_SIZE;
   }, []);
 
-  const rollApproachDie = useCallback((_field: keyof ApproachStats, count: number): ApproachDieRollResult => {
-    return rollApproachDice(count, approachDieSize);
-  }, [approachDieSize]);
-
-  const overloadApproachDie = useCallback((field: keyof ApproachStats): boolean => {
-    const rating = approach[field];
-    const spent = approachOverloadSpent[field] ?? 0;
-    const next = spendOverloadDie(rating, spent);
-    if (next === spent) return false; // pool already exhausted
-    setApproachOverloadSpent((prev) => ({ ...prev, [field]: next }));
-    return true;
-  }, [approach, approachOverloadSpent]);
-
   const derived = computeDerived(core);
   const isOverEncumbered = gearSlotsUsed > inventorySlots;
 
@@ -121,13 +84,13 @@ export default function AagPage({
     try {
       const raw = window.localStorage.getItem(chudStateStorageKey);
       const prev = raw ? JSON.parse(raw) : {};
-      const merged = { ...prev, core, approach, approachDieSize, damageDieSize, approachOverloadSpent, wt, ap, draw, inventorySlots };
+      const merged = { ...prev, core, approach, damageDieSize, wt, ap, draw, inventorySlots };
       delete merged.approachDice;
       window.localStorage.setItem(chudStateStorageKey, JSON.stringify(merged));
     } catch {
       // storage unavailable — ignore
     }
-  }, [chudStateStorageKey, core, approach, approachDieSize, damageDieSize, approachOverloadSpent, wt, ap, draw, inventorySlots]);
+  }, [chudStateStorageKey, core, approach, damageDieSize, wt, ap, draw, inventorySlots]);
 
   // Cross-tab / cross-iframe sync for these fields.
   useEffect(() => {
@@ -137,9 +100,7 @@ export default function AagPage({
           const s = JSON.parse(e.newValue);
           if (s.core) setCore(s.core);
           if (s.approach) setApproach(clampApproachToCore(s.approach, s.core ?? core));
-          if (isDieSides(s.approachDieSize)) setApproachDieSize(s.approachDieSize);
           if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
-          if (s.approachOverloadSpent) setApproachOverloadSpent(s.approachOverloadSpent);
           if (typeof s.wt === "number") setWtRaw(Math.max(0, s.wt));
           if (typeof s.ap === "number") setApRaw(Math.max(0, s.ap));
           if (typeof s.inventorySlots === "number") setInventorySlotsRaw(Math.max(0, s.inventorySlots));
@@ -177,15 +138,10 @@ export default function AagPage({
           onCoreChange={setCoreField}
           approach={approach}
           onApproachChange={setApproachField}
-          approachDieSize={approachDieSize}
-          onApproachDieSizeIncrease={increaseApproachDieSize}
-          onApproachDieSizeReset={resetApproachDieSize}
           damageDieSize={damageDieSize}
           onDamageDieSizeIncrease={increaseDamageDieSize}
           onDamageDieSizeReset={resetDamageDieSize}
-          onRollApproachDie={rollApproachDie}
-          approachOverloadSpent={approachOverloadSpent}
-          onOverloadApproachDie={overloadApproachDie}
+          restWidget={<RestWidget storageKey={chudStateStorageKey} />}
         />
       </div>
     </div>

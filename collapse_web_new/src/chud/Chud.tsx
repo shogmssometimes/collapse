@@ -1,17 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
 import "./chud.css";
-import type { CoreStats, GearSlotEntry, SaveState } from "../types/chud";
+import type { ApproachStats, CoreStats, GearSlotEntry, SaveState } from "../types/chud";
 import {
   DEFAULT_DRAW,
   DEFAULT_AP,
   DEFAULT_INVENTORY_SLOTS,
   DEFAULT_HP_COUNTER,
+  DEFAULT_APPROACH,
   computeDerived,
 } from "../domain/chudStats";
+import {
+  DEFAULT_DIE_SIZE,
+  isDieSides,
+  rollApproachDice,
+  spendOverloadDie,
+  stepUp,
+  type DieSides,
+} from "../domain/approachDice";
+import type { ApproachDieRollResult } from "./components/ApproachDie";
+import { clampApproachToCore } from "../domain/coreApproachMap";
 import { loadState, readGearData } from "../utils/chudPersistence";
 import { CollapseOverlay } from "./panels/CollapseOverlay";
 import { HPPanel } from "./panels/HPPanel";
 import { GearPanel } from "./panels/GearPanel";
+import { ApproachPanel } from "./components/ApproachPanel";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -25,6 +37,7 @@ const _chudSlot = (() => {
 
 const STORAGE_KEY = _chudSlot === 1 ? "chud.state.v1" : `chud.state.slot.${_chudSlot}`;
 const GEAR_SLOTS_KEY = _chudSlot === 1 ? "gear.slots.v1" : `gear.slots.slot.${_chudSlot}`;
+const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 4;
 
 // ── RepCard, StatCard, GearBriefWidget ─────────────────────────────────
 // (extracted to ./components/*.tsx)
@@ -36,6 +49,16 @@ export default function Chud() {
   const saved = loadState(STORAGE_KEY);
 
   const [core, setCore] = useState<CoreStats>(saved?.core ?? { vigor: 0, inference: 0, personality: 0 });
+  const [approach, setApproach] = useState<ApproachStats>(() => clampApproachToCore(saved?.approach ?? DEFAULT_APPROACH, saved?.core ?? { vigor: 0, inference: 0, personality: 0 }));
+  const [approachDieSize, setApproachDieSize] = useState<DieSides>(
+    isDieSides(saved?.approachDieSize) ? saved.approachDieSize : DEFAULT_DIE_SIZE
+  );
+  const [damageDieSize, setDamageDieSize] = useState<DieSides>(
+    isDieSides(saved?.damageDieSize) ? saved.damageDieSize : DEFAULT_DAMAGE_DIE_SIZE
+  );
+  const [approachOverloadSpent, setApproachOverloadSpent] = useState<Partial<Record<keyof ApproachStats, number>>>(
+    saved?.approachOverloadSpent ?? {}
+  );
   const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? DEFAULT_HP_COUNTER);
   const [ap, setApRaw] = useState<number>(saved?.ap ?? DEFAULT_AP);
   const [draw, setDrawRaw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
@@ -65,19 +88,60 @@ export default function Chud() {
     if (hpCounter > 0) setCollapseUnlocked(false);
   }, [hpCounter]);
 
+  const increaseApproachDieSize = useCallback((): DieSides => {
+    const nextDie = stepUp(approachDieSize);
+    setApproachDieSize(nextDie);
+    return nextDie;
+  }, [approachDieSize]);
+
+  const resetApproachDieSize = useCallback((): DieSides => {
+    setApproachDieSize(DEFAULT_DIE_SIZE);
+    return DEFAULT_DIE_SIZE;
+  }, []);
+
+  const rollApproachDie = useCallback((_field: keyof ApproachStats, count: number): ApproachDieRollResult => {
+    return rollApproachDice(count, approachDieSize);
+  }, [approachDieSize]);
+
+  const overloadApproachDie = useCallback((field: keyof ApproachStats): boolean => {
+    const rating = approach[field];
+    const spent = approachOverloadSpent[field] ?? 0;
+    const next = spendOverloadDie(rating, spent);
+    if (next === spent) return false; // pool already exhausted
+    setApproachOverloadSpent((prev) => ({ ...prev, [field]: next }));
+    return true;
+  }, [approach, approachOverloadSpent]);
+
   // Persist to localStorage. Merge with whatever is currently saved so
-  // fields owned by the AAG/MGR pages (approach, wt, secondary, statReps)
-  // aren't clobbered.
+  // fields owned by the AAG/MGR pages (wt, secondary, statReps) aren't
+  // clobbered. `approach` itself (the distributed ratings) is owned by the
+  // AAG page too — this is only ever an echo of the synced value, never a
+  // write from here — but approachDieSize/damageDieSize/approachOverloadSpent
+  // are owned here now that the Approach dice live in the HUD.
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       const prev = raw ? JSON.parse(raw) : {};
-      const state: SaveState = { ...prev, core, hpCounter, ap, draw, inventorySlots, secondary: prev.secondary, statReps: prev.statReps, shortRest };
+      const state: SaveState = {
+        ...prev,
+        core,
+        hpCounter,
+        approach,
+        approachDieSize,
+        damageDieSize,
+        approachOverloadSpent,
+        ap,
+        draw,
+        inventorySlots,
+        secondary: prev.secondary,
+        statReps: prev.statReps,
+        shortRest,
+      };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       // storage unavailable — ignore
     }
-  }, [core, hpCounter, ap, draw, inventorySlots, shortRest]);
+  }, [core, hpCounter, approach, approachDieSize, damageDieSize, approachOverloadSpent, ap, draw, inventorySlots, shortRest]);
 
   // Cross-tab sync
   useEffect(() => {
@@ -86,6 +150,10 @@ export default function Chud() {
       try {
         const s = JSON.parse(e.newValue) as Partial<SaveState>;
         if (s.core) setCore(s.core);
+        if (s.approach) setApproach(clampApproachToCore(s.approach, s.core ?? core));
+        if (isDieSides(s.approachDieSize)) setApproachDieSize(s.approachDieSize);
+        if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
+        if (s.approachOverloadSpent) setApproachOverloadSpent(s.approachOverloadSpent);
         if (typeof s.hpCounter === "number") setHpCounterRaw(s.hpCounter);
         if (typeof s.ap === "number") setApRaw(Math.max(0, s.ap));
         if (typeof s.draw === "number") setDrawRaw(Math.max(0, s.draw));
@@ -138,6 +206,17 @@ export default function Chud() {
             gearSlotsUsed={gearSlotsUsed}
             gearSlotsKey={GEAR_SLOTS_KEY}
             inventorySlots={inventorySlots}
+          />
+
+          <ApproachPanel
+            approach={approach}
+            approachDieSize={approachDieSize}
+            onApproachDieSizeIncrease={increaseApproachDieSize}
+            onApproachDieSizeReset={resetApproachDieSize}
+            damageDieSize={damageDieSize}
+            onRollApproachDie={rollApproachDie}
+            approachOverloadSpent={approachOverloadSpent}
+            onOverloadApproachDie={overloadApproachDie}
           />
 
         </section>
