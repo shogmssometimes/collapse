@@ -81,8 +81,12 @@ export function ApproachDieSizeControl({
       return
     }
     if (!start) return
-    const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y)
-    if (distance >= SWIPE_THRESHOLD_PX) {
+    const dx = event.clientX - start.x
+    const dy = event.clientY - start.y
+    // Only a rightward swipe (dominant horizontal motion) triggers reset, so
+    // it can't be mistaken for vertical scrolling and matches the
+    // swipe-right convention used elsewhere in the app.
+    if (dx >= SWIPE_THRESHOLD_PX && dx > Math.abs(dy)) {
       const nextDie = onReset()
       showFeedback("reset", nextDie)
     }
@@ -93,18 +97,28 @@ export function ApproachDieSizeControl({
     pointerStart.current = null
   }
 
+  const handleContextMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    // Right-click is the desktop/browser-friendly equivalent of the
+    // swipe-right-to-reset gesture.
+    event.preventDefault()
+    cancelLongPress()
+    pointerStart.current = null
+    const nextDie = onReset()
+    showFeedback("reset", nextDie)
+  }
+
   return (
     <div className={`approach-die-size-control${compact ? " compact" : ""}`}>
       <button
         type="button"
         className={`approach-die-size-button${pressing ? " pressing" : ""}${feedback ? ` ${feedback.direction}` : ""}`}
-        aria-label={`${label}, D${die}. Long press to increase die size; swipe to reset it.`}
+        aria-label={`${label}, D${die}. Long press to increase die size; swipe right or right-click to reset it.`}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
         onPointerCancel={handlePointerLeave}
         onClick={(event) => event.preventDefault()}
-        onContextMenu={(event) => event.preventDefault()}
+        onContextMenu={handleContextMenu}
       >
         <span className="approach-die-size-value">D{die}</span>
         <span className="approach-die-size-hint">{label}</span>
@@ -114,7 +128,7 @@ export function ApproachDieSizeControl({
           </span>
         )}
       </button>
-      <span className="approach-die-size-instructions">LONG PRESS: UP · SWIPE: RESET</span>
+      <span className="approach-die-size-instructions">LONG PRESS: UP · SWIPE RIGHT: RESET</span>
     </div>
   )
 }

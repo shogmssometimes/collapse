@@ -22,7 +22,6 @@ export interface SecondaryStats {
 }
 
 export interface StatReps {
-  draw: number;
   invSlots: number;
 }
 

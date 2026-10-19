@@ -20,7 +20,7 @@ export const DEFAULT_SECONDARY: SecondaryStats = {
   personality: 0,
 };
 
-export const DEFAULT_STAT_REPS: StatReps = { draw: 0, invSlots: 0 };
+export const DEFAULT_STAT_REPS: StatReps = { invSlots: 0 };
 
 export function computeDerived(core: CoreStats) {
   return {

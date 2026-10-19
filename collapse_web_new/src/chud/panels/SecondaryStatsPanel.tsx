@@ -1,7 +1,7 @@
 import { RepCard } from "../components/RepCard";
 import type { SecondaryStats, StatReps } from "../../types/chud";
 
-// "Reps" section: Major (secondary stat) reps + Minor (AP/Draw/Inventory) reps.
+// "Reps" section: Major (secondary stat) reps + Minor (Inventory) reps.
 // Plain section (no accordion) — lives on the standalone MGR page.
 export function SecondaryStatsPanel({
   secondary,
@@ -54,7 +54,6 @@ export function SecondaryStatsPanel({
       <div className="core-grid secondary-grid" style={{ marginTop: 8 }}>
         {([
           ['invSlots', 'INV'],
-          ['draw', 'DRAW'],
         ] as Array<[keyof StatReps, string]>).map(([field, label]) => (
           <RepCard
             key={field}

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CoreStats, SecondaryStats, StatReps } from "../types/chud";
-import { DEFAULT_SECONDARY, DEFAULT_STAT_REPS, DEFAULT_DRAW, DEFAULT_INVENTORY_SLOTS } from "../domain/chudStats";
+import { DEFAULT_SECONDARY, DEFAULT_STAT_REPS, DEFAULT_INVENTORY_SLOTS } from "../domain/chudStats";
 import { loadState } from "../utils/chudPersistence";
 import { Wallet } from "../chud/components/Wallet";
 import { SecondaryStatsPanel } from "../chud/panels/SecondaryStatsPanel";
 import "./mgrPage.css";
 
 // MGR page: hosts the Wallet + Reps box (moved out of the CHUD iframe).
-// Reads core/draw/inventorySlots (owned by CHUD) read-only for rep
+// Reads core/inventorySlots (owned by CHUD) read-only for rep
 // thresholds, and owns/persists secondary + statReps itself.
 export default function MgrPage({
   chudStateStorageKey,
@@ -19,7 +19,6 @@ export default function MgrPage({
   const saved = loadState(chudStateStorageKey);
 
   const [core, setCore] = useState<CoreStats>(saved?.core ?? { vigor: 0, inference: 0, personality: 0 });
-  const [draw, setDraw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
   const [inventorySlots, setInventorySlots] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
 
   const [secondary, setSecondary] = useState<SecondaryStats>(saved?.secondary ?? DEFAULT_SECONDARY);
@@ -27,7 +26,7 @@ export default function MgrPage({
   const [levelUpReady, setLevelUpReady] = useState<Record<keyof SecondaryStats, boolean>>({
     vigor: false, inference: false, personality: false,
   });
-  const [statLevelUpReady, setStatLevelUpReady] = useState({ draw: false, invSlots: false });
+  const [statLevelUpReady, setStatLevelUpReady] = useState({ invSlots: false });
 
   // Persist secondary/statReps — read-merge-write so fields owned by CHUD
   // (core/hpCounter/draw/inventorySlots/etc.) aren't clobbered.
@@ -42,7 +41,7 @@ export default function MgrPage({
     }
   }, [chudStateStorageKey, secondary, statReps]);
 
-  // Cross-tab/iframe sync: pick up core/draw/inventorySlots changes owned
+  // Cross-tab/iframe sync: pick up core/inventorySlots changes owned
   // by CHUD, and secondary/statReps changes from other tabs of this page.
   useEffect(() => {
     const handler = (e: StorageEvent) => {
@@ -50,7 +49,6 @@ export default function MgrPage({
       try {
         const s = JSON.parse(e.newValue);
         if (s.core) setCore(s.core);
-        if (typeof s.draw === "number") setDraw(Math.max(0, s.draw));
         if (typeof s.inventorySlots === "number") setInventorySlots(Math.max(0, s.inventorySlots));
         if (s.secondary) setSecondary(s.secondary);
         if (s.statReps) setStatReps(s.statReps);
@@ -87,11 +85,8 @@ export default function MgrPage({
   }, []);
 
   const statRepThreshold = useCallback(
-    (field: keyof StatReps) => {
-      if (field === "draw") return draw + 1;
-      return inventorySlots + 1;
-    },
-    [draw, inventorySlots]
+    (_field: keyof StatReps) => inventorySlots + 1,
+    [inventorySlots]
   );
 
   const incrementStatRep = useCallback(
