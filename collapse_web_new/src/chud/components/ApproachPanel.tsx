@@ -42,11 +42,6 @@ export function ApproachPanel({
   return (
     <div className="mods">
       <h3>Approach</h3>
-      <ApproachDieSizeControl
-        die={approachDieSize}
-        onIncrease={onApproachDieSizeIncrease}
-        onReset={onApproachDieSizeReset}
-      />
       <div className="core-grid approach-grid">
         {approachStats.map(([field, label]) => {
           const rating = approach[field];
@@ -67,6 +62,12 @@ export function ApproachPanel({
           );
         })}
       </div>
+      <ApproachDieSizeControl
+        die={approachDieSize}
+        onIncrease={onApproachDieSizeIncrease}
+        onReset={onApproachDieSizeReset}
+        compact
+      />
     </div>
   );
 }

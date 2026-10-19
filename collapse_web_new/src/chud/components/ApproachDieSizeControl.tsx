@@ -12,6 +12,7 @@ export function ApproachDieSizeControl({
   onIncrease,
   onReset,
   label = "SHARED APPROACH DIE",
+  compact = false,
 }: {
   die: DieSides
   onIncrease: () => DieSides
@@ -20,6 +21,8 @@ export function ApproachDieSizeControl({
    * arm-via-tap gesture). */
   onReset: () => DieSides
   label?: string
+  /** Renders a smaller footer-style variant (used under the HUD's Approach grid). */
+  compact?: boolean
 }) {
   const [pressing, setPressing] = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
@@ -91,7 +94,7 @@ export function ApproachDieSizeControl({
   }
 
   return (
-    <div className="approach-die-size-control">
+    <div className={`approach-die-size-control${compact ? " compact" : ""}`}>
       <button
         type="button"
         className={`approach-die-size-button${pressing ? " pressing" : ""}${feedback ? ` ${feedback.direction}` : ""}`}
