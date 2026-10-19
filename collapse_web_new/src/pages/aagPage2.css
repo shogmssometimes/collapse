@@ -295,10 +295,10 @@
   font-size: 1.76rem;
 }
 
-/* Row 3: AP | Draw | Capacity | Inventory Slots — 25% smaller, always
-   4-across (including on mobile) */
+/* Row 3: Capacity | Inventory Slots — 25% smaller, always 2-across
+   (including on mobile) */
 .aag-page2 .row-compact-3 {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 4px;
 }
 

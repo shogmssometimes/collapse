@@ -3,7 +3,6 @@ import "./chud.css";
 import type { ApproachStats, CoreStats, GearSlotEntry, SaveState } from "../types/chud";
 import {
   DEFAULT_DRAW,
-  DEFAULT_AP,
   DEFAULT_INVENTORY_SLOTS,
   DEFAULT_HP_COUNTER,
   DEFAULT_APPROACH,
@@ -60,7 +59,6 @@ export default function Chud() {
     saved?.approachOverloadSpent ?? {}
   );
   const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? DEFAULT_HP_COUNTER);
-  const [ap, setApRaw] = useState<number>(saved?.ap ?? DEFAULT_AP);
   const [draw, setDrawRaw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
   const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
   const [gearEntries, setGearEntries] = useState<GearSlotEntry[] | null>(() =>
@@ -130,7 +128,6 @@ export default function Chud() {
         approachDieSize,
         damageDieSize,
         approachOverloadSpent,
-        ap,
         draw,
         inventorySlots,
         secondary: prev.secondary,
@@ -141,7 +138,7 @@ export default function Chud() {
     } catch {
       // storage unavailable — ignore
     }
-  }, [core, hpCounter, approach, approachDieSize, damageDieSize, approachOverloadSpent, ap, draw, inventorySlots, shortRest]);
+  }, [core, hpCounter, approach, approachDieSize, damageDieSize, approachOverloadSpent, draw, inventorySlots, shortRest]);
 
   // Cross-tab sync
   useEffect(() => {
@@ -155,7 +152,6 @@ export default function Chud() {
         if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
         if (s.approachOverloadSpent) setApproachOverloadSpent(s.approachOverloadSpent);
         if (typeof s.hpCounter === "number") setHpCounterRaw(s.hpCounter);
-        if (typeof s.ap === "number") setApRaw(Math.max(0, s.ap));
         if (typeof s.draw === "number") setDrawRaw(Math.max(0, s.draw));
         if (typeof s.inventorySlots === "number") setInventorySlotsRaw(Math.max(0, s.inventorySlots));
         if (typeof s.shortRest === "boolean") setShortRest(s.shortRest);

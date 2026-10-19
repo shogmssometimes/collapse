@@ -54,7 +54,6 @@ export function SecondaryStatsPanel({
       <div className="core-grid secondary-grid" style={{ marginTop: 8 }}>
         {([
           ['invSlots', 'INV'],
-          ['ap', 'AP'],
           ['draw', 'DRAW'],
         ] as Array<[keyof StatReps, string]>).map(([field, label]) => (
           <RepCard

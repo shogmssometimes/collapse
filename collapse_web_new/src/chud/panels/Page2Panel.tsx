@@ -10,7 +10,7 @@ import { CORE_APPROACH_MAP, APPROACH_LABELS, CORE_LABELS } from "../../domain/co
 // Page 2 (AAG): —
 //   1. Readyness | MGR button
 //   2. WT | Damage die
-//   3. AP | Capacity | Inventory Slots
+//   3. Capacity | Inventory Slots
 //   4. Core Stats (long-press opens the Approach distribution popout)
 // The Approach dice cards (tap-arm / hold-roll) and the Short Rest / Dig
 // Deep / Full Rest stack live elsewhere now — Approach moved to the HUD,
@@ -22,9 +22,6 @@ export function Page2Panel({
   wt,
   onWtIncr,
   onWtDecr,
-  ap,
-  onApIncr,
-  onApDecr,
   capacity,
   inventorySlots,
   onInventoryIncr,
@@ -44,9 +41,6 @@ export function Page2Panel({
   wt: number;
   onWtIncr: () => void;
   onWtDecr: () => void;
-  ap: number;
-  onApIncr: () => void;
-  onApDecr: () => void;
   capacity: number;
   inventorySlots: number;
   onInventoryIncr: () => void;
@@ -97,9 +91,8 @@ export function Page2Panel({
         />
       </div>
 
-      {/* Row 3: AP | Capacity | Inventory Slots (25% smaller, 3-across on mobile) */}
+      {/* Row 3: Capacity | Inventory Slots (25% smaller, 2-across on mobile) */}
       <div className="core-grid row-compact-3">
-        <StatCard label="AP" value={ap} onIncr={onApIncr} onDecr={onApDecr} />
         <div className="chip">
           <span>Capacity</span>
           <strong>{capacity}</strong>

@@ -4,7 +4,6 @@ export const DEFAULT_CORE: CoreStats = { vigor: 3, inference: 2, personality: 2 
 export const DEFAULT_DRAW = 5;
 export const DEFAULT_WT = 3;
 export const DEFAULT_INVENTORY_SLOTS = 4;
-export const DEFAULT_AP = 4;
 export const DEFAULT_HP_COUNTER = 1;
 export const DEFAULT_APPROACH: ApproachStats = {
   force: 0,
@@ -21,7 +20,7 @@ export const DEFAULT_SECONDARY: SecondaryStats = {
   personality: 0,
 };
 
-export const DEFAULT_STAT_REPS: StatReps = { ap: 0, draw: 0, invSlots: 0 };
+export const DEFAULT_STAT_REPS: StatReps = { draw: 0, invSlots: 0 };
 
 export function computeDerived(core: CoreStats) {
   return {

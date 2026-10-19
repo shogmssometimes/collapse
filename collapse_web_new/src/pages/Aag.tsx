@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ApproachStats, CoreStats } from "../types/chud";
-import { DEFAULT_APPROACH, DEFAULT_DRAW, DEFAULT_WT, DEFAULT_AP, DEFAULT_INVENTORY_SLOTS, computeDerived } from "../domain/chudStats";
+import { DEFAULT_APPROACH, DEFAULT_DRAW, DEFAULT_WT, DEFAULT_INVENTORY_SLOTS, computeDerived } from "../domain/chudStats";
 import { isDieSides, stepUp, type DieSides } from "../domain/approachDice";
 import { clampApproachToCore } from "../domain/coreApproachMap";
 import { loadState, readGearData } from "../utils/chudPersistence";
@@ -29,7 +29,6 @@ export default function AagPage({
     isDieSides(saved?.damageDieSize) ? saved.damageDieSize : DEFAULT_DAMAGE_DIE_SIZE
   );
   const [wt, setWtRaw] = useState<number>(saved?.wt ?? DEFAULT_WT);
-  const [ap, setApRaw] = useState<number>(saved?.ap ?? DEFAULT_AP);
   // Draw no longer has editable UI on the AAG page, but the value is still
   // read by the MGR page's Reps tracker, so it's kept here only to avoid
   // clobbering it on every persist.
@@ -40,7 +39,6 @@ export default function AagPage({
   );
 
   const setWt = useCallback((v: number) => setWtRaw(Math.max(0, v)), []);
-  const setAp = useCallback((v: number) => setApRaw(Math.max(0, v)), []);
   const setInventorySlots = useCallback((v: number) => setInventorySlotsRaw(Math.max(0, v)), []);
 
   // A Core stat's value is the total pool its two linked Approaches draw
@@ -84,13 +82,13 @@ export default function AagPage({
     try {
       const raw = window.localStorage.getItem(chudStateStorageKey);
       const prev = raw ? JSON.parse(raw) : {};
-      const merged = { ...prev, core, approach, damageDieSize, wt, ap, draw, inventorySlots };
+      const merged = { ...prev, core, approach, damageDieSize, wt, draw, inventorySlots };
       delete merged.approachDice;
       window.localStorage.setItem(chudStateStorageKey, JSON.stringify(merged));
     } catch {
       // storage unavailable — ignore
     }
-  }, [chudStateStorageKey, core, approach, damageDieSize, wt, ap, draw, inventorySlots]);
+  }, [chudStateStorageKey, core, approach, damageDieSize, wt, draw, inventorySlots]);
 
   // Cross-tab / cross-iframe sync for these fields.
   useEffect(() => {
@@ -102,7 +100,6 @@ export default function AagPage({
           if (s.approach) setApproach(clampApproachToCore(s.approach, s.core ?? core));
           if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
           if (typeof s.wt === "number") setWtRaw(Math.max(0, s.wt));
-          if (typeof s.ap === "number") setApRaw(Math.max(0, s.ap));
           if (typeof s.inventorySlots === "number") setInventorySlotsRaw(Math.max(0, s.inventorySlots));
         } catch {
           // malformed storage — ignore
@@ -127,9 +124,6 @@ export default function AagPage({
           wt={wt}
           onWtIncr={() => setWt(wt + 1)}
           onWtDecr={() => setWt(wt - 1)}
-          ap={ap}
-          onApIncr={() => setAp(ap + 1)}
-          onApDecr={() => setAp(ap - 1)}
           capacity={derived.capacity}
           inventorySlots={inventorySlots}
           onInventoryIncr={() => setInventorySlots(inventorySlots + 1)}

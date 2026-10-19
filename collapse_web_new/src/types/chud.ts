@@ -22,7 +22,6 @@ export interface SecondaryStats {
 }
 
 export interface StatReps {
-  ap: number;
   draw: number;
   invSlots: number;
 }
@@ -35,7 +34,6 @@ export interface SaveState {
   damageDieSize?: import('../domain/approachDice').DieSides;
   approachOverloadSpent?: Partial<Record<keyof ApproachStats, number>>;
   wt: number;
-  ap: number;
   draw: number;
   inventorySlots: number;
   secondary?: SecondaryStats;
