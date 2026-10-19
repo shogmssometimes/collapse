@@ -797,7 +797,7 @@ body::after {
   -webkit-appearance: none;
   color: inherit;
   font: inherit;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 1.1 / 1;
   width: 100%;
 }
 
