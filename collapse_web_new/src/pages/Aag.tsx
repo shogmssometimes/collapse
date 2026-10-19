@@ -10,6 +10,7 @@ import {
   type DieSides,
 } from "../domain/approachDice";
 import type { ApproachDieRollResult } from "../chud/components/ApproachDie";
+import { clampApproachToCore } from "../domain/coreApproachMap";
 import { loadState, readGearData } from "../utils/chudPersistence";
 import { Page2Panel } from "../chud/panels/Page2Panel";
 import "./aagPage2.css";
@@ -30,7 +31,7 @@ export default function AagPage({
   const saved = loadState(chudStateStorageKey);
 
   const [core, setCore] = useState<CoreStats>(saved?.core ?? { vigor: 0, inference: 0, personality: 0 });
-  const [approach, setApproach] = useState<ApproachStats>(saved?.approach ?? DEFAULT_APPROACH);
+  const [approach, setApproach] = useState<ApproachStats>(() => clampApproachToCore(saved?.approach ?? DEFAULT_APPROACH, saved?.core ?? { vigor: 0, inference: 0, personality: 0 }));
   const [approachDieSize, setApproachDieSize] = useState<DieSides>(
     isDieSides(saved?.approachDieSize) ? saved.approachDieSize : DEFAULT_DIE_SIZE
   );
@@ -55,9 +56,18 @@ export default function AagPage({
   const setAp = useCallback((v: number) => setApRaw(Math.max(0, v)), []);
   const setInventorySlots = useCallback((v: number) => setInventorySlotsRaw(Math.max(0, v)), []);
 
+  // A Core stat's value is the total pool its two linked Approaches draw
+  // from (see CORE_APPROACH_MAP). If the Core stat is lowered below what's
+  // already distributed, trim the overflow back out of those Approaches so
+  // the total distributed can never exceed the available pool.
   const setCoreField = useCallback(
     (field: keyof CoreStats, updater: (v: number) => number) =>
-      setCore((prev) => ({ ...prev, [field]: updater(prev[field]) })),
+      setCore((prev) => {
+        const nextValue = Math.max(0, updater(prev[field]));
+        const next = { ...prev, [field]: nextValue };
+        setApproach((prevApproach) => clampApproachToCore(prevApproach, next));
+        return next;
+      }),
     []
   );
   const setApproachField = useCallback(
@@ -126,7 +136,7 @@ export default function AagPage({
         try {
           const s = JSON.parse(e.newValue);
           if (s.core) setCore(s.core);
-          if (s.approach) setApproach(s.approach);
+          if (s.approach) setApproach(clampApproachToCore(s.approach, s.core ?? core));
           if (isDieSides(s.approachDieSize)) setApproachDieSize(s.approachDieSize);
           if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
           if (s.approachOverloadSpent) setApproachOverloadSpent(s.approachOverloadSpent);
