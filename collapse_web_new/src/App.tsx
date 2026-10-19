@@ -8,7 +8,6 @@ import AagPage from "./pages/Aag";
 import MgrPage from "./pages/Mgr";
 import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey, profileKey, CHAR_ACTIVE_KEY } from "./utils/slotKeys";
 import { parseHashRoute } from "./utils/routing";
-import { DiceDock, DiceIcon, DICE_OPEN_EVENT } from "./components/DiceRoller";
 
 function readActiveCharSlot(): number {
   if (typeof window === 'undefined') return 1;
@@ -104,13 +103,9 @@ const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; on
   onFrameLoad,
 }) => (
   <>
-  <DiceDock />
   <main className="route-view" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
     <header className="topbar" style={{ position: 'relative' }}>
       <BackButton onBack={onBack} onGoHome={onGoHome ?? onBack} />
-      <button className="ghost-btn ghost-btn-icon" onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))} aria-label="Open dice roller" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.65)' }}>
-        <DiceIcon size={18} />
-      </button>
       {actions ? <div className={actionsClassName || "topbar-actions"}>{actions}</div> : null}
     </header>
     <div className="subapp-frame">
@@ -138,15 +133,10 @@ const PlayerShell: React.FC<{ onBack: () => void; onGoHome?: () => void; childre
   };
   return (
   <div className="player-shell" style={{ minHeight: "100vh", background: "var(--bg-dark)" }}>
-    <DiceDock />
     <header className="topbar" style={{ position: 'relative' }}>
       <BackButton onBack={onBack} onGoHome={onGoHome ?? onBack} />
       <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        {centerContent ?? (
-          <button className="ghost-btn ghost-btn-icon" onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))} aria-label="Open dice roller" style={{ color: 'rgba(255,255,255,0.65)' }}>
-            <DiceIcon size={18} />
-          </button>
-        )}
+        {centerContent}
       </div>
       <div className="topbar-actions">
         {!hideHud && (
@@ -382,15 +372,7 @@ const HubLanding: React.FC<{
     <>
     <main className="hub-landing">
       <div className="hub-landing-content" style={{ width: "min(1100px, 100%)", padding: "1.25rem 1rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-          <button
-            className="ghost-btn ghost-btn-icon"
-            onClick={() => window.dispatchEvent(new Event(DICE_OPEN_EVENT))}
-            aria-label="Open dice roller"
-            style={{ color: "var(--muted)" }}
-          >
-            <DiceIcon size={18} />
-          </button>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: "0.5rem" }}>
           <a
             href={`${import.meta.env.BASE_URL}gm.html`}
             style={{ color: "var(--muted)", fontSize: "0.85rem", textDecoration: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "0.3rem 0.75rem" }}
@@ -712,7 +694,6 @@ export default function App() {
 
   return (
     <>
-      <DiceDock />
       {chudDock}
       <HubLanding onNavigate={(next) => { setHudReturnRoute("hub"); setRoute(next); }} />
     </>
