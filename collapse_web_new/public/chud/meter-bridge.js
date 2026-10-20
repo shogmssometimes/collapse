@@ -243,10 +243,11 @@ function createStyles() {
     .status-roll-save-chip-tag.doubled { color: #ffd43b; }
     .status-roll-save-total { width: 100%; text-align: center; font-size: 16px; font-weight: 800; color: #e9f0ff; margin-top: 2px; }
     .status-roll-save-pool-hint { text-align: center; font-size: 9px; color: rgba(248,250,252,0.5); }
-    .status-roll-save-btn.apply { align-self: center; }
+    .status-roll-save-btn.apply { align-self: stretch; width: 100%; box-sizing: border-box; padding: 13px 14px; font-size: 12px; margin-top: 2px; }
+    .status-roll-save-pip.fading { opacity: 0.3; transition: opacity 0.9s ease; }
 
-    /* ── Cleared Set overlay (shown after a Save passes) ─────────────── */
-    .status-roll-cleared-overlay { position: absolute; inset: -2px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; letter-spacing: 0.06em; color: #4ade80; background: rgba(10,16,12,0.9); border: 1px solid rgba(74,222,128,0.45); border-radius: 8px; cursor: pointer; animation: status-roll-cleared-flash 1.6s ease-in-out infinite; }
+    /* ── Cleared Set overlay (shown after a Save passes, spans the full row) ── */
+    .status-roll-cleared-overlay { position: absolute; inset: -2px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: #4ade80; background: rgba(10,16,12,0.92); border: 1px solid rgba(74,222,128,0.45); border-radius: 9px; cursor: pointer; z-index: 5; animation: status-roll-cleared-flash 1.6s ease-in-out infinite; }
     @keyframes status-roll-cleared-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
     /* ── Combat Panel ──────────────────────────────────────────────── */
@@ -810,14 +811,33 @@ function buildStatusRollsPanel() {
       let spent = readOverloadSpent(field)
       let available = Math.max(0, rating - spent)
       let armed = 0
+      let armedFading = false
+      let armedFadeTimer = null
+      let armedIdleTimer = null
       let dice = null
       const overloadedSet = new Set()
+
+      // Mirrors the real Approach die: an armed-but-unrolled die that sits
+      // idle for 30s fades out over the last second as a warning, then
+      // un-arms itself. Any change to `armed` restarts this.
+      const clearArmedTimers = () => {
+        if (armedFadeTimer !== null) { clearTimeout(armedFadeTimer); armedFadeTimer = null }
+        if (armedIdleTimer !== null) { clearTimeout(armedIdleTimer); armedIdleTimer = null }
+      }
+      const scheduleArmedTimers = () => {
+        clearArmedTimers()
+        armedFading = false
+        if (armed <= 0) return
+        armedFadeTimer = setTimeout(() => { armedFading = true; renderPips() }, 29000)
+        armedIdleTimer = setTimeout(() => { armed = 0; armedFading = false; renderPips() }, 30000)
+      }
 
       const backBtn = document.createElement('button')
       backBtn.className = 'status-roll-save-back'
       backBtn.setAttribute('data-touch-blocker-ignore', '')
       backBtn.textContent = '← Choose Approach'
-      backBtn.addEventListener('click', () => renderApproachPicker())
+      backBtn.addEventListener('click', () => { clearArmedTimers(); renderApproachPicker() })
+      closeBtn.addEventListener('click', clearArmedTimers)
 
       const pips = document.createElement('div')
       pips.className = 'status-roll-save-pips'
@@ -858,7 +878,7 @@ function buildStatusRollsPanel() {
         }
         for (let i = 0; i < available; i++) {
           const pip = document.createElement('span')
-          pip.className = `status-roll-save-pip${i < armed ? ' armed' : ''}`
+          pip.className = `status-roll-save-pip${i < armed ? ' armed' : ''}${i < armed && armedFading ? ' fading' : ''}`
           pips.appendChild(pip)
         }
         armedHint.textContent = available <= 0
@@ -871,10 +891,12 @@ function buildStatusRollsPanel() {
         if (dice) return // already rolled this round — back out to reroll
         if (armed >= available) { armed = 0 } else { armed += 1 }
         renderPips()
+        scheduleArmedTimers()
       })
 
       rollBtn.addEventListener('click', () => {
         if (armed <= 0) return
+        clearArmedTimers()
         dice = rollApproachExplodeDice(armed, dieSize)
         overloadedSet.clear()
         pips.style.display = 'none'
@@ -1176,7 +1198,8 @@ function buildStatusRollsPanel() {
           }
           tapTimer = setTimeout(() => { tapCount = 0 }, 600)
         })
-        valueWrap.appendChild(clearedOverlay)
+        // Covers the whole row (not just the value) so it's unmissable.
+        rowEl.appendChild(clearedOverlay)
       }
 
       const clearBtn = document.createElement('button')
