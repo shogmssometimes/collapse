@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ApproachStats } from "../../types/chud";
 
 const APPROACH_FIELDS: Array<keyof ApproachStats> = ["force", "finesse", "guts", "logic", "show", "tell"];
+
+const SWIPE_THRESHOLD_PX = 40;
 
 type DigDeepBanner = { d1: number; d2: number; lose: number; gain: number; ts: number };
 
@@ -49,6 +52,8 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
     const v = readState(storageKey).restBanner;
     return v && typeof v === "object" ? (v as DigDeepBanner) : null;
   });
+  const [digDeepPopup, setDigDeepPopup] = useState<DigDeepBanner | null>(null);
+  const shortRestPointerStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
@@ -69,6 +74,38 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
     writeState(storageKey, { shortRestTally: next });
   }, [storageKey, tally]);
 
+  const onClearShortRest = useCallback(() => {
+    setTally(0);
+    writeState(storageKey, { shortRestTally: 0 });
+  }, [storageKey]);
+
+  const handleShortRestPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    shortRestPointerStart.current = { x: event.clientX, y: event.clientY };
+  };
+
+  const handleShortRestPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const start = shortRestPointerStart.current;
+    shortRestPointerStart.current = null;
+    if (!start) return
+    const dx = event.clientX - start.x
+    const dy = event.clientY - start.y
+    // Swipe right (dominant horizontal motion) clears the tally, matching
+    // the swipe-right convention used elsewhere in the app.
+    if (dx >= SWIPE_THRESHOLD_PX && dx > Math.abs(dy)) {
+      onClearShortRest()
+      return
+    }
+    onShortRest()
+  };
+
+  const handleShortRestContextMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    // Right-click is the desktop/browser-friendly equivalent of the
+    // swipe-right-to-clear gesture.
+    event.preventDefault()
+    shortRestPointerStart.current = null
+    onClearShortRest()
+  };
+
   const onDigDeep = useCallback(() => {
     const d1 = 1 + Math.floor(Math.random() * 4);
     const d2 = 1 + Math.floor(Math.random() * 4);
@@ -76,6 +113,7 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
     const gain = Math.min(d1, d2);
     const next: DigDeepBanner = { d1, d2, lose, gain, ts: Date.now() };
     setBanner(next);
+    setDigDeepPopup(next);
     writeState(storageKey, { restBanner: next });
   }, [storageKey]);
 
@@ -99,7 +137,7 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
       {banner && (
         <div className="rest-banner">
           <span className="rest-banner-text">
-            Dig Deep — Lose {banner.lose}, Gain {banner.gain} (rolled {banner.d1}, {banner.d2})
+            Dig Deep — Lose {banner.lose} HP, Gain {banner.gain} Grit (rolled {banner.d1}, {banner.d2})
           </span>
           <button type="button" className="rest-banner-clear" onClick={clearBanner} aria-label="Clear">
             ✕
@@ -107,8 +145,40 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
         </div>
       )}
 
+      {digDeepPopup && createPortal(
+        <div className="dig-deep-popup-backdrop" onClick={() => setDigDeepPopup(null)}>
+          <div className="dig-deep-popup" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="dig-deep-popup-close"
+              onClick={() => setDigDeepPopup(null)}
+              aria-label="Close Dig Deep result"
+            >
+              X
+            </button>
+            <div className="dig-deep-popup-label">Dig Deep</div>
+            <div className="dig-deep-popup-row">
+              <span className="dig-deep-popup-lose">LOSE {digDeepPopup.lose} HP</span>
+              <span className="dig-deep-popup-gain">GAIN {digDeepPopup.gain} GRIT</span>
+            </div>
+            <div className="dig-deep-popup-rolled">rolled {digDeepPopup.d1}, {digDeepPopup.d2}</div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       <div className="rest-stack">
-        <button type="button" className="rest-stack-btn short" onClick={onShortRest}>
+        <button
+          type="button"
+          className="rest-stack-btn short"
+          onPointerDown={handleShortRestPointerDown}
+          onPointerUp={handleShortRestPointerUp}
+          onPointerLeave={() => { shortRestPointerStart.current = null }}
+          onPointerCancel={() => { shortRestPointerStart.current = null }}
+          onClick={(event) => event.preventDefault()}
+          onContextMenu={handleShortRestContextMenu}
+          title="Tap to count a Short Rest. Swipe right or right-click to clear."
+        >
           <span>Short Rest</span>
           <span className="rest-tally-marks">
             {tallyMarks(tally).map((n, i) => (
