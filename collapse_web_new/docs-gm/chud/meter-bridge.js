@@ -45,10 +45,6 @@ function readUI() {
 function writeUIKey(key, val) {
   try { localStorage.setItem(UI_KEY, JSON.stringify({ ...readUI(), [key]: val })) } catch {}
 }
-const METERS = [
-  { key: 'record', label: 'Record', accent: '#6ac7ff' },
-  { key: 'influence', label: 'Influence', accent: '#63ffb1' },
-]
 const MAX_VALUE = 6
 
 const clamp = (n) => Math.max(0, Math.min(MAX_VALUE, n))
@@ -70,13 +66,11 @@ function readMeters() {
   if (meta) {
     return {
       collapse: clamp(meta.collapse ?? 0),
-      influence: clamp(meta.influence ?? 0),
-      record: clamp(meta.record ?? 0),
       grit: clamp(meta.grit ?? 0),
     }
   }
   // fallback to sample values used by CS Matrix when empty
-  return { collapse: 0, influence: 0, record: 0, grit: 0 }
+  return { collapse: 0, grit: 0 }
 }
 
 function writeMeters(nextMeters) {
@@ -181,12 +175,14 @@ function createStyles() {
     .chud-status-rolls { margin-top: 4px; display: flex; flex-direction: column; gap: 8px; }
     .status-roll-header { display: flex; gap: 6px; padding: 0 2px; }
     .status-roll-header span { font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(248,250,252,0.4); font-weight: 600; }
+    .status-roll-header span.col-dir { flex: 11 1 0; text-align: center; }
     .status-roll-header span.col-name { flex: 26 1 0; }
     .status-roll-header span.col-effect { flex: 42 1 0; }
     .status-roll-header span.col-value { flex: 22 1 0; text-align: center; }
     .status-roll-header span.col-clear { flex: 10 1 0; text-align: center; }
     .status-roll-rows { display: flex; flex-direction: column; gap: 6px; }
-    .status-roll-row { display: flex; gap: 6px; align-items: stretch; position: relative; }
+    .status-roll-row { display: flex; flex-direction: column; gap: 4px; position: relative; }
+    .status-roll-row-main { display: flex; gap: 6px; align-items: stretch; }
     .status-roll-name-wrap { position: relative; flex: 26 1 0; min-width: 0; }
     .status-roll-name-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 7px 8px; font-size: 11px; color: #e9f0ff; outline: none; }
     .status-roll-name-input:focus { border-color: rgba(61,232,192,0.45); }
@@ -207,6 +203,26 @@ function createStyles() {
     .status-roll-add { align-self: flex-start; margin-top: 2px; padding: 7px 14px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.26); background: transparent; color: rgba(248,250,252,0.65); font-size: 10px; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase; }
     .status-roll-add:disabled { opacity: 0.35; cursor: not-allowed; }
 
+    /* ── Set Roll direction (applied by you vs applied to you) ───────── */
+    .status-roll-direction { flex: 13 1 0; min-width: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: rgba(248,250,252,0.75); font-size: 8px; font-weight: 700; letter-spacing: 0.02em; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; text-align: center; }
+    .status-roll-direction[data-dir="in"] { border-color: rgba(111,165,255,0.45); color: #8fb4ff; background: rgba(111,165,255,0.1); }
+    .status-roll-direction[data-dir="out"] { border-color: rgba(242,208,107,0.45); color: #f2d06b; background: rgba(242,208,107,0.1); }
+    .status-roll-direction[data-holding="1"] { outline: 2px solid rgba(111,165,255,0.6); outline-offset: 1px; }
+
+    /* ── Save/Decay modal (opened via long-press on the Dir button) ──── */
+    .status-roll-save-overlay { position: fixed; inset: 0; z-index: 4000; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .status-roll-save-modal { width: 100%; max-width: 280px; background: #15181f; border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 16px; position: relative; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+    .status-roll-save-modal-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 7px; border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.1); color: #f87171; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .status-roll-save-modal-title { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(248,250,252,0.7); margin-bottom: 4px; }
+    .status-roll-save-modal-name { font-size: 14px; font-weight: 700; color: #e9f0ff; margin-bottom: 2px; }
+    .status-roll-save-modal-target { font-size: 10px; color: rgba(248,250,252,0.55); margin-bottom: 12px; }
+    .status-roll-save-modal-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .status-roll-save-modal-select { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); border-radius: 7px; color: #e9f0ff; font-size: 11px; padding: 7px 6px; }
+    .status-roll-save-btn { padding: 7px 14px; border-radius: 7px; border: 1px solid rgba(111,165,255,0.4); background: rgba(111,165,255,0.1); color: #8fb4ff; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+    .status-roll-save-result { margin-top: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 8px 10px; border-radius: 8px; }
+    .status-roll-save-result[data-outcome="pass"] { color: #4ade80; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.35); }
+    .status-roll-save-result[data-outcome="fail"] { color: #ff9f6b; background: rgba(255,159,107,0.1); border: 1px solid rgba(255,159,107,0.35); }
+
     /* ── Combat Panel ──────────────────────────────────────────────── */
     .chud-combat { margin-top: 4px; }
     .chud-combat-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: none; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 6px 0 8px; cursor: pointer; color: rgba(248,250,252,0.65); font-size: 13px; font-family: var(--font-display, inherit); font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; }
@@ -215,13 +231,7 @@ function createStyles() {
     .chud-combat-body { display: none; padding: 8px 0 0; }
     .chud-combat-body.open { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
     .combat-body-row { display: flex; gap: 8px; align-items: stretch; }
-    .combat-rt { flex: 7 1 0; min-width: 0; cursor: default; user-select: none; -webkit-user-select: none; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); }
-    .combat-rt-label { font-weight: 700; font-size: 8px; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase; }
-    .combat-rt-val { display: none; }
-    .combat-rt-pips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: center; flex: 1; }
-    .combat-rt-pip { width: 14px; height: 14px; border-radius: 50%; background: rgba(255,200,60,0.75); box-shadow: 0 0 8px rgba(255,200,60,0.45); border: 1.5px solid rgba(255,200,60,1); flex-shrink: 0; }
-    .combat-rt-none { font-size: 0.75rem; color: rgba(248,250,252,0.3); font-style: italic; }
-    .combat-chip-wrap { flex: 3 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+    .combat-chip-wrap { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
     .combat-chip-toggle { flex: 1; padding: 10px 8px; border: 1px solid rgba(74,222,128,0.4); border-radius: 10px; background: rgba(74,222,128,0.08); color: #4ade80; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms, transform 80ms; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .combat-chip-toggle:active { transform: scale(0.97); }
     .combat-chip-toggle[data-desynced="1"] { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.5); color: #f87171; }
@@ -236,15 +246,6 @@ function createStyles() {
     .combat-info-range-val { font-size: 22px; font-weight: 800; color: #0ff6ff; letter-spacing: 0.04em; font-family: var(--font-display, inherit); }
     .combat-info-range-arrow { font-size: 11px; color: rgba(248,250,252,0.3); margin-top: 8px; }
     .combat-info-die { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; border: 2px solid rgba(15,246,255,0.55); background: rgba(15,246,255,0.06); color: #0ff6ff; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; font-family: var(--font-display, inherit); }
-
-    /* ── Queue In Brief ── */
-    .combat-queue-brief { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 8px; background: rgba(8,13,23,0.92); border: 1px solid rgba(255,255,255,0.1); user-select: none; -webkit-user-select: none; touch-action: none; cursor: pointer; transition: border-color 0.3s, box-shadow 0.3s; width: 100%; box-sizing: border-box; }
-    .combat-queue-brief-eyebrow { font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(248,250,252,0.45); text-align: center; }
-    .combat-queue-brief-row { display: flex; align-items: baseline; justify-content: center; gap: 6px; min-width: 0; overflow: hidden; }
-    .combat-queue-brief-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem; font-weight: 600; color: rgba(255,255,255,0.95); text-align: center; }
-    .combat-queue-brief-badge { font-size: 0.75rem; font-variant-numeric: tabular-nums; flex-shrink: 0; color: #0ff6ff; }
-    .combat-queue-brief-badge.reaction { color: rgba(255,200,60,0.95); }
-    .combat-queue-brief-page { font-size: 0.6rem; color: rgba(248,250,252,0.3); text-align: center; letter-spacing: 0.06em; }
   `
   document.head.appendChild(style)
 }
@@ -445,59 +446,8 @@ function writeCombat(state) {
 }
 
 function buildCombatPanel() {
-  const rtSection = document.createElement('div')
-  rtSection.className = 'combat-rt'
-  rtSection.setAttribute('data-touch-blocker-ignore', '')
-
-  const rtLabel = document.createElement('span')
-  rtLabel.className = 'combat-rt-label'
-  rtLabel.textContent = 'Reaction Tokens'
-  const rtVal = document.createElement('span')
-  rtVal.className = 'combat-rt-val'
-
-  const rtPips = document.createElement('div')
-  rtPips.className = 'combat-rt-pips'
-
-  rtSection.appendChild(rtLabel)
-  rtSection.appendChild(rtVal)
-  rtSection.appendChild(rtPips)
-
-  // Long-press the Reaction Tokens widget to jump to the Combat page and make a selection.
-  const RT_HOLD_MS = 900
-  let rtHoldTimer = null
-  let rtHoldInterval = null
-  const cancelRtHold = () => {
-    if (rtHoldTimer) { clearTimeout(rtHoldTimer); rtHoldTimer = null }
-    if (rtHoldInterval) { clearInterval(rtHoldInterval); rtHoldInterval = null }
-    rtSection.style.borderColor = ''
-    rtSection.style.boxShadow = ''
-  }
-  const navigateToCombat = () => {
-    try {
-      const targetOrigin = window.location.origin && window.location.origin !== 'null' ? window.location.origin : '*'
-      window.parent.postMessage({ type: 'collapse-navigate', route: 'combat' }, targetOrigin)
-    } catch {}
-  }
-  rtSection.style.cursor = 'pointer'
-  rtSection.title = 'Hold to jump to Combat'
-  rtSection.addEventListener('pointerdown', () => {
-    const start = Date.now()
-    rtHoldInterval = setInterval(() => {
-      const pct = Math.min(((Date.now() - start) / RT_HOLD_MS) * 100, 100)
-      const glow = pct / 100
-      rtSection.style.borderColor = `rgba(255,200,60,${0.2 + 0.6 * glow})`
-      rtSection.style.boxShadow = `0 0 ${6 + 16 * glow}px rgba(255,200,60,${0.15 + 0.5 * glow})`
-    }, 30)
-    rtHoldTimer = setTimeout(() => {
-      cancelRtHold()
-      navigateToCombat()
-    }, RT_HOLD_MS)
-  })
-  rtSection.addEventListener('pointerup', cancelRtHold)
-  rtSection.addEventListener('pointerleave', cancelRtHold)
-  rtSection.addEventListener('pointercancel', cancelRtHold)
-  rtSection.addEventListener('contextmenu', ev => ev.preventDefault())
-
+  // Reaction Tokens and the action/reaction Queue have been removed (player
+  // side no longer tracks them here). Chip Sync is preserved below.
   const chipWrap = document.createElement('div')
   chipWrap.className = 'combat-chip-wrap'
   const chipBtn = document.createElement('button')
@@ -505,184 +455,15 @@ function buildCombatPanel() {
   chipBtn.setAttribute('data-touch-blocker-ignore', '')
   chipWrap.appendChild(chipBtn)
 
-  // Range/Damage read-only cells (CR/FR/Damage) have moved to the AAG page,
-  // outside this iframe, and are no longer built here.
-
-  // Queue / Reaction Tokens / Chip Sync are relocated into the HP box (see
-  // queueSection built further below); they are no longer part of this panel's body.
-
-  // ── Queue In Brief ────────────────────────────────────────────────────────
-  const QUEUE_KEY = 'combat.queue.v1'
-  const readQueue = () => { try { const r = localStorage.getItem(QUEUE_KEY); return r ? JSON.parse(r) : [] } catch { return [] } }
-
-  const queueBrief = document.createElement('div')
-  queueBrief.className = 'combat-queue-brief'
-  queueBrief.setAttribute('data-touch-blocker-ignore', '')
-
-  let queueIdx = 0
-  let qBriefHoldTimer = null
-  let qBriefHoldInterval = null
-  let qBriefHoldProgress = 0
-  let qBriefSwipeStartX = null
-  let qBriefHoldFired = false
-  const QUEUE_HOLD_MS = 1800
-
-  const formatActionName = (action) => {
-    if (action === 'Unspent Reaction Tokens') return 'Reaction Token (Unspent)'
-    return action
-  }
-
-  const writeQueue = (items) => {
-    try {
-      const json = JSON.stringify(items)
-      localStorage.setItem(QUEUE_KEY, json)
-      window.dispatchEvent(new StorageEvent('storage', { key: QUEUE_KEY, newValue: json, storageArea: window.localStorage }))
-    } catch {}
-  }
-
-  // Long-pressing a queued action "uses" it: remove it from the queue and refund
-  // whatever AP or reaction tokens it had reserved, mirroring the Combat page.
-  const expendQueueItem = (item) => {
-    const items = readQueue()
-    const idx = items.findIndex(i => i.id === item.id)
-    if (idx === -1) return
-    writeQueue(items.slice(0, idx).concat(items.slice(idx + 1)))
-    const state = readCombat()
-    if (item.mode === 'reaction') {
-      writeCombat({ ...state, reactionTokens: (state.reactionTokens || 0) + (item.tokenCost || 0) })
-    } else {
-      writeCombat({ ...state, spentAp: Math.max(0, (state.spentAp || 0) - (item.ap || 0)) })
-    }
-    if (queueIdx > 0) queueIdx -= 1
-  }
-
-  const cancelQBriefHold = () => {
-    if (qBriefHoldTimer) { clearTimeout(qBriefHoldTimer); qBriefHoldTimer = null }
-    if (qBriefHoldInterval) { clearInterval(qBriefHoldInterval); qBriefHoldInterval = null }
-    qBriefHoldProgress = 0
-    renderQueueBrief()
-  }
-
-  const renderQueueBrief = () => {
-    const items = readQueue()
-    queueBrief.innerHTML = ''
-    queueBrief.style.display = 'flex'
-    if (!items.length) {
-      queueBrief.style.borderColor = 'rgba(255,255,255,0.07)'
-      queueBrief.style.boxShadow = 'none'
-      const eyebrow = document.createElement('span')
-      eyebrow.className = 'combat-queue-brief-eyebrow'
-      eyebrow.textContent = 'Queue'
-      const empty = document.createElement('span')
-      empty.className = 'combat-queue-brief-name'
-      empty.style.cssText = 'font-style:italic;color:rgba(248,250,252,0.25);font-size:0.78rem;text-align:center;'
-      empty.textContent = 'no actions queued'
-      queueBrief.appendChild(eyebrow)
-      queueBrief.appendChild(empty)
-      return
-    }
-    const safeIdx = items.length > 0 ? queueIdx % items.length : 0
-    const item = items[safeIdx]
-    const glow = qBriefHoldProgress / 100
-    queueBrief.style.borderColor = qBriefHoldProgress > 0
-      ? `rgba(255,90,90,${0.3 + 0.7 * glow})`
-      : 'rgba(255,255,255,0.1)'
-    queueBrief.style.boxShadow = qBriefHoldProgress > 0
-      ? `0 0 ${6 + 20 * glow}px rgba(255,90,90,${0.2 + 0.5 * glow})`
-      : 'none'
-
-    const eyebrow = document.createElement('span')
-    eyebrow.className = 'combat-queue-brief-eyebrow'
-    eyebrow.textContent = 'Queue'
-
-    const row = document.createElement('div')
-    row.className = 'combat-queue-brief-row'
-
-    const name = document.createElement('span')
-    name.className = 'combat-queue-brief-name'
-    name.textContent = formatActionName(item.action)
-
-    const badge = document.createElement('span')
-    badge.className = 'combat-queue-brief-badge' + (item.mode === 'reaction' ? ' reaction' : '')
-    badge.textContent = item.mode === 'reaction' ? `${item.tokenCost}T` : `${item.ap}AP`
-
-    row.appendChild(name); row.appendChild(badge)
-
-    const pagination = document.createElement('span')
-    pagination.className = 'combat-queue-brief-page'
-    pagination.textContent = `${safeIdx + 1} / ${items.length}`
-
-    queueBrief.appendChild(eyebrow)
-    queueBrief.appendChild(row)
-    queueBrief.appendChild(pagination)
-  }
-
-  queueBrief.addEventListener('pointerdown', (ev) => {
-    qBriefSwipeStartX = ev.clientX
-    qBriefHoldProgress = 0
-    qBriefHoldFired = false
-    const start = Date.now()
-    qBriefHoldInterval = setInterval(() => {
-      qBriefHoldProgress = Math.min(((Date.now() - start) / QUEUE_HOLD_MS) * 100, 100)
-      renderQueueBrief()
-    }, 30)
-    qBriefHoldTimer = setTimeout(() => {
-      qBriefHoldFired = true
-      cancelQBriefHold()
-      const items = readQueue()
-      if (items.length > 0) {
-        expendQueueItem(items[queueIdx % items.length])
-        renderQueueBrief()
-      }
-    }, QUEUE_HOLD_MS)
-  })
-  queueBrief.addEventListener('pointerup', (ev) => {
-    const dx = qBriefSwipeStartX !== null ? ev.clientX - qBriefSwipeStartX : 0
-    const fired = qBriefHoldFired
-    cancelQBriefHold()
-    if (!fired && Math.abs(dx) < 28) {
-      const items = readQueue()
-      if (items.length > 1) {
-        queueIdx = (queueIdx + 1) % items.length
-        renderQueueBrief()
-      }
-    }
-    qBriefSwipeStartX = null
-  })
-  queueBrief.addEventListener('pointerleave', () => { cancelQBriefHold(); qBriefSwipeStartX = null })
-  queueBrief.addEventListener('pointercancel', () => { cancelQBriefHold(); qBriefSwipeStartX = null })
-  queueBrief.addEventListener('contextmenu', (ev) => ev.preventDefault())
-
-  const queueSection = document.createElement('div')
-  queueSection.className = 'chud-hp-queue-section'
-  queueSection.appendChild(queueBrief)
-  const rtChipRow = document.createElement('div')
-  rtChipRow.className = 'viv-row'
-  rtChipRow.appendChild(rtSection)
-  rtChipRow.appendChild(chipWrap)
-  queueSection.appendChild(rtChipRow)
+  const chipSection = document.createElement('div')
+  chipSection.className = 'chud-hp-queue-section'
+  chipSection.appendChild(chipWrap)
 
   const refresh = () => {
     const state = readCombat()
-    const tokens = Math.max(0, Math.min(6, state.reactionTokens ?? 0))
-    rtVal.textContent = tokens
-    rtPips.innerHTML = ''
-    for (let i = 0; i < tokens; i++) {
-      const pip = document.createElement('span')
-      pip.className = 'combat-rt-pip active'
-      rtPips.appendChild(pip)
-    }
-    if (tokens === 0) {
-      const none = document.createElement('span')
-      none.className = 'combat-rt-none'
-      none.textContent = 'none'
-      rtPips.appendChild(none)
-    }
     const desynced = !!state.chipDesynced
     chipBtn.innerHTML = desynced ? 'Chip<br>Desynced' : 'Chip<br>Synced'
     chipBtn.dataset.desynced = desynced ? '1' : '0'
-    // queue brief
-    renderQueueBrief()
   }
 
   chipBtn.addEventListener('click', () => {
@@ -761,8 +542,8 @@ function buildCombatPanel() {
   // ── end flags ─────────────────────────────────────────────────────────────
 
   refresh()
-  window.addEventListener('storage', (ev) => { if (ev.key === COMBAT_KEY || ev.key === QUEUE_KEY) refresh() })
-  return { queueSection, shortRestFlag }
+  window.addEventListener('storage', (ev) => { if (ev.key === COMBAT_KEY) refresh() })
+  return { chipSection, shortRestFlag }
 }
 
 function readStatusRolls() {
@@ -798,7 +579,32 @@ function buildStatusRollsPanel() {
   const normalizeName = (s) => String(s || '').trim().toLowerCase()
   const byName = new Map(STATUS_EFFECTS_CATALOG.map((it) => [normalizeName(it.name), it]))
   const clampStatusRoll = (n) => Math.max(0, Math.min(STATUS_ROLL_MAX, Number.isFinite(n) ? n : 0))
-  const newRow = () => ({ id: `sr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: '', effect: '', roll: 0 })
+  const newRow = () => ({ id: `sr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: '', effect: '', roll: 0, direction: 'in' })
+  const APPROACH_LABELS = [
+    ['force', 'Force'], ['finesse', 'Finesse'], ['guts', 'Guts'],
+    ['logic', 'Logic'], ['show', 'Show'], ['tell', 'Tell'],
+  ]
+  const readApproachState = () => {
+    try {
+      const s = JSON.parse(localStorage.getItem('chud.state.v1') || '{}')
+      const approach = s?.approach && typeof s.approach === 'object' ? s.approach : {}
+      const dieSize = Number(s?.approachDieSize) || 8
+      return { approach, dieSize }
+    } catch { return { approach: {}, dieSize: 8 } }
+  }
+  // Mirrors domain/approachDice.ts: roll each die once, explode once (one
+  // extra die, no re-chaining) when a die lands on its max face.
+  const rollApproachExplodeTotal = (count, dieSize) => {
+    let total = 0
+    for (let i = 0; i < Math.max(0, count); i++) {
+      const roll = 1 + Math.floor(Math.random() * dieSize)
+      total += roll
+      if (roll === dieSize) {
+        total += 1 + Math.floor(Math.random() * dieSize)
+      }
+    }
+    return total
+  }
   const hydrateRows = (rows) => {
     const safe = (Array.isArray(rows) ? rows : []).slice(0, STATUS_ROLL_MAX_ROWS).map((row, idx) => {
       const name = String(row?.name || '')
@@ -809,6 +615,7 @@ function buildStatusRollsPanel() {
         name,
         effect,
         roll: clampStatusRoll(Number(row?.roll ?? 0)),
+        direction: row?.direction === 'out' ? 'out' : 'in',
       }
     })
     while (safe.length < STATUS_ROLL_DEFAULT_ROWS) safe.push(newRow())
@@ -834,7 +641,7 @@ function buildStatusRollsPanel() {
 
   const header = document.createElement('div')
   header.className = 'status-roll-header'
-  header.innerHTML = '<span class="col-name">Name</span><span class="col-effect">Effect</span><span class="col-value">Set Roll</span><span class="col-clear">Clear</span>'
+  header.innerHTML = '<span class="col-dir">Dir</span><span class="col-name">Name</span><span class="col-effect">Effect</span><span class="col-value">Set Roll</span><span class="col-clear">Clear</span>'
   container.appendChild(header)
 
   const rowsWrap = document.createElement('div')
@@ -849,11 +656,138 @@ function buildStatusRollsPanel() {
 
   const persist = () => writeStatusRolls(rows)
 
+  // Opens a Save/Decay modal for the given row. The modal stays open until
+  // the user dismisses it via the X button — it never auto-closes.
+  const openSaveModal = (row, persist, renderRows) => {
+    const overlay = document.createElement('div')
+    overlay.className = 'status-roll-save-overlay'
+
+    const modal = document.createElement('div')
+    modal.className = 'status-roll-save-modal'
+
+    const closeBtn = document.createElement('button')
+    closeBtn.className = 'status-roll-save-modal-close'
+    closeBtn.textContent = 'X'
+    closeBtn.setAttribute('data-touch-blocker-ignore', '')
+    closeBtn.addEventListener('click', () => overlay.remove())
+
+    const title = document.createElement('div')
+    title.className = 'status-roll-save-modal-title'
+    title.textContent = 'Save / Decay'
+
+    const name = document.createElement('div')
+    name.className = 'status-roll-save-modal-name'
+    name.textContent = row.name || 'Unnamed Effect'
+
+    const target = document.createElement('div')
+    target.className = 'status-roll-save-modal-target'
+    target.textContent = `Set Roll: ${row.roll}`
+
+    const controls = document.createElement('div')
+    controls.className = 'status-roll-save-modal-controls'
+
+    const select = document.createElement('select')
+    select.className = 'status-roll-save-modal-select'
+    select.setAttribute('data-touch-blocker-ignore', '')
+    APPROACH_LABELS.forEach(([key, label]) => {
+      const opt = document.createElement('option')
+      opt.value = key
+      opt.textContent = label
+      select.appendChild(opt)
+    })
+
+    const rollBtn = document.createElement('button')
+    rollBtn.className = 'status-roll-save-btn'
+    rollBtn.textContent = 'Roll Save'
+    rollBtn.setAttribute('data-touch-blocker-ignore', '')
+
+    const result = document.createElement('div')
+    result.className = 'status-roll-save-result'
+    result.style.display = 'none'
+
+    controls.appendChild(select)
+    controls.appendChild(rollBtn)
+
+    rollBtn.addEventListener('click', () => {
+      const { approach, dieSize } = readApproachState()
+      const rating = Number(approach?.[select.value]) || 0
+      const total = rollApproachExplodeTotal(rating, dieSize)
+      const atRollTime = row.roll
+      result.style.display = 'block'
+      if (total >= atRollTime) {
+        result.setAttribute('data-outcome', 'pass')
+        result.textContent = `SAVED — rolled ${total} vs ${atRollTime}`
+      } else {
+        const margin = atRollTime - total
+        row.roll = Math.max(0, atRollTime - margin)
+        persist()
+        target.textContent = `Set Roll: ${row.roll}`
+        result.setAttribute('data-outcome', 'fail')
+        result.textContent = `DECAYED -${margin} — rolled ${total} vs ${atRollTime}, now ${row.roll}`
+        renderRows()
+      }
+    })
+
+    modal.appendChild(closeBtn)
+    modal.appendChild(title)
+    modal.appendChild(name)
+    modal.appendChild(target)
+    modal.appendChild(controls)
+    modal.appendChild(result)
+    overlay.appendChild(modal)
+    document.body.appendChild(overlay)
+  }
+
   const renderRows = () => {
     rowsWrap.innerHTML = ''
     rows.forEach((row, idx) => {
       const rowEl = document.createElement('div')
       rowEl.className = 'status-roll-row'
+
+      const dirBtn = document.createElement('button')
+      dirBtn.className = 'status-roll-direction'
+      dirBtn.setAttribute('data-touch-blocker-ignore', '')
+      const renderDir = () => {
+        dirBtn.setAttribute('data-dir', row.direction)
+        dirBtn.textContent = row.direction === 'out' ? 'TRGT' : 'YOU'
+        dirBtn.title = row.direction === 'out' ? 'Applied by you to a Target' : 'Applied to You (long-press for Save/Decay)'
+      }
+      renderDir()
+      // Quick tap toggles YOU/TRGT; a long press (on a YOU row) opens the
+      // Save/Decay modal instead, so the page never jumps/reflows inline.
+      let dirHoldTimer = null
+      let dirLongPressed = false
+      const DIR_HOLD_MS = 500
+      const clearDirHold = () => {
+        if (dirHoldTimer) { clearTimeout(dirHoldTimer); dirHoldTimer = null }
+        dirBtn.removeAttribute('data-holding')
+      }
+      dirBtn.addEventListener('pointerdown', (ev) => {
+        if (ev.button === 2) return
+        dirLongPressed = false
+        clearDirHold()
+        dirHoldTimer = setTimeout(() => {
+          dirLongPressed = true
+          clearDirHold()
+          if (row.direction === 'in') {
+            openSaveModal(row, persist, renderRows)
+          }
+        }, DIR_HOLD_MS)
+        dirBtn.setAttribute('data-holding', '1')
+      })
+      dirBtn.addEventListener('pointerup', () => {
+        clearDirHold()
+        if (!dirLongPressed) {
+          row.direction = row.direction === 'out' ? 'in' : 'out'
+          renderDir()
+          persist()
+          renderRows()
+        }
+        dirLongPressed = false
+      })
+      ;['pointerleave', 'pointercancel'].forEach((evt) => {
+        dirBtn.addEventListener(evt, () => { clearDirHold(); dirLongPressed = false })
+      })
 
       const nameWrap = document.createElement('div')
       nameWrap.className = 'status-roll-name-wrap'
@@ -1030,10 +964,15 @@ function buildStatusRollsPanel() {
         clearBtn.addEventListener(evt, clearHold)
       })
 
-      rowEl.appendChild(nameWrap)
-      rowEl.appendChild(effectInput)
-      rowEl.appendChild(valueWrap)
-      rowEl.appendChild(clearBtn)
+      const mainRow = document.createElement('div')
+      mainRow.className = 'status-roll-row-main'
+      mainRow.appendChild(dirBtn)
+      mainRow.appendChild(nameWrap)
+      mainRow.appendChild(effectInput)
+      mainRow.appendChild(valueWrap)
+      mainRow.appendChild(clearBtn)
+
+      rowEl.appendChild(mainRow)
       rowsWrap.appendChild(rowEl)
     })
     addBtn.disabled = rows.length >= STATUS_ROLL_MAX_ROWS
@@ -1133,11 +1072,12 @@ function mountMeters() {
   const gcm = buildGritCollapseMeter(getMeters, setMeters)
 
   // Set Rolls (Status Effects) mounts inside the HP box, directly below the
-  // Reaction Tokens/Chip Sync row. Combat box (CR/FR) has been removed
-  // entirely; CR/FR now render read-only on the standalone AAG page, outside
-  // this iframe. Page 2 (including Damage die + Short Rest) also lives on
-  // the AAG page. Wallet + Reps now live on the standalone MGR page.
-  const { queueSection } = buildCombatPanel()
+  // Chip Sync control. Combat box (CR/FR) has been removed entirely; CR/FR
+  // now render read-only on the standalone AAG page, outside this iframe.
+  // Page 2 (including Damage die + Short Rest) also lives on the AAG page.
+  // Wallet + Reps now live on the standalone MGR page. Reaction Tokens and
+  // the action/reaction Queue have been removed (player side).
+  const { chipSection } = buildCombatPanel()
   const statusRollsPanel = buildStatusRollsPanel()
   const setRollsAnchor = panel.querySelector('#chud-setrolls-anchor')
   if (setRollsAnchor) {
@@ -1151,11 +1091,10 @@ function mountMeters() {
   } else {
     panel.appendChild(gcm.container)
   }
-  // Queue / Reaction Tokens / Chip Sync mount inside the HP box, directly
-  // below the HP bar.
+  // Chip Sync mounts inside the HP box, directly below the HP bar.
   const hpQueueAnchor = panel.querySelector('#chud-hp-queue-anchor')
   if (hpQueueAnchor) {
-    hpQueueAnchor.insertAdjacentElement('afterend', queueSection)
+    hpQueueAnchor.insertAdjacentElement('afterend', chipSection)
   }
 
   const refreshAll = () => { gcm.update() }

@@ -838,11 +838,11 @@ body::after {
 }
 
 .approach-die-label {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   font-family: var(--font-display);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.72);
+  color: rgba(248, 250, 252, 0.6);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -860,6 +860,18 @@ body::after {
   line-height: 1.4;
 }
 
+/* The Approach's numeric rating (e.g. "Force 3" = 3 rollable dice) is the
+   single most important thing on this card — it's shown bigger and bolder
+   than everything else, including the Approach name. */
+.approach-die-rating {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2rem;
+  line-height: 1;
+  color: #f5fbff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
+}
+
 .approach-die-sub {
   font-size: 0.55rem;
   letter-spacing: 0.14em;
@@ -875,24 +887,40 @@ body::after {
 
 .approach-die-pips {
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-height: 7px;
+  gap: 4px;
+  min-height: 8px;
+}
+
+.approach-die-wardrobe-icon {
+  font-size: 9px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  filter: drop-shadow(0 0 2px rgba(255, 212, 59, 0.5));
 }
 
 .approach-die-pip {
-  width: 7px;
-  height: 7px;
+  /* +15% over the original 7px pips. */
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.22);
-  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, opacity 900ms ease;
 }
 
 .approach-die-pip.armed {
   background: #0ff6ff;
   border-color: #0ff6ff;
   transform: scale(1.1);
+}
+
+/* An armed die left untouched for 30s reverts itself; it fades out over the
+   last second as a warning before un-arming. */
+.approach-die-pip.armed.fading {
+  opacity: 0.2;
 }
 
 /* Pips sourced from a Wardrobe bonus rather than the Core-distributed

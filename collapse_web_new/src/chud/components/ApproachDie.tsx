@@ -14,6 +14,8 @@ const VIBRATE_START_MS = 180
 const VIBRATE_MIN_MS = 45
 const VIBRATE_STEP_MS = 18
 const VIBRATE_PULSE_MS = 28
+const ARMED_IDLE_TIMEOUT_MS = 30000
+const ARMED_FADE_MS = 1000
 
 type PopupView = "result" | "margin-input" | "margin-result" | "damage"
 
@@ -63,6 +65,7 @@ export function ApproachDie({
   onOverload?: (dieIndex: number) => boolean
 }) {
   const [armed, setArmed] = useState(0)
+  const [armedFading, setArmedFading] = useState(false)
   const [errorFlash, setErrorFlash] = useState(false)
   const [result, setResult] = useState<ApproachDieRollResult | null>(null)
   const [overloaded, setOverloaded] = useState<Set<number>>(new Set())
@@ -78,6 +81,8 @@ export function ApproachDie({
   const errorFlashTimer = useRef<number | null>(null)
   const chargeStartTimer = useRef<number | null>(null)
   const vibrateTimer = useRef<number | null>(null)
+  const armedFadeTimer = useRef<number | null>(null)
+  const armedIdleTimer = useRef<number | null>(null)
   const suppressClick = useRef(false)
   const boxRef = useRef<HTMLButtonElement>(null)
 
@@ -86,6 +91,40 @@ export function ApproachDie({
   useEffect(() => {
     setArmed((prev) => Math.min(prev, available))
   }, [available])
+
+  // An armed-but-unrolled die that just sits there for 30s reverts itself —
+  // it fades out over the last second as a warning, then un-arms. Any change
+  // to `armed` (arming another die, or rolling, which resets it to 0) clears
+  // and restarts this timer.
+  useEffect(() => {
+    if (armedFadeTimer.current !== null) {
+      window.clearTimeout(armedFadeTimer.current)
+      armedFadeTimer.current = null
+    }
+    if (armedIdleTimer.current !== null) {
+      window.clearTimeout(armedIdleTimer.current)
+      armedIdleTimer.current = null
+    }
+    setArmedFading(false)
+    if (armed <= 0) return
+    armedFadeTimer.current = window.setTimeout(() => {
+      setArmedFading(true)
+    }, ARMED_IDLE_TIMEOUT_MS - ARMED_FADE_MS)
+    armedIdleTimer.current = window.setTimeout(() => {
+      setArmed(0)
+      setArmedFading(false)
+    }, ARMED_IDLE_TIMEOUT_MS)
+    return () => {
+      if (armedFadeTimer.current !== null) {
+        window.clearTimeout(armedFadeTimer.current)
+        armedFadeTimer.current = null
+      }
+      if (armedIdleTimer.current !== null) {
+        window.clearTimeout(armedIdleTimer.current)
+        armedIdleTimer.current = null
+      }
+    }
+  }, [armed])
 
   const closePopup = useCallback(() => {
     setResult(null)
@@ -274,7 +313,7 @@ export function ApproachDie({
       ref={boxRef}
       type="button"
       className={`approach-die${charging ? " charging" : ""}${errorFlash ? " error" : ""}`}
-      aria-label={`${label}: ${armed} armed of ${available} available${wardrobeBonus > 0 ? ` (includes +${wardrobeBonus} from Wardrobe)` : ""}. Tap to arm a die, hold to roll.`}
+      aria-label={`${label}, rating ${rating}: ${armed} armed of ${available} available${wardrobeBonus > 0 ? ` (includes +${wardrobeBonus} from Wardrobe)` : ""}. Tap to arm a die, hold to roll.`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={cancelPress}
@@ -293,13 +332,22 @@ export function ApproachDie({
           </span>
         )}
       </span>
+      <span className="approach-die-rating" aria-hidden="true">{rating}</span>
       <div className="approach-die-pips" aria-hidden="true">
+        {wardrobePipCount > 0 && (
+          <span
+            className="approach-die-wardrobe-icon"
+            title={`Includes +${wardrobeBonus} from Wardrobe${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}`}
+          >
+            👕
+          </span>
+        )}
         {Array.from({ length: available }, (_, index) => {
           const isWardrobePip = index >= available - wardrobePipCount
           return (
             <span
               key={index}
-              className={`approach-die-pip${index < armed ? " armed" : ""}${isWardrobePip ? " wardrobe" : ""}`}
+              className={`approach-die-pip${index < armed ? " armed" : ""}${isWardrobePip ? " wardrobe" : ""}${index < armed && armedFading ? " fading" : ""}`}
             />
           )
         })}
