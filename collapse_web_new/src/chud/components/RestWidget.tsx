@@ -6,7 +6,7 @@ const APPROACH_FIELDS: Array<keyof ApproachStats> = ["force", "finesse", "guts",
 
 const SWIPE_THRESHOLD_PX = 40;
 
-type DigDeepBanner = { d1: number; d2: number; lose: number; gain: number; ts: number };
+type DigDeepResult = { d1: number; d2: number; lose: number; gain: number; ts: number };
 
 function readState(storageKey: string): Record<string, unknown> {
   try {
@@ -41,18 +41,14 @@ const tallyMarks = (count: number) => {
 // page) from the HUD. None of this adjudicates anything: Short Rest just
 // counts how many have been taken, Dig Deep rolls the lose/gain pair and
 // leaves it up to the player to apply, and Full Rest restores the Approach
-// Overload pool. The Dig Deep result persists as a banner until cleared (or
-// until the next Dig Deep roll overwrites it) so it isn't lost if forgotten.
+// Overload pool. The Dig Deep result shows as a popup immediately after the
+// roll; closing it clears it for good (the roll itself isn't persisted).
 export function RestWidget({ storageKey }: { storageKey: string }) {
   const [tally, setTally] = useState<number>(() => {
     const v = readState(storageKey).shortRestTally;
     return typeof v === "number" ? v : 0;
   });
-  const [banner, setBanner] = useState<DigDeepBanner | null>(() => {
-    const v = readState(storageKey).restBanner;
-    return v && typeof v === "object" ? (v as DigDeepBanner) : null;
-  });
-  const [digDeepPopup, setDigDeepPopup] = useState<DigDeepBanner | null>(null);
+  const [digDeepPopup, setDigDeepPopup] = useState<DigDeepResult | null>(null);
   const shortRestPointerStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -61,8 +57,6 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
       const s = readState(storageKey);
       const v = s.shortRestTally;
       setTally(typeof v === "number" ? v : 0);
-      const b = s.restBanner;
-      setBanner(b && typeof b === "object" ? (b as DigDeepBanner) : null);
     };
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
@@ -111,11 +105,8 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
     const d2 = 1 + Math.floor(Math.random() * 4);
     const lose = Math.max(d1, d2);
     const gain = Math.min(d1, d2);
-    const next: DigDeepBanner = { d1, d2, lose, gain, ts: Date.now() };
-    setBanner(next);
-    setDigDeepPopup(next);
-    writeState(storageKey, { restBanner: next });
-  }, [storageKey]);
+    setDigDeepPopup({ d1, d2, lose, gain, ts: Date.now() });
+  }, []);
 
   const onFullRest = useCallback(() => {
     const resetSpent: Partial<Record<keyof ApproachStats, number>> = {};
@@ -125,25 +116,9 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
     writeState(storageKey, { approachOverloadSpent: resetSpent });
   }, [storageKey]);
 
-  const clearBanner = useCallback(() => {
-    setBanner(null);
-    writeState(storageKey, { restBanner: null });
-  }, [storageKey]);
-
   return (
     <div className="mods rest-widget">
       <h3>Rest</h3>
-
-      {banner && (
-        <div className="rest-banner">
-          <span className="rest-banner-text">
-            Dig Deep — Lose {banner.lose} HP, Gain {banner.gain} Grit (rolled {banner.d1}, {banner.d2})
-          </span>
-          <button type="button" className="rest-banner-clear" onClick={clearBanner} aria-label="Clear">
-            ✕
-          </button>
-        </div>
-      )}
 
       {digDeepPopup && createPortal(
         <div className="dig-deep-popup-backdrop" onClick={() => setDigDeepPopup(null)}>

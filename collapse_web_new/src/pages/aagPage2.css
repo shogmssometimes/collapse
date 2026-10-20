@@ -456,38 +456,6 @@
   margin-top: 6px;
 }
 
-.aag-page2 .rest-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 159, 107, 0.4);
-  background: rgba(255, 159, 107, 0.1);
-  color: #ffd3b8;
-}
-
-.aag-page2 .rest-banner-text {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.aag-page2 .rest-banner-clear {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .aag-page2 .rest-stack {
   display: flex;
   flex-direction: column;
