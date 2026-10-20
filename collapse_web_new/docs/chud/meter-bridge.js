@@ -193,7 +193,7 @@ function createStyles() {
     .status-roll-effect { flex: 42 1 0; min-width: 0; box-sizing: border-box; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 7px 8px; font-size: 10px; color: rgba(248,250,252,0.8); outline: none; line-height: 1.25; }
     .status-roll-effect[data-readonly="1"] { color: rgba(248,250,252,0.55); font-style: italic; }
     .status-roll-effect:focus { border-color: rgba(61,232,192,0.3); }
-    .status-roll-value-wrap { flex: 22 1 0; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .status-roll-value-wrap { flex: 22 1 0; display: flex; align-items: center; justify-content: center; gap: 4px; position: relative; }
     .status-roll-value-btn { width: 24px; height: 24px; flex-shrink: 0; border-radius: 6px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .status-roll-value-btn:active { transform: scale(0.94); }
     .status-roll-value { min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; color: #6ac7ff; font-size: 12px; }
@@ -222,6 +222,32 @@ function createStyles() {
     .status-roll-save-result { margin-top: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 8px 10px; border-radius: 8px; }
     .status-roll-save-result[data-outcome="pass"] { color: #4ade80; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.35); }
     .status-roll-save-result[data-outcome="fail"] { color: #ff9f6b; background: rgba(255,159,107,0.1); border: 1px solid rgba(255,159,107,0.35); }
+    .status-roll-save-modal-body { display: flex; flex-direction: column; gap: 8px; }
+    .status-roll-save-approach-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .status-roll-save-approach-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: #e9f0ff; cursor: pointer; }
+    .status-roll-save-approach-btn .label { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(248,250,252,0.6); }
+    .status-roll-save-approach-btn .rating { font-size: 18px; font-weight: 800; }
+    .status-roll-save-approach-btn:active { background: rgba(255,255,255,0.1); }
+    .status-roll-save-back { align-self: flex-start; background: none; border: none; color: rgba(248,250,252,0.6); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 0; }
+    .status-roll-save-pips { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; min-height: 12px; cursor: pointer; }
+    .status-roll-save-pip { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); }
+    .status-roll-save-pip.armed { background: #0ff6ff; border-color: #0ff6ff; }
+    .status-roll-save-wardrobe-pip { display: inline-flex; align-items: center; gap: 2px; font-size: 9px; font-weight: 700; color: #ffd43b; background: rgba(255,212,59,0.14); border: 1px solid rgba(255,212,59,0.5); border-radius: 999px; padding: 1px 6px; }
+    .status-roll-save-armed-hint { text-align: center; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(248,250,252,0.55); }
+    .status-roll-save-dice { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .status-roll-save-chip { padding: 5px 8px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #e9f0ff; font-size: 10px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    .status-roll-save-chip:disabled { cursor: default; opacity: 0.7; }
+    .status-roll-save-chip.overloaded { border-color: #ffd43b; background: rgba(255,212,59,0.14); color: #ffd43b; }
+    .status-roll-save-chip.exploded { border-color: #0ff6ff; }
+    .status-roll-save-chip-tag { font-size: 8px; font-weight: 800; letter-spacing: 0.05em; }
+    .status-roll-save-chip-tag.doubled { color: #ffd43b; }
+    .status-roll-save-total { width: 100%; text-align: center; font-size: 16px; font-weight: 800; color: #e9f0ff; margin-top: 2px; }
+    .status-roll-save-pool-hint { text-align: center; font-size: 9px; color: rgba(248,250,252,0.5); }
+    .status-roll-save-btn.apply { align-self: center; }
+
+    /* ── Cleared Set overlay (shown after a Save passes) ─────────────── */
+    .status-roll-cleared-overlay { position: absolute; inset: -2px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; letter-spacing: 0.06em; color: #4ade80; background: rgba(10,16,12,0.9); border: 1px solid rgba(74,222,128,0.45); border-radius: 8px; cursor: pointer; animation: status-roll-cleared-flash 1.6s ease-in-out infinite; }
+    @keyframes status-roll-cleared-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
     /* ── Combat Panel ──────────────────────────────────────────────── */
     .chud-combat { margin-top: 4px; }
@@ -584,26 +610,74 @@ function buildStatusRollsPanel() {
     ['force', 'Force'], ['finesse', 'Finesse'], ['guts', 'Guts'],
     ['logic', 'Logic'], ['show', 'Show'], ['tell', 'Tell'],
   ]
+  const CHUD_STATE_KEY = 'chud.state.v1'
+  const WARDROBE_STORAGE_KEY = 'wardrobe.v1'
   const readApproachState = () => {
     try {
-      const s = JSON.parse(localStorage.getItem('chud.state.v1') || '{}')
+      const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}')
       const approach = s?.approach && typeof s.approach === 'object' ? s.approach : {}
       const dieSize = Number(s?.approachDieSize) || 8
       return { approach, dieSize }
     } catch { return { approach: {}, dieSize: 8 } }
   }
+  // Mirrors domain/wardrobeBonus.ts: sum each Wardrobe row's "+N" Quality
+  // onto the Approach it's assigned to. A Save is an Approach Roll, so these
+  // bonus dice count toward it the same as a normal roll.
+  const readWardrobeBonus = (field) => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(WARDROBE_STORAGE_KEY) || '[]')
+      const entries = Array.isArray(raw) ? raw : []
+      let bonus = 0
+      const items = []
+      entries.forEach((row) => {
+        const rowField = String(row?.approach || '').trim().toLowerCase()
+        if (rowField !== field) return
+        const match = /^\+(\d+)$/.exec(String(row?.quality || '').trim())
+        if (!match) return
+        const amount = Number(match[1])
+        if (!Number.isFinite(amount) || amount <= 0) return
+        bonus += amount
+        items.push(`${String(row?.name || '').trim() || 'Unnamed item'} (+${amount})`)
+      })
+      return { bonus, items }
+    } catch { return { bonus: 0, items: [] } }
+  }
   // Mirrors domain/approachDice.ts: roll each die once, explode once (one
   // extra die, no re-chaining) when a die lands on its max face.
-  const rollApproachExplodeTotal = (count, dieSize) => {
-    let total = 0
+  const rollApproachExplodeDice = (count, dieSize) => {
+    const dice = []
     for (let i = 0; i < Math.max(0, count); i++) {
-      const roll = 1 + Math.floor(Math.random() * dieSize)
-      total += roll
-      if (roll === dieSize) {
-        total += 1 + Math.floor(Math.random() * dieSize)
-      }
+      const rolls = [1 + Math.floor(Math.random() * dieSize)]
+      if (rolls[0] === dieSize) rolls.push(1 + Math.floor(Math.random() * dieSize))
+      dice.push({ rolls, total: rolls.reduce((sum, n) => sum + n, 0) })
     }
-    return total
+    return dice
+  }
+  // Mirrors domain/approachDice.ts's Overload pool: reads/writes the same
+  // approachOverloadSpent map the AAG/HUD Approach cards use, so Overloading
+  // a die during a Save spends from the very same pool.
+  const readOverloadSpent = (field) => {
+    try {
+      const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}')
+      const spent = s?.approachOverloadSpent
+      const n = spent && typeof spent === 'object' ? Number(spent[field]) : 0
+      return Number.isFinite(n) && n > 0 ? n : 0
+    } catch { return 0 }
+  }
+  const writeOverloadSpent = (field, next) => {
+    try {
+      const raw = localStorage.getItem(CHUD_STATE_KEY)
+      const parsed = raw ? JSON.parse(raw) : {}
+      const spentMap = parsed.approachOverloadSpent && typeof parsed.approachOverloadSpent === 'object'
+        ? { ...parsed.approachOverloadSpent } : {}
+      spentMap[field] = next
+      const json = JSON.stringify({ ...parsed, approachOverloadSpent: spentMap })
+      localStorage.setItem(CHUD_STATE_KEY, json)
+      // Same-tab writes don't fire a native "storage" event — dispatch a
+      // synthetic one so the React HUD's own Overload pool display updates
+      // immediately instead of only on next load/cross-tab event.
+      window.dispatchEvent(new StorageEvent('storage', { key: CHUD_STATE_KEY, newValue: json, storageArea: localStorage }))
+    } catch {}
   }
   const hydrateRows = (rows) => {
     const safe = (Array.isArray(rows) ? rows : []).slice(0, STATUS_ROLL_MAX_ROWS).map((row, idx) => {
@@ -636,6 +710,11 @@ function buildStatusRollsPanel() {
   }
 
   let rows = hydrateRows(readStatusRolls())
+  // A passed Save shows a flashing "CLEARED" overlay on the Set Roll value
+  // instead of silently zeroing it, so the player notices and confirms the
+  // clear themselves (triple-tap) rather than it vanishing on its own.
+  const clearedRowIds = new Set()
+  const markCleared = (row) => clearedRowIds.add(row.id)
   const container = document.createElement('div')
   container.className = 'chud-status-rolls'
 
@@ -657,8 +736,12 @@ function buildStatusRollsPanel() {
   const persist = () => writeStatusRolls(rows)
 
   // Opens a Save/Decay modal for the given row. The modal stays open until
-  // the user dismisses it via the X button — it never auto-closes.
-  const openSaveModal = (row, persist, renderRows) => {
+  // the user dismisses it via the X button — it never auto-closes. A Save is
+  // an Approach Roll (p36), so it starts by having the player choose which
+  // Approach to roll, then presents a mini version of the same Approach die
+  // (pips to arm, Overload-able dice chips once rolled) so Wardrobe dice and
+  // Overload both work exactly like a normal Approach roll.
+  const openSaveModal = (row, persist, renderRows, markCleared) => {
     const overlay = document.createElement('div')
     overlay.className = 'status-roll-save-overlay'
 
@@ -673,7 +756,6 @@ function buildStatusRollsPanel() {
 
     const title = document.createElement('div')
     title.className = 'status-roll-save-modal-title'
-    title.textContent = 'Save / Decay'
 
     const name = document.createElement('div')
     name.className = 'status-roll-save-modal-name'
@@ -683,59 +765,205 @@ function buildStatusRollsPanel() {
     target.className = 'status-roll-save-modal-target'
     target.textContent = `Set Roll: ${row.roll}`
 
-    const controls = document.createElement('div')
-    controls.className = 'status-roll-save-modal-controls'
-
-    const select = document.createElement('select')
-    select.className = 'status-roll-save-modal-select'
-    select.setAttribute('data-touch-blocker-ignore', '')
-    APPROACH_LABELS.forEach(([key, label]) => {
-      const opt = document.createElement('option')
-      opt.value = key
-      opt.textContent = label
-      select.appendChild(opt)
-    })
-
-    const rollBtn = document.createElement('button')
-    rollBtn.className = 'status-roll-save-btn'
-    rollBtn.textContent = 'Roll Save'
-    rollBtn.setAttribute('data-touch-blocker-ignore', '')
-
-    const result = document.createElement('div')
-    result.className = 'status-roll-save-result'
-    result.style.display = 'none'
-
-    controls.appendChild(select)
-    controls.appendChild(rollBtn)
-
-    rollBtn.addEventListener('click', () => {
-      const { approach, dieSize } = readApproachState()
-      const rating = Number(approach?.[select.value]) || 0
-      const total = rollApproachExplodeTotal(rating, dieSize)
-      const atRollTime = row.roll
-      result.style.display = 'block'
-      if (total >= atRollTime) {
-        result.setAttribute('data-outcome', 'pass')
-        result.textContent = `SAVED — rolled ${total} vs ${atRollTime}`
-      } else {
-        const margin = atRollTime - total
-        row.roll = Math.max(0, atRollTime - margin)
-        persist()
-        target.textContent = `Set Roll: ${row.roll}`
-        result.setAttribute('data-outcome', 'fail')
-        result.textContent = `DECAYED -${margin} — rolled ${total} vs ${atRollTime}, now ${row.roll}`
-        renderRows()
-      }
-    })
+    const body = document.createElement('div')
+    body.className = 'status-roll-save-modal-body'
 
     modal.appendChild(closeBtn)
     modal.appendChild(title)
     modal.appendChild(name)
     modal.appendChild(target)
-    modal.appendChild(controls)
-    modal.appendChild(result)
+    modal.appendChild(body)
     overlay.appendChild(modal)
     document.body.appendChild(overlay)
+
+    // ── Step 1: Choose Approach ──────────────────────────────────────
+    const renderApproachPicker = () => {
+      title.textContent = 'Choose Approach'
+      body.innerHTML = ''
+      const grid = document.createElement('div')
+      grid.className = 'status-roll-save-approach-grid'
+      const { approach } = readApproachState()
+      APPROACH_LABELS.forEach(([key, label]) => {
+        const base = Number(approach?.[key]) || 0
+        const { bonus } = readWardrobeBonus(key)
+        const rating = base + bonus
+        const btn = document.createElement('button')
+        btn.className = 'status-roll-save-approach-btn'
+        btn.setAttribute('data-touch-blocker-ignore', '')
+        btn.innerHTML = `<span class="label">${label}</span><span class="rating">${rating}</span>`
+        btn.addEventListener('click', () => renderDiceStep(key))
+        grid.appendChild(btn)
+      })
+      body.appendChild(grid)
+    }
+
+    // ── Step 2: Arm/Roll/Overload the chosen Approach's dice ─────────
+    const renderDiceStep = (field) => {
+      const label = APPROACH_LABELS.find(([key]) => key === field)?.[1] ?? field
+      title.textContent = `${label} Save`
+      body.innerHTML = ''
+
+      const { approach, dieSize } = readApproachState()
+      const base = Number(approach?.[field]) || 0
+      const { bonus: wardrobeBonus, items: wardrobeItems } = readWardrobeBonus(field)
+      const rating = base + wardrobeBonus
+      let spent = readOverloadSpent(field)
+      let available = Math.max(0, rating - spent)
+      let armed = 0
+      let dice = null
+      const overloadedSet = new Set()
+
+      const backBtn = document.createElement('button')
+      backBtn.className = 'status-roll-save-back'
+      backBtn.setAttribute('data-touch-blocker-ignore', '')
+      backBtn.textContent = '← Choose Approach'
+      backBtn.addEventListener('click', () => renderApproachPicker())
+
+      const pips = document.createElement('div')
+      pips.className = 'status-roll-save-pips'
+      pips.setAttribute('data-touch-blocker-ignore', '')
+
+      const armedHint = document.createElement('div')
+      armedHint.className = 'status-roll-save-armed-hint'
+
+      const rollBtn = document.createElement('button')
+      rollBtn.className = 'status-roll-save-btn'
+      rollBtn.textContent = 'Roll'
+      rollBtn.setAttribute('data-touch-blocker-ignore', '')
+
+      const diceWrap = document.createElement('div')
+      diceWrap.className = 'status-roll-save-dice'
+
+      const poolHint = document.createElement('div')
+      poolHint.className = 'status-roll-save-pool-hint'
+
+      const applyBtn = document.createElement('button')
+      applyBtn.className = 'status-roll-save-btn apply'
+      applyBtn.textContent = 'Apply vs Set'
+      applyBtn.style.display = 'none'
+      applyBtn.setAttribute('data-touch-blocker-ignore', '')
+
+      const result = document.createElement('div')
+      result.className = 'status-roll-save-result'
+      result.style.display = 'none'
+
+      const renderPips = () => {
+        pips.innerHTML = ''
+        if (wardrobeBonus > 0) {
+          const badge = document.createElement('span')
+          badge.className = 'status-roll-save-wardrobe-pip'
+          badge.title = `Includes +${wardrobeBonus} from Wardrobe${wardrobeItems.length ? ` (${wardrobeItems.join(', ')})` : ''}`
+          badge.textContent = `+${wardrobeBonus} 👕`
+          pips.appendChild(badge)
+        }
+        for (let i = 0; i < available; i++) {
+          const pip = document.createElement('span')
+          pip.className = `status-roll-save-pip${i < armed ? ' armed' : ''}`
+          pips.appendChild(pip)
+        }
+        armedHint.textContent = available <= 0
+          ? (rating > 0 ? 'Exhausted' : 'No dice')
+          : `Armed ${armed} / ${available}`
+        rollBtn.disabled = armed <= 0
+      }
+
+      pips.addEventListener('click', () => {
+        if (dice) return // already rolled this round — back out to reroll
+        if (armed >= available) { armed = 0 } else { armed += 1 }
+        renderPips()
+      })
+
+      rollBtn.addEventListener('click', () => {
+        if (armed <= 0) return
+        dice = rollApproachExplodeDice(armed, dieSize)
+        overloadedSet.clear()
+        pips.style.display = 'none'
+        armedHint.style.display = 'none'
+        rollBtn.style.display = 'none'
+        renderDiceChips()
+        applyBtn.style.display = 'inline-flex'
+        result.style.display = 'none'
+      })
+
+      const currentTotal = () => (dice ?? []).reduce(
+        (sum, dieRoll, index) => sum + (overloadedSet.has(index) ? dieRoll.total * 2 : dieRoll.total), 0
+      )
+
+      const renderDiceChips = () => {
+        diceWrap.innerHTML = ''
+        ;(dice ?? []).forEach((dieRoll, index) => {
+          const didExplode = dieRoll.rolls.length > 1
+          const chip = document.createElement('button')
+          chip.className = `status-roll-save-chip${overloadedSet.has(index) ? ' overloaded' : ''}${didExplode ? ' exploded' : ''}`
+          chip.setAttribute('data-touch-blocker-ignore', '')
+          chip.disabled = overloadedSet.has(index) || available <= 0 || didExplode
+          chip.title = didExplode
+            ? "Exploded dice can't be Overloaded"
+            : 'Tap to Overload: double this die, spend 1 from the Approach pool'
+          chip.textContent = `D${dieSize}: ${dieRoll.rolls.join(' + ')}`
+          if (didExplode) {
+            const tag = document.createElement('span')
+            tag.className = 'status-roll-save-chip-tag'
+            tag.textContent = 'EXPLODE'
+            chip.appendChild(tag)
+          }
+          if (overloadedSet.has(index)) {
+            const tag = document.createElement('span')
+            tag.className = 'status-roll-save-chip-tag doubled'
+            tag.textContent = 'DOUBLED'
+            chip.appendChild(tag)
+          }
+          chip.addEventListener('click', () => {
+            if (didExplode || overloadedSet.has(index) || available <= 0) return
+            spent += 1
+            writeOverloadSpent(field, spent)
+            available = Math.max(0, rating - spent)
+            overloadedSet.add(index)
+            renderDiceChips()
+          })
+          diceWrap.appendChild(chip)
+        })
+        const total = document.createElement('div')
+        total.className = 'status-roll-save-total'
+        total.textContent = `Total: ${currentTotal()}`
+        diceWrap.appendChild(total)
+        poolHint.textContent = `Overload pool remaining: ${available}/${rating}`
+      }
+
+      applyBtn.addEventListener('click', () => {
+        const total = currentTotal()
+        const atRollTime = row.roll
+        result.style.display = 'block'
+        if (total >= atRollTime) {
+          result.setAttribute('data-outcome', 'pass')
+          result.textContent = `SAVED — rolled ${total} vs ${atRollTime}`
+          markCleared(row)
+        } else {
+          // The Set drops to the amount the roll missed by (p36), not to
+          // whatever the roll itself came out to.
+          const margin = atRollTime - total
+          row.roll = margin
+          persist()
+          target.textContent = `Set Roll: ${row.roll}`
+          result.setAttribute('data-outcome', 'fail')
+          result.textContent = `DECAYED -${margin} — rolled ${total} vs ${atRollTime}, now ${row.roll}`
+        }
+        renderRows()
+        applyBtn.style.display = 'none'
+      })
+
+      body.appendChild(backBtn)
+      body.appendChild(pips)
+      body.appendChild(armedHint)
+      body.appendChild(rollBtn)
+      body.appendChild(diceWrap)
+      body.appendChild(poolHint)
+      body.appendChild(applyBtn)
+      body.appendChild(result)
+      renderPips()
+    }
+
+    renderApproachPicker()
   }
 
   const renderRows = () => {
@@ -770,7 +998,7 @@ function buildStatusRollsPanel() {
           dirLongPressed = true
           clearDirHold()
           if (row.direction === 'in') {
-            openSaveModal(row, persist, renderRows)
+            openSaveModal(row, persist, renderRows, markCleared)
           }
         }, DIR_HOLD_MS)
         dirBtn.setAttribute('data-holding', '1')
@@ -926,6 +1154,30 @@ function buildStatusRollsPanel() {
       valueWrap.appendChild(minus)
       valueWrap.appendChild(val)
       valueWrap.appendChild(plus)
+
+      if (clearedRowIds.has(row.id)) {
+        const clearedOverlay = document.createElement('div')
+        clearedOverlay.className = 'status-roll-cleared-overlay'
+        clearedOverlay.textContent = 'CLEARED'
+        clearedOverlay.title = 'Triple-tap to clear the Set'
+        clearedOverlay.setAttribute('data-touch-blocker-ignore', '')
+        let tapCount = 0
+        let tapTimer = null
+        clearedOverlay.addEventListener('click', () => {
+          tapCount += 1
+          if (tapTimer) clearTimeout(tapTimer)
+          if (tapCount >= 3) {
+            tapCount = 0
+            clearedRowIds.delete(row.id)
+            row.roll = 0
+            persist()
+            renderRows()
+            return
+          }
+          tapTimer = setTimeout(() => { tapCount = 0 }, 600)
+        })
+        valueWrap.appendChild(clearedOverlay)
+      }
 
       const clearBtn = document.createElement('button')
       clearBtn.className = 'status-roll-clear'
