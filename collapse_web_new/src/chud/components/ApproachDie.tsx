@@ -321,27 +321,9 @@ export function ApproachDie({
       onClick={handleClick}
       onContextMenu={(event) => event.preventDefault()}
     >
-      <span className="approach-die-label">
-        {label}
-        {wardrobeBonus > 0 && (
-          <span
-            className="approach-die-wardrobe-badge"
-            title={`Wardrobe bonus: +${wardrobeBonus}${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}`}
-          >
-            +{wardrobeBonus}
-          </span>
-        )}
-      </span>
+      <span className="approach-die-label">{label}</span>
       <span className="approach-die-rating" aria-hidden="true">{rating}</span>
       <div className="approach-die-pips" aria-hidden="true">
-        {wardrobePipCount > 0 && (
-          <span
-            className="approach-die-wardrobe-icon"
-            title={`Includes +${wardrobeBonus} from Wardrobe${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}`}
-          >
-            👕
-          </span>
-        )}
         {Array.from({ length: available }, (_, index) => {
           const isWardrobePip = index >= available - wardrobePipCount
           return (
@@ -355,8 +337,21 @@ export function ApproachDie({
       <span className="approach-die-sub">
         {available <= 0
           ? rating > 0 ? "Exhausted" : "No dice"
-          : errorFlash ? "No more dice" : charging ? "Release to roll…" : "Tap: arm · Hold: roll"}
+          : errorFlash ? "No more dice" : charging ? "Release to roll…" : (
+            <>
+              <span className="approach-die-sub-line">Tap: arm</span>
+              <span className="approach-die-sub-line">Hold: roll</span>
+            </>
+          )}
       </span>
+      {wardrobeBonus > 0 && (
+        <span
+          className="approach-die-wardrobe-pip"
+          title={`Includes +${wardrobeBonus} from Wardrobe${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}`}
+        >
+          +{wardrobeBonus} 👕
+        </span>
+      )}
 
       {(rolling || result) && createPortal(
         <div
