@@ -1,7 +1,6 @@
 import type { ApproachStats, CoreStats, SecondaryStats, StatReps } from '../types/chud'
 
 export const DEFAULT_CORE: CoreStats = { vigor: 3, inference: 2, personality: 2 };
-export const DEFAULT_DRAW = 5;
 export const DEFAULT_WT = 3;
 export const DEFAULT_INVENTORY_SLOTS = 4;
 export const DEFAULT_HP_COUNTER = 1;

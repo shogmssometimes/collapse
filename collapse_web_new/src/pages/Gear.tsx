@@ -856,7 +856,7 @@ export default function GearPage({
                     }}
                   >
                     <option value="">—</option>
-                    {[1, 2, 3, 4, 5, 6].map(n => (
+                    {[0, 1, 2, 3, 4, 5, 6].map(n => (
                       <option key={n} value={`+${n}`}>+{n}</option>
                     ))}
                   </select>

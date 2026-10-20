@@ -1420,6 +1420,15 @@ function loadSample() {
 	if (saved) {
 		try {
 			const parsed = JSON.parse(saved);
+			// Global meters (Collapse/Influence/Record/Grit) are independent of whether
+			// any nodes exist yet, so they must be restored even when parsed.nodes is
+			// empty — otherwise the in-memory globalMeters silently reverts to zero and
+			// gets flushed to localStorage the next time persistGraph() runs (e.g. the
+			// first "Add Node" click), wiping out real saved values.
+			if (parsed && parsed.meta && parsed.meta.globalMeters) {
+				globalMeters = parsed.meta.globalMeters;
+				updateControlMeterBars();
+			}
 			if (parsed && Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
 				// onChange is not yet wired when loadSample runs, so no suppression needed
 				// Use fromJSON for layout, then re-apply fields it may have dropped (notes, color)
@@ -1434,12 +1443,14 @@ function loadSample() {
 				// Normalise any still-missing colors
 				graph.nodes.forEach(n => { if (!sanitizeHexColor(n.color)) n.color = getNodeDisplayColor(n); });
 				try { graph.render(); } catch(e) {}
-				if (parsed.meta && parsed.meta.globalMeters) { globalMeters = parsed.meta.globalMeters; updateControlMeterBars(); }
 				updateGlobalMetersUI();
 				updateNodeList();
 				return;
 			}
-			// otherwise fall back to the sample
+			// No nodes saved yet, but globalMeters (if any) were already restored above.
+			updateGlobalMetersUI();
+			try { updateNodeList(); } catch(e) { /* ignore */ }
+			return;
 		} catch (err) { /* continue to sample */ }
 	}
 	const sample = { nodes: [], edges: [], meta: { globalMeters: { collapse: 0, influence: 0, record: 0, grit: 0 } } };

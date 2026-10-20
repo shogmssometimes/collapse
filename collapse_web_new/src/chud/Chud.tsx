@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import "./chud.css";
 import type { ApproachStats, CoreStats, GearSlotEntry, SaveState } from "../types/chud";
 import {
-  DEFAULT_DRAW,
   DEFAULT_INVENTORY_SLOTS,
   DEFAULT_HP_COUNTER,
   DEFAULT_APPROACH,
@@ -62,7 +61,6 @@ export default function Chud() {
     saved?.approachOverloadSpent ?? {}
   );
   const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? DEFAULT_HP_COUNTER);
-  const [draw, setDrawRaw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
   const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
   const [gearEntries, setGearEntries] = useState<GearSlotEntry[] | null>(() =>
     typeof window !== "undefined" ? (readGearData(GEAR_SLOTS_KEY)?.entries ?? null) : null
@@ -130,6 +128,10 @@ export default function Chud() {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       const prev = raw ? JSON.parse(raw) : {};
+      // Strip legacy fields no longer part of SaveState (ap, draw) so they
+      // don't keep getting echoed back into storage forever via the spread.
+      delete (prev as Record<string, unknown>).ap;
+      delete (prev as Record<string, unknown>).draw;
       const state: SaveState = {
         ...prev,
         core,
@@ -138,7 +140,6 @@ export default function Chud() {
         approachDieSize,
         damageDieSize,
         approachOverloadSpent,
-        draw,
         inventorySlots,
         secondary: prev.secondary,
         statReps: prev.statReps,
@@ -148,7 +149,7 @@ export default function Chud() {
     } catch {
       // storage unavailable — ignore
     }
-  }, [core, hpCounter, approach, approachDieSize, damageDieSize, approachOverloadSpent, draw, inventorySlots, shortRest]);
+  }, [core, hpCounter, approach, approachDieSize, damageDieSize, approachOverloadSpent, inventorySlots, shortRest]);
 
   // Cross-tab sync
   useEffect(() => {
@@ -162,7 +163,6 @@ export default function Chud() {
         if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
         if (s.approachOverloadSpent) setApproachOverloadSpent(s.approachOverloadSpent);
         if (typeof s.hpCounter === "number") setHpCounterRaw(s.hpCounter);
-        if (typeof s.draw === "number") setDrawRaw(Math.max(0, s.draw));
         if (typeof s.inventorySlots === "number") setInventorySlotsRaw(Math.max(0, s.inventorySlots));
         if (typeof s.shortRest === "boolean") setShortRest(s.shortRest);
       } catch {

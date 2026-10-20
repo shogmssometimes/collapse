@@ -33,7 +33,6 @@ export interface SaveState {
   damageDieSize?: import('../domain/approachDice').DieSides;
   approachOverloadSpent?: Partial<Record<keyof ApproachStats, number>>;
   wt: number;
-  draw: number;
   inventorySlots: number;
   secondary?: SecondaryStats;
   statReps?: StatReps;

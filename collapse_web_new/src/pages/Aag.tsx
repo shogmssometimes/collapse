@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ApproachStats, CoreStats } from "../types/chud";
-import { DEFAULT_APPROACH, DEFAULT_DRAW, DEFAULT_WT, DEFAULT_INVENTORY_SLOTS, computeDerived } from "../domain/chudStats";
+import { DEFAULT_APPROACH, DEFAULT_WT, DEFAULT_INVENTORY_SLOTS, computeDerived } from "../domain/chudStats";
 import { isDieSides, stepUp, type DieSides } from "../domain/approachDice";
 import { clampApproachToCore } from "../domain/coreApproachMap";
 import { loadState, readGearData } from "../utils/chudPersistence";
@@ -29,10 +29,6 @@ export default function AagPage({
     isDieSides(saved?.damageDieSize) ? saved.damageDieSize : DEFAULT_DAMAGE_DIE_SIZE
   );
   const [wt, setWtRaw] = useState<number>(saved?.wt ?? DEFAULT_WT);
-  // Draw no longer has editable UI on the AAG page, but the value is still
-  // read by the MGR page's Reps tracker, so it's kept here only to avoid
-  // clobbering it on every persist.
-  const [draw] = useState<number>(saved?.draw ?? DEFAULT_DRAW);
   const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
   const [gearSlotsUsed, setGearSlotsUsed] = useState<number>(() =>
     typeof window !== "undefined" ? (readGearData(gearSlotsStorageKey)?.slotsUsed ?? 0) : 0
@@ -82,13 +78,17 @@ export default function AagPage({
     try {
       const raw = window.localStorage.getItem(chudStateStorageKey);
       const prev = raw ? JSON.parse(raw) : {};
-      const merged = { ...prev, core, approach, damageDieSize, wt, draw, inventorySlots };
+      // Strip legacy fields no longer part of SaveState (ap, draw) so they
+      // don't keep getting echoed back into storage forever via the spread.
+      delete prev.ap;
+      delete prev.draw;
+      const merged = { ...prev, core, approach, damageDieSize, wt, inventorySlots };
       delete merged.approachDice;
       window.localStorage.setItem(chudStateStorageKey, JSON.stringify(merged));
     } catch {
       // storage unavailable — ignore
     }
-  }, [chudStateStorageKey, core, approach, damageDieSize, wt, draw, inventorySlots]);
+  }, [chudStateStorageKey, core, approach, damageDieSize, wt, inventorySlots]);
 
   // Cross-tab / cross-iframe sync for these fields.
   useEffect(() => {

@@ -414,7 +414,7 @@ export function ApproachDie({
               )}
               {margin > 0 && (
                 <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); handleRollDamage() }}>
-                  Roll Damage ({margin}{dieLabel(damageDie)})
+                  Roll Wounds ({margin}{dieLabel(damageDie)})
                 </button>
               )}
             </div>

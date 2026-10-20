@@ -45,10 +45,6 @@ function readUI() {
 function writeUIKey(key, val) {
   try { localStorage.setItem(UI_KEY, JSON.stringify({ ...readUI(), [key]: val })) } catch {}
 }
-const METERS = [
-  { key: 'record', label: 'Record', accent: '#6ac7ff' },
-  { key: 'influence', label: 'Influence', accent: '#63ffb1' },
-]
 const MAX_VALUE = 6
 
 const clamp = (n) => Math.max(0, Math.min(MAX_VALUE, n))
@@ -70,13 +66,11 @@ function readMeters() {
   if (meta) {
     return {
       collapse: clamp(meta.collapse ?? 0),
-      influence: clamp(meta.influence ?? 0),
-      record: clamp(meta.record ?? 0),
       grit: clamp(meta.grit ?? 0),
     }
   }
   // fallback to sample values used by CS Matrix when empty
-  return { collapse: 0, influence: 0, record: 0, grit: 0 }
+  return { collapse: 0, grit: 0 }
 }
 
 function writeMeters(nextMeters) {
