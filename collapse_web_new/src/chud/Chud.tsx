@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./chud.css";
 import type { ApproachStats, CoreStats, GearSlotEntry, SaveState } from "../types/chud";
 import {
@@ -18,7 +18,9 @@ import {
 } from "../domain/approachDice";
 import type { ApproachDieRollResult } from "./components/ApproachDie";
 import { clampApproachToCore } from "../domain/coreApproachMap";
-import { loadState, readGearData } from "../utils/chudPersistence";
+import { computeWardrobeBonuses } from "../domain/wardrobeBonus";
+import { loadState, readGearData, readWardrobeData } from "../utils/chudPersistence";
+import { wardrobeKey } from "../utils/slotKeys";
 import { CollapseOverlay } from "./panels/CollapseOverlay";
 import { HPPanel } from "./panels/HPPanel";
 import { GearPanel } from "./panels/GearPanel";
@@ -36,6 +38,7 @@ const _chudSlot = (() => {
 
 const STORAGE_KEY = _chudSlot === 1 ? "chud.state.v1" : `chud.state.slot.${_chudSlot}`;
 const GEAR_SLOTS_KEY = _chudSlot === 1 ? "gear.slots.v1" : `gear.slots.slot.${_chudSlot}`;
+const WARDROBE_KEY = wardrobeKey(_chudSlot);
 const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 4;
 
 // ── RepCard, StatCard, GearBriefWidget ─────────────────────────────────
@@ -66,6 +69,13 @@ export default function Chud() {
   );
   const [gearSlotsUsed, setGearSlotsUsed] = useState<number>(() =>
     typeof window !== "undefined" ? (readGearData(GEAR_SLOTS_KEY)?.slotsUsed ?? 0) : 0
+  );
+  const [wardrobeEntries, setWardrobeEntries] = useState(() =>
+    typeof window !== "undefined" ? readWardrobeData(WARDROBE_KEY) : []
+  );
+  const { bonus: approachWardrobeBonus, items: approachWardrobeItems } = useMemo(
+    () => computeWardrobeBonuses(wardrobeEntries),
+    [wardrobeEntries]
   );
 
   const [shortRest, setShortRest] = useState<boolean>(saved?.shortRest ?? false);
@@ -102,13 +112,13 @@ export default function Chud() {
   }, [approachDieSize]);
 
   const overloadApproachDie = useCallback((field: keyof ApproachStats): boolean => {
-    const rating = approach[field];
+    const rating = approach[field] + (approachWardrobeBonus[field] ?? 0);
     const spent = approachOverloadSpent[field] ?? 0;
     const next = spendOverloadDie(rating, spent);
     if (next === spent) return false; // pool already exhausted
     setApproachOverloadSpent((prev) => ({ ...prev, [field]: next }));
     return true;
-  }, [approach, approachOverloadSpent]);
+  }, [approach, approachOverloadSpent, approachWardrobeBonus]);
 
   // Persist to localStorage. Merge with whatever is currently saved so
   // fields owned by the AAG/MGR pages (wt, secondary, statReps) aren't
@@ -174,6 +184,15 @@ export default function Chud() {
     return () => window.removeEventListener("storage", gearHandler);
   }, []);
 
+  useEffect(() => {
+    const wardrobeHandler = (e: StorageEvent) => {
+      if (e.key !== WARDROBE_KEY) return;
+      setWardrobeEntries(readWardrobeData(WARDROBE_KEY));
+    };
+    window.addEventListener("storage", wardrobeHandler);
+    return () => window.removeEventListener("storage", wardrobeHandler);
+  }, []);
+
   const collapseLocked = hpCounter <= 0 && !collapseUnlocked;
 
   const setHpCounter = useCallback(
@@ -213,6 +232,8 @@ export default function Chud() {
             onRollApproachDie={rollApproachDie}
             approachOverloadSpent={approachOverloadSpent}
             onOverloadApproachDie={overloadApproachDie}
+            approachWardrobeBonus={approachWardrobeBonus}
+            approachWardrobeItems={approachWardrobeItems}
           />
 
         </section>

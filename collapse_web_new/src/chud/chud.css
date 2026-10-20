@@ -843,6 +843,21 @@ body::after {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(248, 250, 252, 0.72);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.approach-die-wardrobe-badge {
+  font-size: 0.55rem;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+  color: #ffd43b;
+  background: rgba(255, 212, 59, 0.14);
+  border: 1px solid rgba(255, 212, 59, 0.4);
+  border-radius: 6px;
+  padding: 0 4px;
+  line-height: 1.4;
 }
 
 .approach-die-sub {
@@ -878,6 +893,18 @@ body::after {
   background: #0ff6ff;
   border-color: #0ff6ff;
   transform: scale(1.1);
+}
+
+/* Pips sourced from a Wardrobe bonus rather than the Core-distributed
+   rating — same armed/unarmed states, distinguished by a gold border so
+   players can see at a glance where the extra dice come from. */
+.approach-die-pip.wardrobe {
+  border-color: rgba(255, 212, 59, 0.6);
+}
+
+.approach-die-pip.wardrobe.armed {
+  background: #ffd43b;
+  border-color: #ffd43b;
 }
 
 @keyframes approach-die-error {

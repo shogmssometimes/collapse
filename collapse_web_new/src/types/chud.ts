@@ -42,3 +42,5 @@ export interface SaveState {
 
 export type GearSlotEntry = { name: string; units: string; qty: string };
 export type GearData = { entries: GearSlotEntry[]; slotsUsed: number };
+
+export type WardrobeEntry = { name: string; approach: string; quality: string };

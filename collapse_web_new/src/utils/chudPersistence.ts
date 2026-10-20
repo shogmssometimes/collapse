@@ -1,4 +1,4 @@
-import type { GearData, SaveState, SecondaryStats } from '../types/chud'
+import type { GearData, SaveState, SecondaryStats, WardrobeEntry } from '../types/chud'
 import { DEFAULT_SECONDARY } from '../domain/chudStats'
 
 // Reads & normalizes the persisted cHUD character sheet.
@@ -46,5 +46,23 @@ export function readGearData(gearSlotsKey: string): GearData | null {
     return null;
   } catch {
     return null;
+  }
+}
+
+export function readWardrobeData(wardrobeKey: string): WardrobeEntry[] {
+  try {
+    const raw = window.localStorage.getItem(wardrobeKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
+      .map((row) => ({
+        name: typeof row.name === 'string' ? row.name : '',
+        approach: typeof row.approach === 'string' ? row.approach : '',
+        quality: typeof row.quality === 'string' ? row.quality : '',
+      }));
+  } catch {
+    return [];
   }
 }

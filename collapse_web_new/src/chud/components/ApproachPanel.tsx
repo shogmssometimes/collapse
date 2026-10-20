@@ -17,6 +17,8 @@ export function ApproachPanel({
   onRollApproachDie,
   approachOverloadSpent,
   onOverloadApproachDie,
+  approachWardrobeBonus,
+  approachWardrobeItems,
 }: {
   approach: ApproachStats;
   approachDieSize: DieSides;
@@ -26,6 +28,10 @@ export function ApproachPanel({
   onRollApproachDie: (field: keyof ApproachStats, count: number) => ApproachDieRollResult;
   approachOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
   onOverloadApproachDie: (field: keyof ApproachStats) => boolean;
+  /** Extra dice granted by Wardrobe items assigned to each Approach (on top of the Core-distributed rating). */
+  approachWardrobeBonus: Partial<Record<keyof ApproachStats, number>>;
+  /** Wardrobe item names/bonuses contributing to each Approach's bonus, for a tooltip. */
+  approachWardrobeItems: Partial<Record<keyof ApproachStats, string[]>>;
 }) {
   const approachStats = useMemo<Array<[keyof ApproachStats, string]>>(
     () => [
@@ -44,7 +50,9 @@ export function ApproachPanel({
       <h3>Approach</h3>
       <div className="core-grid approach-grid">
         {approachStats.map(([field, label]) => {
-          const rating = approach[field];
+          const baseRating = approach[field];
+          const wardrobeBonus = approachWardrobeBonus[field] ?? 0;
+          const rating = baseRating + wardrobeBonus;
           const spent = approachOverloadSpent[field] ?? 0;
           const available = Math.max(0, rating - Math.min(Math.max(spent, 0), rating));
           return (
@@ -52,6 +60,9 @@ export function ApproachPanel({
               <ApproachDie
                 label={label}
                 rating={rating}
+                baseRating={baseRating}
+                wardrobeBonus={wardrobeBonus}
+                wardrobeItems={approachWardrobeItems[field] ?? []}
                 available={available}
                 die={approachDieSize}
                 damageDie={damageDieSize}

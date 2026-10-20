@@ -35,6 +35,9 @@ const dieLabel = (die: DieSides) => `D${die}`
 export function ApproachDie({
   label,
   rating,
+  baseRating,
+  wardrobeBonus = 0,
+  wardrobeItems = [],
   available,
   die,
   damageDie,
@@ -42,8 +45,14 @@ export function ApproachDie({
   onOverload,
 }: {
   label: string
-  /** Full Approach rating, i.e. the size of the Overload dice pool. */
+  /** Full Approach rating including any Wardrobe bonus, i.e. the size of the Overload dice pool. */
   rating: number
+  /** Core-distributed rating alone, before any Wardrobe bonus — used to tell base pips from bonus pips. */
+  baseRating?: number
+  /** Extra dice granted by Wardrobe items assigned to this Approach. */
+  wardrobeBonus?: number
+  /** Wardrobe item names/bonuses contributing to wardrobeBonus, for a tooltip. */
+  wardrobeItems?: string[]
   /** Dice currently available to arm (rating minus any Overloaded-and-spent dice). */
   available: number
   die: DieSides
@@ -216,7 +225,10 @@ export function ApproachDie({
   }
 
   const hasExplosion = result?.dice.some((dieRoll) => dieRoll.rolls.length > 1) ?? false
-  const overloadPoolRemaining = Math.max(0, available - overloaded.size)
+  // `available` already reflects every Overload spent so far (this roll and
+  // any prior ones) via the parent's approachOverloadSpent tracking — it's
+  // not just this roll's local `overloaded` set, so don't subtract that too.
+  const overloadPoolRemaining = available
   const displayTotal = result
     ? result.dice.reduce((sum, dieRoll, index) => sum + (overloaded.has(index) ? dieRoll.total * 2 : dieRoll.total), 0)
     : 0
@@ -252,15 +264,17 @@ export function ApproachDie({
   const woundThresholdNumber = Number(woundValue)
   const hasWoundValue = woundValue.trim() !== "" && Number.isFinite(woundThresholdNumber)
   const isSuccess = (value: number) =>
-    hasWoundValue && (woundMode === "threshold" ? value > woundThresholdNumber : value === woundThresholdNumber)
+    hasWoundValue && (woundMode === "threshold" ? value >= woundThresholdNumber : value === woundThresholdNumber)
   const successCount = hasWoundValue ? damageDice.filter(isSuccess).length : 0
+
+  const wardrobePipCount = Math.min(wardrobeBonus, available)
 
   return (
     <button
       ref={boxRef}
       type="button"
       className={`approach-die${charging ? " charging" : ""}${errorFlash ? " error" : ""}`}
-      aria-label={`${label}: ${armed} armed of ${available} available. Tap to arm a die, hold to roll.`}
+      aria-label={`${label}: ${armed} armed of ${available} available${wardrobeBonus > 0 ? ` (includes +${wardrobeBonus} from Wardrobe)` : ""}. Tap to arm a die, hold to roll.`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={cancelPress}
@@ -268,11 +282,27 @@ export function ApproachDie({
       onClick={handleClick}
       onContextMenu={(event) => event.preventDefault()}
     >
-      <span className="approach-die-label">{label}</span>
+      <span className="approach-die-label">
+        {label}
+        {wardrobeBonus > 0 && (
+          <span
+            className="approach-die-wardrobe-badge"
+            title={`Wardrobe bonus: +${wardrobeBonus}${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}`}
+          >
+            +{wardrobeBonus}
+          </span>
+        )}
+      </span>
       <div className="approach-die-pips" aria-hidden="true">
-        {Array.from({ length: available }, (_, index) => (
-          <span key={index} className={`approach-die-pip${index < armed ? " armed" : ""}`} />
-        ))}
+        {Array.from({ length: available }, (_, index) => {
+          const isWardrobePip = index >= available - wardrobePipCount
+          return (
+            <span
+              key={index}
+              className={`approach-die-pip${index < armed ? " armed" : ""}${isWardrobePip ? " wardrobe" : ""}`}
+            />
+          )
+        })}
       </div>
       <span className="approach-die-sub">
         {available <= 0
@@ -336,7 +366,7 @@ export function ApproachDie({
               </div>
               {onOverload && (
                 <div className="approach-die-popup-pool">
-                  Overload pool: {overloadPoolRemaining}/{rating}
+                  Overload pool remaining: {overloadPoolRemaining}/{rating}
                 </div>
               )}
               <div className="approach-roll-path-actions">
