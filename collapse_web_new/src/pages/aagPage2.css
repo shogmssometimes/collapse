@@ -553,7 +553,7 @@
 }
 
 .dig-deep-popup-label {
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #ff9f6b;
@@ -567,21 +567,21 @@
 }
 
 .dig-deep-popup-lose {
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   letter-spacing: 0.08em;
   color: #ff5c5c;
   text-shadow: 0 0 20px rgba(255, 92, 92, 0.4);
 }
 
 .dig-deep-popup-gain {
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   letter-spacing: 0.08em;
   color: #ffd43b;
   text-shadow: 0 0 20px rgba(255, 212, 59, 0.4);
 }
 
 .dig-deep-popup-rolled {
-  font-size: 0.65rem;
+  font-size: 1.4rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(248, 250, 252, 0.5);

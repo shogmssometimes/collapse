@@ -275,7 +275,9 @@ export function ApproachDie({
         ))}
       </div>
       <span className="approach-die-sub">
-        {available <= 0 ? "No dice" : errorFlash ? "No more dice" : charging ? "Release to roll…" : "Tap: arm · Hold: roll"}
+        {available <= 0
+          ? rating > 0 ? "Exhausted" : "No dice"
+          : errorFlash ? "No more dice" : charging ? "Release to roll…" : "Tap: arm · Hold: roll"}
       </span>
 
       {(rolling || result) && createPortal(
