@@ -219,24 +219,20 @@ function createStyles() {
        stays usable — it just LOOKS like the device is failing. */
     .broken-screen-overlay { position: fixed; inset: 0; z-index: 9400; pointer-events: none; opacity: 0; transition: opacity 260ms ease; overflow: hidden; }
     .broken-screen-overlay.active { opacity: 1; }
-    .broken-screen-cracks {
+    /* Ambient red danger glow — no crack/shatter imagery, just a signal
+       that the device is failing, layered under the glitch/band/scan
+       effects (which are the parts that read well on their own). */
+    .broken-screen-glow {
       position: absolute; inset: -4px;
-      /* Two "impact points" with cracks radiating outward (repeating-conic-gradient
-         wedges), rather than uniform diagonal stripes across the whole screen —
-         reads as shattered glass with a point of origin instead of a striped filter. */
       background-image:
-        repeating-conic-gradient(from 8deg at 30% 24%, rgba(255,255,255,0.16) 0deg 0.6deg, transparent 0.6deg 16deg),
-        repeating-conic-gradient(from 50deg at 74% 72%, rgba(255,255,255,0.12) 0deg 0.5deg, transparent 0.5deg 21deg),
-        radial-gradient(circle at 30% 24%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.08) 6%, transparent 9%),
-        radial-gradient(circle at 74% 72%, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.06) 5%, transparent 8%),
         radial-gradient(ellipse at 28% 18%, rgba(255,10,50,0.28), transparent 55%),
         radial-gradient(ellipse at 78% 82%, rgba(255,10,50,0.2), transparent 60%);
       mix-blend-mode: screen;
-      animation: broken-crack-shift 2.6s steps(2, end) infinite;
+      animation: broken-glow-pulse 2.6s ease-in-out infinite;
     }
-    @keyframes broken-crack-shift {
-      0%, 100% { transform: translate(0,0); filter: brightness(1); }
-      50% { transform: translate(1px,-1px); filter: brightness(1.2); }
+    @keyframes broken-glow-pulse {
+      0%, 100% { opacity: 0.85; }
+      50% { opacity: 1; }
     }
     /* RGB-split "signal tear" glitch — flashes briefly and infrequently
        rather than sitting on screen continuously. */
@@ -1514,9 +1510,9 @@ function buildBrokenScreenOverlay(getMeters) {
   overlay.className = 'broken-screen-overlay'
   overlay.setAttribute('aria-hidden', 'true')
 
-  const cracks = document.createElement('div')
-  cracks.className = 'broken-screen-cracks'
-  overlay.appendChild(cracks)
+  const glow = document.createElement('div')
+  glow.className = 'broken-screen-glow'
+  overlay.appendChild(glow)
 
   const glitch = document.createElement('div')
   glitch.className = 'broken-screen-glitch'
