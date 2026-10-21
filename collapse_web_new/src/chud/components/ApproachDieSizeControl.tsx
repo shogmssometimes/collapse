@@ -119,7 +119,9 @@ export function ApproachDieSizeControl({
         onPointerCancel={handlePointerLeave}
         onClick={(event) => event.preventDefault()}
         onContextMenu={handleContextMenu}
+        style={{ ["--hold-progress-ms" as string]: `${LONG_PRESS_MS}ms` } as React.CSSProperties}
       >
+        <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
         <span className="approach-die-size-value">D{die}</span>
         <span className="approach-die-size-hint">{label}</span>
         {feedback && (

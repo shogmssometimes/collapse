@@ -204,10 +204,16 @@ function createStyles() {
     .status-roll-add:disabled { opacity: 0.35; cursor: not-allowed; }
 
     /* ── Set Roll direction (applied by you vs applied to you) ───────── */
-    .status-roll-direction { flex: 13 1 0; min-width: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: rgba(248,250,252,0.75); font-size: 8px; font-weight: 700; letter-spacing: 0.02em; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; text-align: center; }
+    .status-roll-direction { position: relative; overflow: hidden; isolation: isolate; flex: 13 1 0; min-width: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05); color: rgba(248,250,252,0.75); font-size: 8px; font-weight: 700; letter-spacing: 0.02em; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; text-align: center; }
+    .status-roll-direction-label { position: relative; z-index: 1; }
     .status-roll-direction[data-dir="in"] { border-color: rgba(111,165,255,0.45); color: #8fb4ff; background: rgba(111,165,255,0.1); }
     .status-roll-direction[data-dir="out"] { border-color: rgba(242,208,107,0.45); color: #f2d06b; background: rgba(242,208,107,0.1); }
     .status-roll-direction[data-holding="1"] { outline: 2px solid rgba(111,165,255,0.6); outline-offset: 1px; }
+    /* Generic long-press progress fill (mirrors the React .hold-progress-fill
+       pattern): sweeps left-to-right over the hold duration, then snaps back
+       to 0 instantly on release. */
+    .hold-progress-fill { position: absolute; inset: 0; width: 0%; background: linear-gradient(90deg, rgba(15,246,255,0.32), rgba(15,246,255,0.08)); z-index: 0; pointer-events: none; }
+    .hold-progress-fill.active { width: 100%; transition: width var(--hold-progress-ms, 550ms) linear; }
 
     /* ── Save/Decay modal (opened via long-press on the Dir button) ──── */
     .status-roll-save-overlay { position: fixed; inset: 0; z-index: 4000; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -230,6 +236,8 @@ function createStyles() {
     .status-roll-save-approach-btn:active { background: rgba(255,255,255,0.1); }
     .status-roll-save-back { align-self: flex-start; background: none; border: none; color: rgba(248,250,252,0.6); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 0; }
     .status-roll-save-pips { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; min-height: 12px; cursor: pointer; }
+    .status-roll-save-pips.error-flash { animation: status-roll-save-pips-error 420ms ease; }
+    @keyframes status-roll-save-pips-error { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
     .status-roll-save-pip { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); }
     .status-roll-save-pip.armed { background: #0ff6ff; border-color: #0ff6ff; }
     .status-roll-save-wardrobe-pip { display: inline-flex; align-items: center; gap: 2px; font-size: 9px; font-weight: 700; color: #ffd43b; background: rgba(255,212,59,0.14); border: 1px solid rgba(255,212,59,0.5); border-radius: 999px; padding: 1px 6px; }
@@ -247,7 +255,8 @@ function createStyles() {
     .status-roll-save-pip.fading { opacity: 0.3; transition: opacity 0.9s ease; }
 
     /* ── Cleared Set overlay (shown after a Save passes, spans the full row) ── */
-    .status-roll-cleared-overlay { position: absolute; inset: -2px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: #4ade80; background: rgba(10,16,12,0.92); border: 1px solid rgba(74,222,128,0.45); border-radius: 9px; cursor: pointer; z-index: 5; animation: status-roll-cleared-flash 1.6s ease-in-out infinite; }
+    .status-roll-cleared-overlay { position: absolute; inset: -2px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: #4ade80; background: rgba(10,16,12,0.92); border: 1px solid rgba(74,222,128,0.45); border-radius: 9px; cursor: pointer; z-index: 5; animation: status-roll-cleared-flash 1.6s ease-in-out infinite; }
+    .status-roll-cleared-hint { font-size: 9px; font-weight: 700; opacity: 0.85; min-width: 16px; }
     @keyframes status-roll-cleared-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
     /* ── Combat Panel ──────────────────────────────────────────────── */
@@ -887,9 +896,15 @@ function buildStatusRollsPanel() {
         rollBtn.disabled = armed <= 0
       }
 
+      const flashPipsError = () => {
+        pips.classList.add('error-flash')
+        setTimeout(() => pips.classList.remove('error-flash'), 420)
+      }
+
       pips.addEventListener('click', () => {
         if (dice) return // already rolled this round — back out to reroll
-        if (armed >= available) { armed = 0 } else { armed += 1 }
+        if (armed >= available) { flashPipsError(); return }
+        armed += 1
         renderPips()
         scheduleArmedTimers()
       })
@@ -907,8 +922,13 @@ function buildStatusRollsPanel() {
         result.style.display = 'none'
       })
 
+      // Overload doubles only the original face of a die — an explosion's
+      // extra roll(s) are added on top, un-doubled, same as the real card.
+      const overloadedValue = (dieRoll) =>
+        dieRoll.rolls[0] * 2 + dieRoll.rolls.slice(1).reduce((sum, r) => sum + r, 0)
+
       const currentTotal = () => (dice ?? []).reduce(
-        (sum, dieRoll, index) => sum + (overloadedSet.has(index) ? dieRoll.total * 2 : dieRoll.total), 0
+        (sum, dieRoll, index) => sum + (overloadedSet.has(index) ? overloadedValue(dieRoll) : dieRoll.total), 0
       )
 
       const renderDiceChips = () => {
@@ -918,10 +938,12 @@ function buildStatusRollsPanel() {
           const chip = document.createElement('button')
           chip.className = `status-roll-save-chip${overloadedSet.has(index) ? ' overloaded' : ''}${didExplode ? ' exploded' : ''}`
           chip.setAttribute('data-touch-blocker-ignore', '')
-          chip.disabled = overloadedSet.has(index) || available <= 0 || didExplode
-          chip.title = didExplode
-            ? "Exploded dice can't be Overloaded"
-            : 'Tap to Overload: double this die, spend 1 from the Approach pool'
+          chip.disabled = overloadedSet.has(index) || available <= 0
+          chip.title = overloadedSet.has(index)
+            ? 'Already Overloaded'
+            : didExplode
+              ? 'Tap to Overload: doubles only the original roll, spend 1 from the Approach pool'
+              : 'Tap to Overload: double this die, spend 1 from the Approach pool'
           chip.textContent = `D${dieSize}: ${dieRoll.rolls.join(' + ')}`
           if (didExplode) {
             const tag = document.createElement('span')
@@ -936,7 +958,7 @@ function buildStatusRollsPanel() {
             chip.appendChild(tag)
           }
           chip.addEventListener('click', () => {
-            if (didExplode || overloadedSet.has(index) || available <= 0) return
+            if (overloadedSet.has(index) || available <= 0) return
             spent += 1
             writeOverloadSpent(field, spent)
             available = Math.max(0, rating - spent)
@@ -997,9 +1019,17 @@ function buildStatusRollsPanel() {
       const dirBtn = document.createElement('button')
       dirBtn.className = 'status-roll-direction'
       dirBtn.setAttribute('data-touch-blocker-ignore', '')
+      dirBtn.style.setProperty('--hold-progress-ms', '500ms')
+      const dirFill = document.createElement('span')
+      dirFill.className = 'hold-progress-fill'
+      dirFill.setAttribute('aria-hidden', 'true')
+      const dirLabel = document.createElement('span')
+      dirLabel.className = 'status-roll-direction-label'
+      dirBtn.appendChild(dirFill)
+      dirBtn.appendChild(dirLabel)
       const renderDir = () => {
         dirBtn.setAttribute('data-dir', row.direction)
-        dirBtn.textContent = row.direction === 'out' ? 'TRGT' : 'YOU'
+        dirLabel.textContent = row.direction === 'out' ? 'TRGT' : 'YOU'
         dirBtn.title = row.direction === 'out' ? 'Applied by you to a Target' : 'Applied to You (long-press for Save/Decay)'
       }
       renderDir()
@@ -1011,6 +1041,7 @@ function buildStatusRollsPanel() {
       const clearDirHold = () => {
         if (dirHoldTimer) { clearTimeout(dirHoldTimer); dirHoldTimer = null }
         dirBtn.removeAttribute('data-holding')
+        dirFill.classList.remove('active')
       }
       dirBtn.addEventListener('pointerdown', (ev) => {
         if (ev.button === 2) return
@@ -1024,6 +1055,7 @@ function buildStatusRollsPanel() {
           }
         }, DIR_HOLD_MS)
         dirBtn.setAttribute('data-holding', '1')
+        dirFill.classList.add('active')
       })
       dirBtn.addEventListener('pointerup', () => {
         clearDirHold()
@@ -1180,23 +1212,37 @@ function buildStatusRollsPanel() {
       if (clearedRowIds.has(row.id)) {
         const clearedOverlay = document.createElement('div')
         clearedOverlay.className = 'status-roll-cleared-overlay'
-        clearedOverlay.textContent = 'CLEARED'
+        const clearedLabel = document.createElement('span')
+        clearedLabel.className = 'status-roll-cleared-label'
+        clearedLabel.textContent = 'CLEARED'
+        const clearedHint = document.createElement('span')
+        clearedHint.className = 'status-roll-cleared-hint'
+        clearedOverlay.appendChild(clearedLabel)
+        clearedOverlay.appendChild(clearedHint)
         clearedOverlay.title = 'Triple-tap to clear the Set'
         clearedOverlay.setAttribute('data-touch-blocker-ignore', '')
         let tapCount = 0
         let tapTimer = null
+        const resetTaps = () => {
+          tapCount = 0
+          clearedHint.textContent = ''
+          if (tapTimer) { clearTimeout(tapTimer); tapTimer = null }
+        }
         clearedOverlay.addEventListener('click', () => {
           tapCount += 1
           if (tapTimer) clearTimeout(tapTimer)
           if (tapCount >= 3) {
-            tapCount = 0
+            resetTaps()
             clearedRowIds.delete(row.id)
             row.roll = 0
             persist()
             renderRows()
             return
           }
-          tapTimer = setTimeout(() => { tapCount = 0 }, 600)
+          clearedHint.textContent = `${tapCount}/3`
+          // Mirrors the Approach-dice pip auto-revert window: an
+          // unfinished triple-tap resets after 30s of inactivity.
+          tapTimer = setTimeout(resetTaps, 30000)
         })
         // Covers the whole row (not just the value) so it's unmissable.
         rowEl.appendChild(clearedOverlay)

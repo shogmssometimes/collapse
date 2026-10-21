@@ -89,7 +89,9 @@ export function CoreStatCard({
       onPointerCancel={cancelLongPress}
       onClick={handleClick}
       onContextMenu={(event) => event.preventDefault()}
+      style={{ ["--hold-progress-ms" as string]: `${LONG_PRESS_MS}ms` } as React.CSSProperties}
     >
+      <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
       <span className="core-label">{label}</span>
       <div className="core-controls">
         <span className="core-value">{value}</span>

@@ -330,6 +330,9 @@ button:hover {
   color: var(--accent);
 }
 .ghost-btn-icon {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   width: 40px;
   height: 40px;
   border-radius: 999px;
@@ -342,6 +345,10 @@ button:hover {
   color: #f5fbff;
   font-size: 1.15rem;
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+.ghost-btn-icon span[aria-hidden="true"]:not(.hold-progress-fill) {
+  position: relative;
+  z-index: 1;
 }
 .ghost-btn-icon:hover,
 .ghost-btn-icon:focus-visible {
@@ -425,6 +432,23 @@ button:hover {
 .reshuffle-progress.active {
   width: 100%;
   transition: width var(--reshuffle-hold-ms, 900ms) linear;
+}
+
+/* Generic long-press progress fill: reused by any hold-to-trigger control
+   (Back button, Core Stat distribute, Approach die roll charge, die-size
+   step, Save modal open). Sweeps left-to-right over the hold duration set
+   via --hold-progress-ms, then snaps back to 0 instantly on release. */
+.hold-progress-fill {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(15,246,255,0.32), rgba(15,246,255,0.08));
+  z-index: 0;
+  pointer-events: none;
+}
+.hold-progress-fill.active {
+  width: 100%;
+  transition: width var(--hold-progress-ms, 550ms) linear;
 }
 
 /* Long-press card-name target for the details pop-up: must not be cancelled

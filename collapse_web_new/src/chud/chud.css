@@ -182,6 +182,9 @@ body {
 /* ── Core / Stat cards ───────────────────────────────────────────────────── */
 
 .core-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   align-items: center;
   text-align: center;
   border-radius: 6px;
@@ -197,6 +200,11 @@ body {
   flex-direction: column;
   gap: 4px;
   transition: border-color 120ms ease, background 120ms ease;
+}
+.core-card .core-label,
+.core-card .core-controls {
+  position: relative;
+  z-index: 1;
 }
 
 .core-card.interactive {
@@ -693,6 +701,8 @@ body::after {
 
 .approach-die-size-button {
   position: relative;
+  overflow: hidden;
+  isolation: isolate;
   width: 100%;
   min-height: 68px;
   border: 1px solid rgba(15, 246, 255, 0.38);
@@ -709,6 +719,11 @@ body::after {
   user-select: none;
   -webkit-user-select: none;
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.approach-die-size-button > *:not(.hold-progress-fill) {
+  position: relative;
+  z-index: 1;
 }
 
 .approach-die-size-button.pressing {
@@ -780,6 +795,8 @@ body::after {
 
 .approach-die {
   position: relative;
+  overflow: hidden;
+  isolation: isolate;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -799,6 +816,10 @@ body::after {
   font: inherit;
   aspect-ratio: 1.1 / 1;
   width: 100%;
+}
+.approach-die > *:not(.hold-progress-fill) {
+  position: relative;
+  z-index: 1;
 }
 
 .approach-die:active {

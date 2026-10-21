@@ -32,6 +32,7 @@ const BACK_LONG_PRESS_MS = 600;
 const BackButton: React.FC<{ onBack: () => void; onGoHome: () => void }> = ({ onBack, onGoHome }) => {
   const timerRef = useRef<number | null>(null);
   const firedRef = useRef(false);
+  const [holding, setHolding] = useState(false);
 
   const clearTimer = () => {
     if (timerRef.current !== null) {
@@ -43,14 +44,17 @@ const BackButton: React.FC<{ onBack: () => void; onGoHome: () => void }> = ({ on
   const handlePointerDown = () => {
     firedRef.current = false;
     clearTimer();
+    setHolding(true);
     timerRef.current = window.setTimeout(() => {
       firedRef.current = true;
+      setHolding(false);
       onGoHome();
     }, BACK_LONG_PRESS_MS);
   };
 
   const handlePointerUp = () => {
     clearTimer();
+    setHolding(false);
   };
 
   const handleClick = () => {
@@ -69,8 +73,10 @@ const BackButton: React.FC<{ onBack: () => void; onGoHome: () => void }> = ({ on
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      style={{ ["--hold-progress-ms" as string]: `${BACK_LONG_PRESS_MS}ms` } as React.CSSProperties}
       aria-label="Back (hold for main menu)"
     >
+      <span className={`hold-progress-fill${holding ? " active" : ""}`} aria-hidden="true" />
       <span aria-hidden="true">←</span>
     </button>
   );

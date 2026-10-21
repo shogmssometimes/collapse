@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import type { ApproachRollResult, DieSides } from "../../domain/approachDice"
+import type { ApproachDieResult, ApproachRollResult, DieSides } from "../../domain/approachDice"
 import { rollFlatDice } from "../../domain/approachDice"
 import { addSetRollRow, setChipDesynced } from "../../utils/chudVanillaBridge"
 
@@ -71,6 +71,7 @@ export function ApproachDie({
   const [overloaded, setOverloaded] = useState<Set<number>>(new Set())
   const [rolling, setRolling] = useState(false)
   const [charging, setCharging] = useState(false)
+  const [pressing, setPressing] = useState(false)
   const [view, setView] = useState<PopupView>("result")
   const [oppositionInput, setOppositionInput] = useState("")
   const [margin, setMargin] = useState<number | null>(null)
@@ -229,18 +230,22 @@ export function ApproachDie({
       window.clearTimeout(chargeStartTimer.current)
       chargeStartTimer.current = null
     }
+    setPressing(false)
     if (charging) stopCharging()
   }
 
   const handlePointerDown = () => {
     suppressClick.current = false
+    setPressing(true)
     chargeStartTimer.current = window.setTimeout(() => {
       chargeStartTimer.current = null
+      setPressing(false)
       startCharging()
     }, CHARGE_THRESHOLD_MS)
   }
 
   const handlePointerUp = () => {
+    setPressing(false)
     if (chargeStartTimer.current !== null) {
       // Released before the charge threshold — treat as a tap to arm.
       window.clearTimeout(chargeStartTimer.current)
@@ -268,8 +273,12 @@ export function ApproachDie({
   // any prior ones) via the parent's approachOverloadSpent tracking — it's
   // not just this roll's local `overloaded` set, so don't subtract that too.
   const overloadPoolRemaining = available
+  // Overload doubles only a die's original face — an explosion's extra
+  // roll(s) are added on top, un-doubled.
+  const overloadedValue = (dieRoll: ApproachDieResult) =>
+    dieRoll.rolls[0] * 2 + dieRoll.rolls.slice(1).reduce((sum, r) => sum + r, 0)
   const displayTotal = result
-    ? result.dice.reduce((sum, dieRoll, index) => sum + (overloaded.has(index) ? dieRoll.total * 2 : dieRoll.total), 0)
+    ? result.dice.reduce((sum, dieRoll, index) => sum + (overloaded.has(index) ? overloadedValue(dieRoll) : dieRoll.total), 0)
     : 0
 
   const handleToggleOverload = (index: number) => {
@@ -320,7 +329,11 @@ export function ApproachDie({
       onPointerCancel={cancelPress}
       onClick={handleClick}
       onContextMenu={(event) => event.preventDefault()}
+      style={{ ["--hold-progress-ms" as string]: `${CHARGE_THRESHOLD_MS}ms` } as React.CSSProperties}
     >
+      {/* Fills over the pre-charge window so there's a visible cue for how
+          close a hold is to being recognized as "hold to roll" vs a tap. */}
+      <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
       <span className="approach-die-label">{label}</span>
       <span className="approach-die-rating" aria-hidden="true">{rating}</span>
       <div className="approach-die-pips" aria-hidden="true">
@@ -387,14 +400,16 @@ export function ApproachDie({
                       key={index}
                       type="button"
                       className={`approach-die-chip${overloaded.has(index) ? " overloaded" : ""}${didExplode ? " exploded" : ""}`}
-                      disabled={!onOverload || overloaded.has(index) || overloadPoolRemaining <= 0 || didExplode}
+                      disabled={!onOverload || overloaded.has(index) || overloadPoolRemaining <= 0}
                       onClick={(event) => {
                         event.stopPropagation()
                         handleToggleOverload(index)
                       }}
                       title={
-                        didExplode
-                          ? "Exploded dice can't be Overloaded"
+                        overloaded.has(index)
+                          ? "Already Overloaded"
+                          : didExplode
+                          ? "Tap to Overload: doubles only the original roll, spend 1 from the Approach pool"
                           : onOverload
                           ? "Tap to Overload: double this die, spend 1 from the Approach pool"
                           : undefined
