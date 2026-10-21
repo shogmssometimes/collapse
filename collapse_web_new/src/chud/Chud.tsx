@@ -110,8 +110,8 @@ export default function Chud() {
       const created = pushNotification(
         "hp-zero",
         "HP reached 0",
-        "Accept to apply +1 Collapse, or cancel to clear without it.",
-        { collapse: 1 }
+        "Accept to apply +1 Collapse and revive with 1 HP, or cancel to clear without it.",
+        { collapse: 1, hp: 1 }
       );
       if (created) setNotifications(listNotifications());
     }
@@ -260,6 +260,7 @@ export default function Chud() {
             notification={hpZeroNotification}
             onAccept={(id) => resolveNotification(id, true)}
             onCancel={(id) => resolveNotification(id, false)}
+            onTapRecorded={() => setNotifications(listNotifications())}
           />
 
           <HPPanel

@@ -14,7 +14,7 @@ const VIBRATE_START_MS = 180
 const VIBRATE_MIN_MS = 45
 const VIBRATE_STEP_MS = 18
 const VIBRATE_PULSE_MS = 28
-const ARMED_IDLE_TIMEOUT_MS = 30000
+const ARMED_IDLE_TIMEOUT_MS = 15000
 const ARMED_FADE_MS = 1000
 
 type PopupView = "result" | "margin-input" | "margin-result" | "damage"

@@ -15,10 +15,12 @@ export function NotificationsTray({
   notifications,
   onAccept,
   onCancel,
+  onTapRecorded,
 }: {
   notifications: PendingNotification[];
   onAccept: (id: string) => void;
   onCancel: (id: string) => void;
+  onTapRecorded?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const count = notifications.length;
@@ -48,6 +50,7 @@ export function NotificationsTray({
                       notification={n}
                       onAccept={onAccept}
                       onCancel={onCancel}
+                      onTapRecorded={onTapRecorded}
                     />
                   ))
                 )}

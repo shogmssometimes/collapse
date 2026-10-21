@@ -10,7 +10,7 @@
 // of a given `kind` is pending, the area that produced it is expected to
 // refuse to queue another of the same kind until it's resolved.
 
-export type NotificationKind = "hp-zero" | "dig-deep";
+export type NotificationKind = "hp-zero" | "dig-deep" | "grit-zero";
 
 export type NotificationEffect = {
   hp?: number;
@@ -25,6 +25,12 @@ export type PendingNotification = {
   detail: string;
   effect: NotificationEffect;
   createdAt: number;
+  /** Triple-tap-to-cancel progress, shared across every rendering of this
+   * notification (e.g. the outer header bell's dropdown AND the in-iframe
+   * CollapseOverlay row show the *same* notification record) so a tap
+   * started in one place counts towards cancelling it from another. */
+  cancelTaps?: number;
+  cancelTapAt?: number;
 };
 
 export const NOTIFICATIONS_STORAGE_KEY = "chud.notifications.v1";
@@ -88,4 +94,25 @@ export function pushNotification(
  * or on cancel, which discards it with no effect applied. */
 export function removeNotification(id: string): void {
   write(read().filter((n) => n.id !== id));
+}
+
+/**
+ * Records one triple-tap-to-cancel tap against a notification's shared,
+ * persisted progress (resetting first if the last tap was more than
+ * `resetMs` ago), and returns the new tap count — or null if the
+ * notification no longer exists (e.g. already resolved elsewhere).
+ * Every rendering of the same notification reads/writes this same record,
+ * so taps made in one place count towards cancelling it from another.
+ */
+export function recordCancelTap(id: string, resetMs: number): number | null {
+  const items = read();
+  const idx = items.findIndex((n) => n.id === id);
+  if (idx === -1) return null;
+  const n = items[idx];
+  const now = Date.now();
+  const stale = typeof n.cancelTapAt !== "number" || now - n.cancelTapAt > resetMs;
+  const nextTaps = stale ? 1 : (n.cancelTaps ?? 0) + 1;
+  items[idx] = { ...n, cancelTaps: nextTaps, cancelTapAt: now };
+  write(items);
+  return nextTaps;
 }

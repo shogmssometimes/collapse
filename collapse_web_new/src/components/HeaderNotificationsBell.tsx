@@ -48,6 +48,7 @@ export function HeaderNotificationsBell({ charSlot }: { charSlot: number }) {
       notifications={notifications}
       onAccept={(id) => resolve(id, true)}
       onCancel={(id) => resolve(id, false)}
+      onTapRecorded={() => setNotifications(listNotifications())}
     />
   );
 }

@@ -99,7 +99,7 @@ const deriveRoute = (): Route => {
   return "hub";
 };
 
-const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; onGoHome?: () => void; actions?: React.ReactNode; actionsClassName?: string; centerContent?: React.ReactNode; frameRef?: React.Ref<HTMLIFrameElement>; onFrameLoad?: () => void }> = ({
+const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; onGoHome?: () => void; actions?: React.ReactNode; actionsClassName?: string; centerContent?: React.ReactNode; charSlot?: number; frameRef?: React.Ref<HTMLIFrameElement>; onFrameLoad?: () => void }> = ({
   title,
   src,
   onBack,
@@ -107,6 +107,7 @@ const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; on
   actions,
   actionsClassName,
   centerContent,
+  charSlot = 1,
   frameRef,
   onFrameLoad,
 }) => (
@@ -114,11 +115,9 @@ const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; on
   <main className="route-view" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
     <header className="topbar" style={{ position: 'relative' }}>
       <BackButton onBack={onBack} onGoHome={onGoHome ?? onBack} />
-      {centerContent ? (
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          {centerContent}
-        </div>
-      ) : null}
+      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {centerContent ?? <HeaderNotificationsBell charSlot={charSlot} />}
+      </div>
       {actions ? <div className={actionsClassName || "topbar-actions"}>{actions}</div> : null}
     </header>
     <div className="subapp-frame">
@@ -136,7 +135,7 @@ const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; on
   </>
 );
 
-const PlayerShell: React.FC<{ onBack: () => void; onGoHome?: () => void; children: React.ReactNode; chudDock?: React.ReactNode; actions?: React.ReactNode; hideHud?: boolean; onOpenHud?: () => void; centerContent?: React.ReactNode }> = ({ onBack, onGoHome, children, chudDock, actions, hideHud, onOpenHud, centerContent }) => {
+const PlayerShell: React.FC<{ onBack: () => void; onGoHome?: () => void; children: React.ReactNode; chudDock?: React.ReactNode; actions?: React.ReactNode; hideHud?: boolean; onOpenHud?: () => void; centerContent?: React.ReactNode; charSlot?: number }> = ({ onBack, onGoHome, children, chudDock, actions, hideHud, onOpenHud, centerContent, charSlot = 1 }) => {
   const openChud = () => {
     if (onOpenHud) {
       onOpenHud();
@@ -149,7 +148,7 @@ const PlayerShell: React.FC<{ onBack: () => void; onGoHome?: () => void; childre
     <header className="topbar" style={{ position: 'relative' }}>
       <BackButton onBack={onBack} onGoHome={onGoHome ?? onBack} />
       <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        {centerContent}
+        {centerContent ?? <HeaderNotificationsBell charSlot={charSlot} />}
       </div>
       <div className="topbar-actions">
         {!hideHud && (
@@ -314,7 +313,8 @@ function loadCustomOrder(): Route[] {
 
 const HubLanding: React.FC<{
   onNavigate: (route: Route) => void;
-}> = ({ onNavigate }) => {
+  charSlot?: number;
+}> = ({ onNavigate, charSlot = 1 }) => {
   const [mode, setMode] = useState<HubOrderMode>(() => loadHubMode());
   const [customOrder, setCustomOrder] = useState<Route[]>(() => loadCustomOrder());
   const [dragId, setDragId] = useState<Route | null>(null);
@@ -385,7 +385,8 @@ const HubLanding: React.FC<{
     <>
     <main className="hub-landing">
       <div className="hub-landing-content" style={{ width: "min(1100px, 100%)", padding: "1.25rem 1rem" }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: "0.5rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+          <HeaderNotificationsBell charSlot={charSlot} />
           <a
             href={`${import.meta.env.BASE_URL}gm.html`}
             style={{ color: "var(--muted)", fontSize: "0.85rem", textDecoration: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "0.3rem 0.75rem" }}
@@ -569,7 +570,7 @@ export default function App() {
 
   if (route === "player") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }} charSlot={charSlot}>
         <DeckBuilder
           key={`player-${charSlot}`}
           storageKey={deckStorageKey}
@@ -591,7 +592,7 @@ export default function App() {
         src={`${buildPath("")}chud/index.html?slot=${charSlot}`}
         onBack={() => setRoute(hudReturnRoute)}
         onGoHome={() => setRoute("hub")}
-        centerContent={<HeaderNotificationsBell charSlot={charSlot} />}
+        charSlot={charSlot}
         actions={
           <button className="topbar-square-btn" onClick={() => setRoute("aag")}>
             AAG
@@ -609,6 +610,7 @@ export default function App() {
         onGoHome={() => setRoute("hub")}
         chudDock={chudDock}
         hideHud
+        charSlot={charSlot}
         actions={
           <button className="topbar-square-btn" onClick={() => setRoute("chud")} aria-label="Close AAG">
             XAAG
@@ -633,6 +635,7 @@ export default function App() {
         onGoHome={() => setRoute("hub")}
         chudDock={chudDock}
         hideHud
+        charSlot={charSlot}
         actions={
           <button className="topbar-square-btn" onClick={() => setRoute("chud")} aria-label="Close AAG">
             XAAG
@@ -652,6 +655,7 @@ export default function App() {
         src={buildPath("csmatrix/index.html")}
         onBack={() => setRoute("hub")}
         actionsClassName="topbar-actions topbar-actions-stack"
+        charSlot={charSlot}
         actions={
           <>
             <button
@@ -671,7 +675,7 @@ export default function App() {
 
   if (route === "notes") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }} charSlot={charSlot}>
         <NotesPage key={`notes-${charSlot}`} storageKey={notesKey(charSlot)} />
       </PlayerShell>
     );
@@ -679,7 +683,7 @@ export default function App() {
 
   if (route === "gear") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }} charSlot={charSlot}>
         <GearPage
           key={`gear-${charSlot}`}
           gearSlotsStorageKey={gearSlotsKey(charSlot)}
@@ -692,7 +696,7 @@ export default function App() {
 
   if (route === "char-mgmt") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }} charSlot={charSlot}>
         <CharMgmt />
       </PlayerShell>
     );
@@ -700,7 +704,7 @@ export default function App() {
 
   if (route === "profile") {
     return (
-      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }}>
+      <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }} charSlot={charSlot}>
         <ProfilePage key={`profile-${charSlot}`} storageKey={profileKey(charSlot)} charSlot={charSlot} />
       </PlayerShell>
     );
@@ -709,7 +713,7 @@ export default function App() {
   return (
     <>
       {chudDock}
-      <HubLanding onNavigate={(next) => { setHudReturnRoute("hub"); setRoute(next); }} />
+      <HubLanding charSlot={charSlot} onNavigate={(next) => { setHudReturnRoute("hub"); setRoute(next); }} />
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CoreStats, SecondaryStats, StatReps } from "../types/chud";
 import { DEFAULT_SECONDARY, DEFAULT_STAT_REPS, DEFAULT_INVENTORY_SLOTS } from "../domain/chudStats";
 import { loadState } from "../utils/chudPersistence";
@@ -23,10 +23,19 @@ export default function MgrPage({
 
   const [secondary, setSecondary] = useState<SecondaryStats>(saved?.secondary ?? DEFAULT_SECONDARY);
   const [statReps, setStatReps] = useState<StatReps>(saved?.statReps ?? DEFAULT_STAT_REPS);
-  const [levelUpReady, setLevelUpReady] = useState<Record<keyof SecondaryStats, boolean>>({
-    vigor: false, inference: false, personality: false,
-  });
-  const [statLevelUpReady, setStatLevelUpReady] = useState({ invSlots: false });
+
+  // Derived (not separately persisted) so the gold "ready" badge survives a
+  // refresh — it's purely a function of secondary/statReps vs. their
+  // thresholds, which are already persisted above.
+  const levelUpReady = useMemo<Record<keyof SecondaryStats, boolean>>(() => ({
+    vigor: secondary.vigor >= core.vigor + 1,
+    inference: secondary.inference >= core.inference + 1,
+    personality: secondary.personality >= core.personality + 1,
+  }), [secondary, core]);
+  const statLevelUpReady = useMemo(
+    () => ({ invSlots: statReps.invSlots >= inventorySlots + 1 }),
+    [statReps, inventorySlots]
+  );
 
   // Persist secondary/statReps — read-merge-write so fields owned by CHUD
   // (core/hpCounter/draw/inventorySlots/etc.) aren't clobbered.
@@ -65,23 +74,17 @@ export default function MgrPage({
       const threshold = (core as unknown as Record<string, number>)[field] + 1;
       const current = Number.isFinite(secondary[field]) ? secondary[field] : 0;
       if (current >= threshold) return;
-      const next = current + 1;
-      setSecondary((prev) => ({ ...prev, [field]: next }));
-      if (next >= threshold) {
-        setLevelUpReady((prev) => ({ ...prev, [field]: true }));
-      }
+      setSecondary((prev) => ({ ...prev, [field]: current + 1 }));
     },
     [core, secondary]
   );
 
   const resetRep = useCallback((field: keyof SecondaryStats) => {
     setSecondary((prev) => ({ ...prev, [field]: 0 }));
-    setLevelUpReady((prev) => ({ ...prev, [field]: false }));
   }, []);
 
   const confirmLevelUp = useCallback((field: keyof SecondaryStats) => {
     setSecondary((prev) => ({ ...prev, [field]: 0 }));
-    setLevelUpReady((prev) => ({ ...prev, [field]: false }));
   }, []);
 
   const statRepThreshold = useCallback(
@@ -94,21 +97,17 @@ export default function MgrPage({
       const threshold = statRepThreshold(field);
       const current = statReps[field];
       if (current >= threshold) return;
-      const next = current + 1;
-      setStatReps((prev) => ({ ...prev, [field]: next }));
-      if (next >= threshold) setStatLevelUpReady((prev) => ({ ...prev, [field]: true }));
+      setStatReps((prev) => ({ ...prev, [field]: current + 1 }));
     },
     [statReps, statRepThreshold]
   );
 
   const resetStatRep = useCallback((field: keyof StatReps) => {
     setStatReps((prev) => ({ ...prev, [field]: 0 }));
-    setStatLevelUpReady((prev) => ({ ...prev, [field]: false }));
   }, []);
 
   const confirmStatLevelUp = useCallback((field: keyof StatReps) => {
     setStatReps((prev) => ({ ...prev, [field]: 0 }));
-    setStatLevelUpReady((prev) => ({ ...prev, [field]: false }));
   }, []);
 
   return (

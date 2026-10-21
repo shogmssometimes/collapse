@@ -1,27 +1,41 @@
 import { useEffect, useRef, useState } from "react";
 import type { PendingNotification } from "../../domain/notifications";
+import { recordCancelTap } from "../../domain/notifications";
 
 const HOLD_MS = 600;
-const TAP_RESET_MS = 30000;
+const TAP_RESET_MS = 15000;
 
 /**
  * One notification's gesture row: long-press to accept, triple-tap (within
- * 30s of the first tap) to cancel. Mirrors the hold-progress-fill and
- * "N/3" tap-hint patterns already used by the Save modal / Dir button.
+ * 15s of the first tap) to cancel. The tap count lives on the shared,
+ * persisted notification record (see recordCancelTap) rather than local
+ * component state, so a notification rendered in two places at once (the
+ * outer header bell's dropdown AND the in-iframe CollapseOverlay row) keeps
+ * a single shared cancel progress instead of each copy tracking its own.
  */
 export function NotificationRow({
   notification,
   onAccept,
   onCancel,
+  onTapRecorded,
 }: {
   notification: PendingNotification;
   onAccept: (id: string) => void;
   onCancel: (id: string) => void;
+  /** Called after a non-cancelling tap is recorded, so the owner can
+   * refresh its notifications list and flow the updated tap count back
+   * down as a prop (needed for same-window, same-render-tree updates —
+   * cross-window copies pick it up via the existing storage listener). */
+  onTapRecorded?: () => void;
 }) {
   const [pressing, setPressing] = useState(false);
-  const [tapCount, setTapCount] = useState(0);
+  const [, forceTick] = useState(0);
   const holdTimer = useRef<number | null>(null);
-  const tapResetTimer = useRef<number | null>(null);
+  const staleTimer = useRef<number | null>(null);
+
+  const now = Date.now();
+  const tapsStale = typeof notification.cancelTapAt !== "number" || now - notification.cancelTapAt > TAP_RESET_MS;
+  const displayTaps = tapsStale ? 0 : notification.cancelTaps ?? 0;
 
   const clearHold = () => {
     if (holdTimer.current != null) {
@@ -31,24 +45,28 @@ export function NotificationRow({
     setPressing(false);
   };
 
-  const resetTaps = () => {
-    if (tapResetTimer.current != null) {
-      window.clearTimeout(tapResetTimer.current);
-      tapResetTimer.current = null;
+  // Force a re-render once the current tap streak goes stale, so the "N/3"
+  // hint reverts to idle even if the user never taps again.
+  useEffect(() => {
+    if (staleTimer.current != null) {
+      window.clearTimeout(staleTimer.current);
+      staleTimer.current = null;
     }
-    setTapCount(0);
-  };
+    if (!tapsStale && typeof notification.cancelTapAt === "number") {
+      const remaining = TAP_RESET_MS - (Date.now() - notification.cancelTapAt);
+      staleTimer.current = window.setTimeout(() => forceTick((v) => v + 1), Math.max(0, remaining));
+    }
+    return () => {
+      if (staleTimer.current != null) window.clearTimeout(staleTimer.current);
+    };
+  }, [notification.cancelTapAt, tapsStale]);
 
-  useEffect(() => () => {
-    clearHold();
-    resetTaps();
-  }, []);
+  useEffect(() => () => clearHold(), []);
 
   const onPointerDown = () => {
     setPressing(true);
     holdTimer.current = window.setTimeout(() => {
       clearHold();
-      resetTaps();
       onAccept(notification.id);
     }, HOLD_MS);
   };
@@ -58,15 +76,13 @@ export function NotificationRow({
     clearHold();
     if (!held) return; // timer already fired (accepted)
     // Quick release before the hold threshold — count towards triple-tap-cancel.
-    const next = tapCount + 1;
+    const next = recordCancelTap(notification.id, TAP_RESET_MS);
+    if (next == null) return; // already resolved elsewhere between pointerdown/up
     if (next >= 3) {
-      resetTaps();
       onCancel(notification.id);
       return;
     }
-    setTapCount(next);
-    if (tapResetTimer.current != null) window.clearTimeout(tapResetTimer.current);
-    tapResetTimer.current = window.setTimeout(resetTaps, TAP_RESET_MS);
+    onTapRecorded?.();
   };
 
   return (
@@ -84,7 +100,7 @@ export function NotificationRow({
         <span className="notification-row-detail">{notification.detail}</span>
       </div>
       <span className="notification-row-hint">
-        {tapCount > 0 ? `${tapCount}/3 to cancel` : "hold to accept · triple-tap to cancel"}
+        {displayTaps > 0 ? `${displayTaps}/3 to cancel` : "hold to accept · triple-tap to cancel"}
       </span>
     </div>
   );

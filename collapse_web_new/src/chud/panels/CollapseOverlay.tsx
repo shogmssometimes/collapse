@@ -8,10 +8,12 @@ export function CollapseOverlay({
   notification,
   onAccept,
   onCancel,
+  onTapRecorded,
 }: {
   notification: PendingNotification | null;
   onAccept: (id: string) => void;
   onCancel: (id: string) => void;
+  onTapRecorded?: () => void;
 }) {
   if (!notification) return null;
   return (
@@ -20,7 +22,7 @@ export function CollapseOverlay({
         <span className="collapse-eyebrow">Critical Status</span>
         <h3>You Have Collapsed</h3>
         <p className="collapse-copy">{notification.detail}</p>
-        <NotificationRow notification={notification} onAccept={onAccept} onCancel={onCancel} />
+        <NotificationRow notification={notification} onAccept={onAccept} onCancel={onCancel} onTapRecorded={onTapRecorded} />
       </div>
     </div>
   );

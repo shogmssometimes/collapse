@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'csmatrix.graph'
+const NOTIFICATIONS_KEY = 'chud.notifications.v1'
 const WALLET_KEY = 'chud.wallet'
 const COMBAT_KEY = 'combat.v1'
 const STATUS_ROLLS_KEY = 'chud.statusRolls'
@@ -46,6 +47,9 @@ function writeUIKey(key, val) {
   try { localStorage.setItem(UI_KEY, JSON.stringify({ ...readUI(), [key]: val })) } catch {}
 }
 const MAX_VALUE = 6
+// Set once buildBrokenScreenOverlay mounts (see initMeters); lets
+// writeMeters() nudge it directly for same-window updates.
+let brokenScreenRef = null
 
 const clamp = (n) => Math.max(0, Math.min(MAX_VALUE, n))
 
@@ -82,6 +86,53 @@ function writeMeters(nextMeters) {
   } catch (err) {
     console.warn('chud-meters: failed to persist meters', err)
   }
+  // Same-window writes don't trigger a 'storage' event, so nudge the
+  // broken-screen overlay directly (cross-window copies still pick this up
+  // via the real storage event handled in initMeters).
+  brokenScreenRef?.update()
+}
+
+// ── Shared notifications queue (mirrors src/domain/notifications.ts) ──────
+// meter-bridge.js is a plain-JS script sharing the same localStorage + the
+// same window as the React CHUD app, so it pushes onto the exact same
+// "chud.notifications.v1" record and dispatches a synthetic 'storage' event
+// (same-window writes don't trigger a real one) so Chud.tsx's existing
+// notifications listener picks it up immediately.
+function readNotifications() {
+  try {
+    const raw = localStorage.getItem(NOTIFICATIONS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed.items) ? parsed.items : []
+  } catch {
+    return []
+  }
+}
+function writeNotifications(items) {
+  try {
+    const json = JSON.stringify({ items })
+    localStorage.setItem(NOTIFICATIONS_KEY, json)
+    window.dispatchEvent(new StorageEvent('storage', { key: NOTIFICATIONS_KEY, newValue: json }))
+  } catch (err) {
+    console.warn('chud-meters: failed to persist notification', err)
+  }
+}
+function hasPendingNotification(kind) {
+  return readNotifications().some((n) => n.kind === kind)
+}
+function pushNotification(kind, label, detail, effect) {
+  const items = readNotifications()
+  if (items.some((n) => n.kind === kind)) return null
+  const item = {
+    id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    kind,
+    label,
+    detail,
+    effect,
+    createdAt: Date.now(),
+  }
+  writeNotifications([item, ...items])
+  return item
 }
 
 function createStyles() {
@@ -152,6 +203,36 @@ function createStyles() {
       90%  { transform: translate(0, 0); filter: none; opacity: 1; }
       100% { transform: translate(0,0); filter: none; opacity: 1; }
     }
+
+    /* ── Broken-screen overlay (Collapse == 6) ──────────────────────── */
+    /* Full-viewport, click-through (pointer-events: none) so the page
+       stays usable — it just LOOKS like the device is failing. */
+    .broken-screen-overlay { position: fixed; inset: 0; z-index: 9400; pointer-events: none; opacity: 0; transition: opacity 260ms ease; overflow: hidden; }
+    .broken-screen-overlay.active { opacity: 1; }
+    .broken-screen-cracks {
+      position: absolute; inset: -4px;
+      background-image:
+        repeating-linear-gradient(115deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 64px),
+        repeating-linear-gradient(25deg, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 96px),
+        repeating-linear-gradient(-70deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1px, transparent 1px, transparent 140px),
+        radial-gradient(ellipse at 28% 18%, rgba(255,10,50,0.28), transparent 55%),
+        radial-gradient(ellipse at 78% 82%, rgba(255,10,50,0.2), transparent 60%);
+      mix-blend-mode: screen;
+      animation: broken-crack-shift 2.6s steps(2, end) infinite;
+    }
+    @keyframes broken-crack-shift {
+      0%, 100% { transform: translate(0,0); filter: brightness(1); }
+      50% { transform: translate(1px,-1px); filter: brightness(1.2); }
+    }
+    .broken-screen-band { position: absolute; left: 0; right: 0; background: #000; opacity: 0; animation-name: broken-band-flicker; animation-timing-function: steps(1, end); animation-iteration-count: infinite; }
+    @keyframes broken-band-flicker {
+      0%, 82%, 100% { opacity: 0; transform: translateX(0); }
+      84% { opacity: 0.88; transform: translateX(-6px); }
+      86% { opacity: 0; }
+      90% { opacity: 0.55; transform: translateX(8px); }
+      92% { opacity: 0; transform: translateX(0); }
+    }
+    .broken-screen-scan { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 3px); mix-blend-mode: multiply; opacity: 0.5; }
 
     /* ── Wallet ────────────────────────────────────────────────────── */
     .chud-wallet-balance { font-size: 26px; font-weight: 800; letter-spacing: 0.06em; color: #3de8c0; font-variant-numeric: tabular-nums; }
@@ -428,9 +509,19 @@ function buildGritCollapseMeter(getMeters, setMeters) {
       const collapse = clamp(meters.collapse ?? 0)
       const maxGrit = Math.max(0, MAX_VALUE - collapse)
       if (isLeft) {
-        const next = Math.min(maxGrit, Math.max(0, (meters.grit ?? 0) + delta))
-        if (next === clamp(meters.grit ?? 0)) return
+        const prevGrit = clamp(meters.grit ?? 0)
+        const next = Math.min(maxGrit, Math.max(0, prevGrit + delta))
+        if (next === prevGrit) return
         setMeters({ ...meters, grit: next })
+        if (prevGrit > 0 && next === 0 && !hasPendingNotification('grit-zero')) {
+          const rolled = 1 + Math.floor(Math.random() * 6)
+          pushNotification(
+            'grit-zero',
+            'Grit reached 0',
+            `Accept to apply +1 Collapse and recover ${rolled} Grit (rolled 1d6), or cancel to leave Grit at 0.`,
+            { collapse: 1, grit: rolled }
+          )
+        }
       } else {
         const next = clamp((meters.collapse ?? 0) + delta)
         if (next === collapse) return
@@ -1377,6 +1468,46 @@ function buildMeterRow(def, getMeters, setMeters) {
   return { row, update }
 }
 
+function buildBrokenScreenOverlay(getMeters) {
+  const overlay = document.createElement('div')
+  overlay.className = 'broken-screen-overlay'
+  overlay.setAttribute('aria-hidden', 'true')
+
+  const cracks = document.createElement('div')
+  cracks.className = 'broken-screen-cracks'
+  overlay.appendChild(cracks)
+
+  const scan = document.createElement('div')
+  scan.className = 'broken-screen-scan'
+  overlay.appendChild(scan)
+
+  // A handful of horizontal bands that intermittently black out / shift,
+  // simulating a glitching, physically-cracked display.
+  const bandCount = 7
+  for (let i = 0; i < bandCount; i++) {
+    const band = document.createElement('div')
+    band.className = 'broken-screen-band'
+    band.style.top = `${(i / bandCount) * 100}%`
+    band.style.height = `${100 / bandCount}%`
+    band.style.animationDelay = `${(Math.random() * 4).toFixed(2)}s`
+    band.style.animationDuration = `${(3 + Math.random() * 2.5).toFixed(2)}s`
+    overlay.appendChild(band)
+  }
+
+  document.body.appendChild(overlay)
+
+  let active = false
+  const update = () => {
+    const collapse = clamp(getMeters().collapse ?? 0)
+    const next = collapse >= 6
+    if (next === active) return
+    active = next
+    overlay.classList.toggle('active', active)
+  }
+
+  return { update }
+}
+
 function mountMeters() {
   const root = document.getElementById('root')
   if (!root) return false
@@ -1430,6 +1561,12 @@ function mountMeters() {
 
 function initMeters() {
   createStyles()
+  const brokenScreen = buildBrokenScreenOverlay(readMeters)
+  brokenScreenRef = brokenScreen
+  brokenScreen.update()
+  window.addEventListener('storage', (ev) => {
+    if (ev.key === STORAGE_KEY) brokenScreen.update()
+  })
   const tryMount = () => {
     if (mountMeters()) return true
     return false
