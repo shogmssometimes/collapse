@@ -33,7 +33,6 @@ import { CollapseOverlay } from "./panels/CollapseOverlay";
 import { HPPanel } from "./panels/HPPanel";
 import { GearPanel } from "./panels/GearPanel";
 import { ApproachPanel } from "./components/ApproachPanel";
-import { NotificationsTray } from "./components/NotificationsTray";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -257,14 +256,6 @@ export default function Chud() {
         <section
           className={`panel derived-panel-wrapper${collapseLocked ? " collapse-locked" : ""}`}
         >
-          <div className="chud-header-row">
-            <NotificationsTray
-              notifications={notifications}
-              onAccept={(id) => resolveNotification(id, true)}
-              onCancel={(id) => resolveNotification(id, false)}
-            />
-          </div>
-
           <CollapseOverlay
             notification={hpZeroNotification}
             onAccept={(id) => resolveNotification(id, true)}

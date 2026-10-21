@@ -84,3 +84,23 @@ export function setChipDesynced(desynced: boolean): void {
     // storage unavailable — ignore
   }
 }
+
+/**
+ * Applies a delta to the HP counter stored at the given (slot-aware)
+ * `chud.state.v1`-style key, clamped at 0 (no upper bound here — only
+ * decrements currently flow through notification effects). Used when a
+ * notification is accepted from outside the CHUD iframe (e.g. the outer
+ * app's header bell), where there's no live Chud.tsx instance to apply it.
+ */
+export function adjustHpCounter(delta: number, chudStateKey: string): void {
+  try {
+    const raw = window.localStorage.getItem(chudStateKey);
+    const parsed: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+    const current = typeof parsed.hpCounter === "number" ? parsed.hpCounter : 0;
+    const json = JSON.stringify({ ...parsed, hpCounter: Math.max(0, current + delta) });
+    window.localStorage.setItem(chudStateKey, json);
+    notify(chudStateKey, json);
+  } catch {
+    // storage unavailable — ignore
+  }
+}

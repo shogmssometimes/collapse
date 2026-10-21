@@ -6,6 +6,7 @@ import CharMgmt, { CHAR_SWITCH_EVENT } from "./pages/CharMgmt";
 import ProfilePage from "./pages/Profile";
 import AagPage from "./pages/Aag";
 import MgrPage from "./pages/Mgr";
+import { HeaderNotificationsBell } from "./components/HeaderNotificationsBell";
 import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey, profileKey, CHAR_ACTIVE_KEY } from "./utils/slotKeys";
 import { parseHashRoute } from "./utils/routing";
 
@@ -98,13 +99,14 @@ const deriveRoute = (): Route => {
   return "hub";
 };
 
-const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; onGoHome?: () => void; actions?: React.ReactNode; actionsClassName?: string; frameRef?: React.Ref<HTMLIFrameElement>; onFrameLoad?: () => void }> = ({
+const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; onGoHome?: () => void; actions?: React.ReactNode; actionsClassName?: string; centerContent?: React.ReactNode; frameRef?: React.Ref<HTMLIFrameElement>; onFrameLoad?: () => void }> = ({
   title,
   src,
   onBack,
   onGoHome,
   actions,
   actionsClassName,
+  centerContent,
   frameRef,
   onFrameLoad,
 }) => (
@@ -112,6 +114,11 @@ const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; on
   <main className="route-view" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
     <header className="topbar" style={{ position: 'relative' }}>
       <BackButton onBack={onBack} onGoHome={onGoHome ?? onBack} />
+      {centerContent ? (
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {centerContent}
+        </div>
+      ) : null}
       {actions ? <div className={actionsClassName || "topbar-actions"}>{actions}</div> : null}
     </header>
     <div className="subapp-frame">
@@ -584,6 +591,7 @@ export default function App() {
         src={`${buildPath("")}chud/index.html?slot=${charSlot}`}
         onBack={() => setRoute(hudReturnRoute)}
         onGoHome={() => setRoute("hub")}
+        centerContent={<HeaderNotificationsBell charSlot={charSlot} />}
         actions={
           <button className="topbar-square-btn" onClick={() => setRoute("aag")}>
             AAG
