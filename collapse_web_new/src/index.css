@@ -2189,8 +2189,18 @@ button.hub-card:not(:disabled):active {
   text-align: center;
 }
 
-.notifications-dropdown {
+.notifications-backdrop {
   position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+}
+
+.notifications-dropdown {
   width: min(280px, 80vw);
   max-height: 320px;
   overflow-y: auto;
@@ -2202,6 +2212,10 @@ button.hub-card:not(:disabled):active {
   flex-direction: column;
   gap: 6px;
   z-index: 10001;
+}
+
+.notifications-dropdown-centered {
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
 }
 
 .notifications-empty {
