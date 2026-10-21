@@ -128,11 +128,13 @@ export default function Chud() {
           "Choose Your Path",
           "You've gone down for the first time. This choice determines which Collapse Table you'll roll on from now on.",
           {},
-          [
-            { key: "live", label: "Live" },
-            { key: "survive", label: "Survive" },
-            { key: "die", label: "Die" },
-          ]
+          {
+            choices: [
+              { key: "live", label: "Live" },
+              { key: "survive", label: "Survive" },
+              { key: "die", label: "Die" },
+            ],
+          }
         );
       }
       if (created || !hasBeenDownedBeforeRef.current) setNotifications(listNotifications());

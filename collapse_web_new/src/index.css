@@ -1868,6 +1868,13 @@ code {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.chud-sheet-body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .secondary-toggle {
   touch-action: pan-y;
@@ -2235,6 +2242,8 @@ button.hub-card:not(:disabled):active {
   padding: 10px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left-color: rgba(56, 189, 248, 0.6);
+  border-left-width: 3px;
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
   user-select: none;
@@ -2260,6 +2269,19 @@ button.hub-card:not(:disabled):active {
 .notification-row-detail {
   font-size: 0.75rem;
   color: rgba(248, 250, 252, 0.65);
+}
+
+.notification-die-chip {
+  align-self: flex-start;
+  margin-top: 2px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #f8fafc;
+  background: rgba(255, 212, 59, 0.14);
+  border: 1px solid #ffd43b;
+  border-radius: 8px;
+  padding: 2px 8px;
 }
 
 .notification-row-hint {

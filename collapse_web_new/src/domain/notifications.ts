@@ -22,6 +22,10 @@ export type NotificationEffect = {
 
 export type NotificationChoice = { key: string; label: string };
 
+/** An embedded die roll (e.g. the 1d6 rolled when Grit hits 0), rendered as
+ * a die chip matching the Approach Roll popup's look for visual consistency. */
+export type NotificationRoll = { die: number; value: number };
+
 export type PendingNotification = {
   id: string;
   kind: NotificationKind;
@@ -39,6 +43,8 @@ export type PendingNotification = {
    * exclusive choice buttons (e.g. "Choose Your Path: Live/Survive/Die")
    * instead of the usual hold-to-accept/triple-tap-to-cancel gesture. */
   choices?: NotificationChoice[];
+  /** An embedded die roll to display alongside the detail text. */
+  roll?: NotificationRoll;
 };
 
 export const NOTIFICATIONS_STORAGE_KEY = "chud.notifications.v1";
@@ -83,7 +89,7 @@ export function pushNotification(
   label: string,
   detail: string,
   effect: NotificationEffect,
-  choices?: NotificationChoice[]
+  options?: { choices?: NotificationChoice[]; roll?: NotificationRoll }
 ): PendingNotification | null {
   const items = read();
   if (items.some((n) => n.kind === kind)) return null;
@@ -94,7 +100,8 @@ export function pushNotification(
     detail,
     effect,
     createdAt: Date.now(),
-    ...(choices ? { choices } : {}),
+    ...(options?.choices ? { choices: options.choices } : {}),
+    ...(options?.roll ? { roll: options.roll } : {}),
   };
   write([item, ...items]);
   return item;
@@ -104,6 +111,25 @@ export function pushNotification(
  * or on cancel, which discards it with no effect applied. */
 export function removeNotification(id: string): void {
   write(read().filter((n) => n.id !== id));
+}
+
+// "Fresh" (just queued) vs "aging" (pending a while, sitting behind newer
+// ones) accent colors — interpolated between so the tray's notifications
+// read as an ordered queue at a glance instead of a flat list.
+const NOTIFICATION_NEW_RGB = { r: 56, g: 189, b: 248 }; // sky-400
+const NOTIFICATION_OLD_RGB = { r: 244, g: 63, b: 94 }; // rose-500
+
+/**
+ * Returns an `rgb()` color for a notification at `index` within a list of
+ * `total` pending notifications (index 0 = newest), interpolated between a
+ * "new" and an "old" color so position in the queue is visible at a glance.
+ */
+export function notificationAccentColor(index: number, total: number): string {
+  const t = total <= 1 ? 0 : Math.min(1, Math.max(0, index / (total - 1)));
+  const r = Math.round(NOTIFICATION_NEW_RGB.r + (NOTIFICATION_OLD_RGB.r - NOTIFICATION_NEW_RGB.r) * t);
+  const g = Math.round(NOTIFICATION_NEW_RGB.g + (NOTIFICATION_OLD_RGB.g - NOTIFICATION_NEW_RGB.g) * t);
+  const b = Math.round(NOTIFICATION_NEW_RGB.b + (NOTIFICATION_OLD_RGB.b - NOTIFICATION_NEW_RGB.b) * t);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 /**

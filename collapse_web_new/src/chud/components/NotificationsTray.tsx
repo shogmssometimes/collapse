@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import type { PendingNotification } from "../../domain/notifications";
+import { notificationAccentColor, type PendingNotification } from "../../domain/notifications";
 import { NotificationRow } from "./NotificationRow";
 
 /**
@@ -27,6 +27,13 @@ export function NotificationsTray({
   const [open, setOpen] = useState(false);
   const count = notifications.length;
 
+  // Newest first, independent of storage order, so the new→old accent
+  // gradient (and the visual stacking order) are always consistent.
+  const ordered = useMemo(
+    () => [...notifications].sort((a, b) => b.createdAt - a.createdAt),
+    [notifications]
+  );
+
   return (
     <div className="notifications-tray">
       <button
@@ -46,7 +53,7 @@ export function NotificationsTray({
                 {count === 0 ? (
                   <div className="notifications-empty">No pending notifications.</div>
                 ) : (
-                  notifications.map((n) => (
+                  ordered.map((n, index) => (
                     <NotificationRow
                       key={n.id}
                       notification={n}
@@ -54,6 +61,7 @@ export function NotificationsTray({
                       onCancel={onCancel}
                       onTapRecorded={onTapRecorded}
                       onChoice={onChoice}
+                      accentColor={notificationAccentColor(index, ordered.length)}
                     />
                   ))
                 )}
@@ -65,3 +73,4 @@ export function NotificationsTray({
     </div>
   );
 }
+

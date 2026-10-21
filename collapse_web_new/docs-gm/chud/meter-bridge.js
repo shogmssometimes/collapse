@@ -120,7 +120,7 @@ function writeNotifications(items) {
 function hasPendingNotification(kind) {
   return readNotifications().some((n) => n.kind === kind)
 }
-function pushNotification(kind, label, detail, effect) {
+function pushNotification(kind, label, detail, effect, options) {
   const items = readNotifications()
   if (items.some((n) => n.kind === kind)) return null
   const item = {
@@ -130,6 +130,8 @@ function pushNotification(kind, label, detail, effect) {
     detail,
     effect,
     createdAt: Date.now(),
+    ...(options && options.choices ? { choices: options.choices } : {}),
+    ...(options && options.roll ? { roll: options.roll } : {}),
   }
   writeNotifications([item, ...items])
   return item
@@ -160,6 +162,14 @@ function createStyles() {
     .gcm-tap { position: absolute; top: 0; height: 100%; width: 50%; z-index: 1; cursor: pointer; }
     .gcm-tap-left { left: 0; }
     .gcm-tap-right { right: 0; }
+    /* Grit tap zone is locked out while a "grit reached 0" notification is
+       pending — mirrors the HP panel's full-screen lock while hp-zero is
+       pending, scoped to just the Grit half of this widget. */
+    .gcm-tap-left.gcm-locked { pointer-events: none; cursor: not-allowed; }
+    .gcm-tap-left.gcm-locked::after {
+      content: '🔒'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; opacity: 0.55; background: rgba(0,0,0,0.25);
+    }
     .gcm[data-grit-severity="low"] .gcm-fill-grit { opacity: 0.6; box-shadow: 2px 0 8px rgba(242,208,107,0.15); }
     .gcm[data-grit-severity="zero"] .gcm-fill-grit { opacity: 0.25; }
     .gcm[data-grit-severity="zero"] .gcm-val-grit { animation: gcm-grit-warn 2s ease-in-out infinite; }
@@ -211,10 +221,14 @@ function createStyles() {
     .broken-screen-overlay.active { opacity: 1; }
     .broken-screen-cracks {
       position: absolute; inset: -4px;
+      /* Two "impact points" with cracks radiating outward (repeating-conic-gradient
+         wedges), rather than uniform diagonal stripes across the whole screen —
+         reads as shattered glass with a point of origin instead of a striped filter. */
       background-image:
-        repeating-linear-gradient(115deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 64px),
-        repeating-linear-gradient(25deg, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 96px),
-        repeating-linear-gradient(-70deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1px, transparent 1px, transparent 140px),
+        repeating-conic-gradient(from 8deg at 30% 24%, rgba(255,255,255,0.16) 0deg 0.6deg, transparent 0.6deg 16deg),
+        repeating-conic-gradient(from 50deg at 74% 72%, rgba(255,255,255,0.12) 0deg 0.5deg, transparent 0.5deg 21deg),
+        radial-gradient(circle at 30% 24%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.08) 6%, transparent 9%),
+        radial-gradient(circle at 74% 72%, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.06) 5%, transparent 8%),
         radial-gradient(ellipse at 28% 18%, rgba(255,10,50,0.28), transparent 55%),
         radial-gradient(ellipse at 78% 82%, rgba(255,10,50,0.2), transparent 60%);
       mix-blend-mode: screen;
@@ -223,6 +237,25 @@ function createStyles() {
     @keyframes broken-crack-shift {
       0%, 100% { transform: translate(0,0); filter: brightness(1); }
       50% { transform: translate(1px,-1px); filter: brightness(1.2); }
+    }
+    /* RGB-split "signal tear" glitch — flashes briefly and infrequently
+       rather than sitting on screen continuously. */
+    .broken-screen-glitch {
+      position: absolute; inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(255,20,60,0.22) 0px, rgba(255,20,60,0.22) 2px, transparent 2px, transparent 6px),
+        repeating-linear-gradient(0deg, rgba(0,220,255,0.16) 0px, rgba(0,220,255,0.16) 2px, transparent 2px, transparent 8px);
+      background-position: 0 0, 4px 0;
+      mix-blend-mode: screen;
+      opacity: 0;
+      animation: broken-glitch-flicker 3.1s steps(1, end) infinite;
+    }
+    @keyframes broken-glitch-flicker {
+      0%, 74%, 100% { opacity: 0; transform: translateX(0); }
+      75% { opacity: 0.55; transform: translateX(-10px); }
+      77% { opacity: 0; transform: translateX(0); }
+      81% { opacity: 0.4; transform: translateX(7px); }
+      83% { opacity: 0; transform: translateX(0); }
     }
     .broken-screen-band { position: absolute; left: 0; right: 0; background: #000; opacity: 0; animation-name: broken-band-flicker; animation-timing-function: steps(1, end); animation-iteration-count: infinite; }
     @keyframes broken-band-flicker {
@@ -497,6 +530,10 @@ function buildGritCollapseMeter(getMeters, setMeters) {
     collapseVal.textContent = collapse
     container.dataset.gritSeverity = grit === 0 ? 'zero' : grit === 1 ? 'low' : 'ok'
     container.dataset.collapseSeverity = collapse >= 6 ? 'critical' : collapse >= 5 ? 'high' : collapse >= 4 ? 'elevated' : 'ok'
+    // Grit is locked out (tap/hold ignored) while its own "grit reached 0"
+    // notification is unresolved — mirrors the HP panel's full-screen lock
+    // while an hp-zero notification is pending.
+    tapLeft.classList.toggle('gcm-locked', hasPendingNotification('grit-zero'))
   }
 
   const makeTapHandler = (isLeft) => {
@@ -505,6 +542,9 @@ function buildGritCollapseMeter(getMeters, setMeters) {
     let longPress = false
     const clearTimer = () => { if (timer) { clearTimeout(timer); timer = null } }
     const change = (delta) => {
+      // Grit is locked out while its own "grit reached 0" notification is
+      // still pending — taps/holds are ignored until it's resolved.
+      if (isLeft && hasPendingNotification('grit-zero')) return
       const meters = getMeters()
       const collapse = clamp(meters.collapse ?? 0)
       const maxGrit = Math.max(0, MAX_VALUE - collapse)
@@ -518,8 +558,9 @@ function buildGritCollapseMeter(getMeters, setMeters) {
           pushNotification(
             'grit-zero',
             'Grit reached 0',
-            `Accept to apply +1 Collapse and recover ${rolled} Grit (rolled 1d6), or cancel to leave Grit at 0.`,
-            { collapse: 1, grit: rolled }
+            `Accept to apply +1 Collapse and recover Grit, or cancel to leave Grit at 0.`,
+            { collapse: 1, grit: rolled },
+            { roll: { die: 6, value: rolled } }
           )
         }
       } else {
@@ -1477,6 +1518,10 @@ function buildBrokenScreenOverlay(getMeters) {
   cracks.className = 'broken-screen-cracks'
   overlay.appendChild(cracks)
 
+  const glitch = document.createElement('div')
+  glitch.className = 'broken-screen-glitch'
+  overlay.appendChild(glitch)
+
   const scan = document.createElement('div')
   scan.className = 'broken-screen-scan'
   overlay.appendChild(scan)
@@ -1554,6 +1599,9 @@ function mountMeters() {
 
   window.addEventListener('storage', (ev) => {
     if (ev.key === STORAGE_KEY) refreshAll()
+    // Resolving the "grit reached 0" notification from the outer app's
+    // header bell (a different window) needs to unlock the Grit control here.
+    if (ev.key === NOTIFICATIONS_KEY) gcm.update()
   })
 
   return true

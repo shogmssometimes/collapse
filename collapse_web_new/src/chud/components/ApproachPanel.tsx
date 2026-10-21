@@ -31,17 +31,17 @@ function RollModeToggle() {
     <div className="roll-mode-toggle" role="group" aria-label="Rolling mode">
       <button
         type="button"
-        className={`roll-mode-btn${mode === "combat" ? " active" : ""}`}
-        onClick={() => choose("combat")}
-      >
-        Combat
-      </button>
-      <button
-        type="button"
         className={`roll-mode-btn${mode === "roleplay" ? " active" : ""}`}
         onClick={() => choose("roleplay")}
       >
         Roleplay
+      </button>
+      <button
+        type="button"
+        className={`roll-mode-btn${mode === "combat" ? " active" : ""}`}
+        onClick={() => choose("combat")}
+      >
+        Combat
       </button>
     </div>
   );

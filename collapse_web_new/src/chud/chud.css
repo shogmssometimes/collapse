@@ -32,6 +32,16 @@ body {
   min-height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Keep the HUD scrollable (content can be slightly taller than the iframe
+     viewport) without showing a visible scrollbar track/thumb. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 #root {
@@ -691,6 +701,11 @@ body {
   padding: 10px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  /* Overridden per-row (via inline style) with a new→old gradient color
+   * reflecting queue position; this is the fallback for single-row call
+   * sites (e.g. CollapseOverlay) that don't pass an accentColor. */
+  border-left-color: rgba(56, 189, 248, 0.6);
+  border-left-width: 3px;
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
   user-select: none;
@@ -716,6 +731,22 @@ body {
 .notification-row-detail {
   font-size: 0.75rem;
   color: rgba(248, 250, 252, 0.65);
+}
+
+/* Die-chip for notifications carrying a rolled value (e.g. the grit-zero
+ * 1d6 recovery roll) — styled consistently with ApproachDie's result chips
+ * so rolls read the same everywhere in the app. */
+.notification-die-chip {
+  align-self: flex-start;
+  margin-top: 2px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #f8fafc;
+  background: rgba(255, 212, 59, 0.14);
+  border: 1px solid #ffd43b;
+  border-radius: 8px;
+  padding: 2px 8px;
 }
 
 .notification-row-hint {

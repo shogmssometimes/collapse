@@ -19,6 +19,7 @@ export function NotificationRow({
   onCancel,
   onTapRecorded,
   onChoice,
+  accentColor,
 }: {
   notification: PendingNotification;
   onAccept: (id: string) => void;
@@ -31,6 +32,11 @@ export function NotificationRow({
   /** Called when a choice-style notification's button is tapped (see
    * `notification.choices`). Not used for ordinary accept/cancel rows. */
   onChoice?: (id: string, key: string) => void;
+  /** New→old gradient accent color for this row's position in the tray
+   * (see notificationAccentColor); undefined falls back to the default
+   * row styling (used by single-notification call sites like the
+   * CollapseOverlay row, which don't need queue-position coloring). */
+  accentColor?: string;
 }) {
   const [pressing, setPressing] = useState(false);
   const [, forceTick] = useState(0);
@@ -93,7 +99,10 @@ export function NotificationRow({
   // hold/triple-tap gesture entirely in favor of a row of buttons.
   if (notification.choices) {
     return (
-      <div className="notification-row notification-row-choice">
+      <div
+        className="notification-row notification-row-choice"
+        style={accentColor ? ({ borderLeftColor: accentColor } as React.CSSProperties) : undefined}
+      >
         <div className="notification-row-text">
           <strong>{notification.label}</strong>
           <span className="notification-row-detail">{notification.detail}</span>
@@ -117,7 +126,12 @@ export function NotificationRow({
   return (
     <div
       className="notification-row"
-      style={{ ["--hold-progress-ms" as string]: `${HOLD_MS}ms` } as React.CSSProperties}
+      style={
+        {
+          ["--hold-progress-ms" as string]: `${HOLD_MS}ms`,
+          ...(accentColor ? { borderLeftColor: accentColor } : {}),
+        } as React.CSSProperties
+      }
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerLeave={clearHold}
@@ -127,6 +141,11 @@ export function NotificationRow({
       <div className="notification-row-text">
         <strong>{notification.label}</strong>
         <span className="notification-row-detail">{notification.detail}</span>
+        {notification.roll ? (
+          <span className="notification-die-chip" aria-label={`Rolled d${notification.roll.die}: ${notification.roll.value}`}>
+            d{notification.roll.die}: {notification.roll.value}
+          </span>
+        ) : null}
       </div>
       <span className="notification-row-hint">
         {displayTaps > 0 ? `${displayTaps}/3 to cancel` : "hold to accept · triple-tap to cancel"}
