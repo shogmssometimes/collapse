@@ -6,10 +6,16 @@
 
 const STATUS_ROLLS_KEY = "chud.statusRolls";
 const COMBAT_KEY = "combat.v1";
+const CSMATRIX_KEY = "csmatrix.graph";
+const METER_MAX = 6;
 
 type StatusRollRow = { id: string; name: string; effect: string; roll: number };
 type StatusRollsState = { rows: StatusRollRow[] };
 type CombatState = { reactionTokens: number; chipDesynced: boolean; [key: string]: unknown };
+type GlobalMeters = { collapse?: number; grit?: number };
+type CSMatrixGraph = { nodes?: unknown[]; edges?: unknown[]; meta?: { globalMeters?: GlobalMeters; [key: string]: unknown } };
+
+const clampMeter = (n: number) => Math.max(0, Math.min(METER_MAX, n));
 
 function notify(key: string, json: string) {
   try {
@@ -38,6 +44,29 @@ export function addSetRollRow(value: number): void {
     const json = JSON.stringify({ rows: [row, ...rows] });
     window.localStorage.setItem(STATUS_ROLLS_KEY, json);
     notify(STATUS_ROLLS_KEY, json);
+  } catch {
+    // storage unavailable — ignore
+  }
+}
+
+/**
+ * Applies a delta to the CS Matrix's Grit/Collapse global meters (mirrors
+ * the clamp/maxGrit math in meter-bridge.js's buildGritCollapseMeter so both
+ * surfaces agree on the result). Used when a notification is accepted.
+ */
+export function adjustGlobalMeters(delta: { grit?: number; collapse?: number }): void {
+  try {
+    const raw = window.localStorage.getItem(CSMATRIX_KEY);
+    const graph: CSMatrixGraph = raw ? JSON.parse(raw) : { nodes: [], edges: [], meta: {} };
+    graph.meta = graph.meta || {};
+    const meta = graph.meta.globalMeters || {};
+    const nextCollapse = clampMeter((meta.collapse ?? 0) + (delta.collapse ?? 0));
+    const maxGrit = Math.max(0, METER_MAX - nextCollapse);
+    const nextGrit = Math.min(maxGrit, Math.max(0, (meta.grit ?? 0) + (delta.grit ?? 0)));
+    graph.meta.globalMeters = { ...meta, collapse: nextCollapse, grit: nextGrit };
+    const json = JSON.stringify(graph);
+    window.localStorage.setItem(CSMATRIX_KEY, json);
+    notify(CSMATRIX_KEY, json);
   } catch {
     // storage unavailable — ignore
   }

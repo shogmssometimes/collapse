@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./chud.css";
 import type { ApproachStats, CoreStats, GearSlotEntry, SaveState } from "../types/chud";
 import {
@@ -20,10 +20,20 @@ import { clampApproachToCore } from "../domain/coreApproachMap";
 import { computeWardrobeBonuses } from "../domain/wardrobeBonus";
 import { loadState, readGearData, readWardrobeData } from "../utils/chudPersistence";
 import { wardrobeKey } from "../utils/slotKeys";
+import { adjustGlobalMeters } from "../utils/chudVanillaBridge";
+import {
+  NOTIFICATIONS_STORAGE_KEY,
+  hasPendingNotification,
+  listNotifications,
+  pushNotification,
+  removeNotification,
+  type PendingNotification,
+} from "../domain/notifications";
 import { CollapseOverlay } from "./panels/CollapseOverlay";
 import { HPPanel } from "./panels/HPPanel";
 import { GearPanel } from "./panels/GearPanel";
 import { ApproachPanel } from "./components/ApproachPanel";
+import { NotificationsTray } from "./components/NotificationsTray";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -81,18 +91,42 @@ export default function Chud() {
   const derived = computeDerived(core);
   const hpMax = derived.hp;
 
-  const [collapseUnlocked, setCollapseUnlocked] = useState(hpCounter > 0);
+  const [notifications, setNotifications] = useState<PendingNotification[]>(() =>
+    typeof window !== "undefined" ? listNotifications() : []
+  );
 
   // Clamp hp counter whenever hp max changes (e.g., vigor changes)
   useEffect(() => {
     setHpCounterRaw((v) => Math.min(Math.max(v, 0), hpMax));
   }, [hpMax]);
 
-  // When HP recovers above 0, reset the unlock flag so the next collapse
-  // will show the overlay again.
+  // HP hitting 0 queues an "hp-zero" notification (if one isn't already
+  // pending) instead of auto-applying +1 Collapse. Only fires on the
+  // transition from >0 down to <=0 so it can't re-queue while already dead.
+  const prevHpRef = useRef(hpCounter);
   useEffect(() => {
-    if (hpCounter > 0) setCollapseUnlocked(false);
+    const prev = prevHpRef.current;
+    prevHpRef.current = hpCounter;
+    if (prev > 0 && hpCounter <= 0 && !hasPendingNotification("hp-zero")) {
+      const created = pushNotification(
+        "hp-zero",
+        "HP reached 0",
+        "Accept to apply +1 Collapse, or cancel to clear without it.",
+        { collapse: 1 }
+      );
+      if (created) setNotifications(listNotifications());
+    }
   }, [hpCounter]);
+
+  // Cross-realm notification sync (another window/iframe pushed or resolved one).
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key !== NOTIFICATIONS_STORAGE_KEY) return;
+      setNotifications(listNotifications());
+    };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
 
   const increaseApproachDieSize = useCallback((): DieSides => {
     const nextDie = stepUp(approachDieSize);
@@ -193,11 +227,28 @@ export default function Chud() {
     return () => window.removeEventListener("storage", wardrobeHandler);
   }, []);
 
-  const collapseLocked = hpCounter <= 0 && !collapseUnlocked;
+  const hpZeroNotification = notifications.find((n) => n.kind === "hp-zero") ?? null;
+  const collapseLocked = hpZeroNotification != null;
 
   const setHpCounter = useCallback(
     (v: number) => setHpCounterRaw(Math.min(Math.max(v, 0), hpMax)),
     [hpMax]
+  );
+
+  const resolveNotification = useCallback(
+    (id: string, accept: boolean) => {
+      const n = notifications.find((item) => item.id === id);
+      if (!n) return;
+      if (accept) {
+        if (n.effect.hp) setHpCounter(hpCounter + n.effect.hp);
+        if (n.effect.grit != null || n.effect.collapse != null) {
+          adjustGlobalMeters({ grit: n.effect.grit, collapse: n.effect.collapse });
+        }
+      }
+      removeNotification(id);
+      setNotifications(listNotifications());
+    },
+    [notifications, hpCounter, setHpCounter]
   );
 
   return (
@@ -206,9 +257,18 @@ export default function Chud() {
         <section
           className={`panel derived-panel-wrapper${collapseLocked ? " collapse-locked" : ""}`}
         >
+          <div className="chud-header-row">
+            <NotificationsTray
+              notifications={notifications}
+              onAccept={(id) => resolveNotification(id, true)}
+              onCancel={(id) => resolveNotification(id, false)}
+            />
+          </div>
+
           <CollapseOverlay
-            locked={collapseLocked}
-            onRevive={() => setCollapseUnlocked(true)}
+            notification={hpZeroNotification}
+            onAccept={(id) => resolveNotification(id, true)}
+            onCancel={(id) => resolveNotification(id, false)}
           />
 
           <HPPanel

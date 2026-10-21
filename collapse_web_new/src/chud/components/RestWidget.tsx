@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import type { ApproachStats } from "../../types/chud";
+import {
+  NOTIFICATIONS_STORAGE_KEY,
+  hasPendingNotification,
+  pushNotification,
+} from "../../domain/notifications";
 
 const APPROACH_FIELDS: Array<keyof ApproachStats> = ["force", "finesse", "guts", "logic", "show", "tell"];
 
 const SWIPE_THRESHOLD_PX = 40;
-
-type DigDeepResult = { d1: number; d2: number; lose: number; gain: number; ts: number };
 
 function readState(storageKey: string): Record<string, unknown> {
   try {
@@ -38,17 +40,19 @@ const tallyMarks = (count: number) => {
 };
 
 // Short Rest tally / Dig Deep / Full Rest — moved here (bottom of the AAG
-// page) from the HUD. None of this adjudicates anything: Short Rest just
-// counts how many have been taken, Dig Deep rolls the lose/gain pair and
-// leaves it up to the player to apply, and Full Rest restores the Approach
-// Overload pool. The Dig Deep result shows as a popup immediately after the
-// roll; closing it clears it for good (the roll itself isn't persisted).
+// page) from the HUD. Short Rest just counts how many have been taken, and
+// Full Rest restores the Approach Overload pool. Dig Deep rolls the
+// lose/gain pair and queues it as a notification (resolved via the CHUD
+// header's notifications tray — long-press to accept, triple-tap to
+// cancel) instead of popping up a self-contained, un-adjudicated result.
 export function RestWidget({ storageKey }: { storageKey: string }) {
   const [tally, setTally] = useState<number>(() => {
     const v = readState(storageKey).shortRestTally;
     return typeof v === "number" ? v : 0;
   });
-  const [digDeepPopup, setDigDeepPopup] = useState<DigDeepResult | null>(null);
+  const [digDeepPending, setDigDeepPending] = useState<boolean>(() =>
+    typeof window !== "undefined" ? hasPendingNotification("dig-deep") : false
+  );
   const shortRestPointerStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -61,6 +65,15 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
   }, [storageKey]);
+
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key !== NOTIFICATIONS_STORAGE_KEY) return;
+      setDigDeepPending(hasPendingNotification("dig-deep"));
+    };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
 
   const onShortRest = useCallback(() => {
     const next = tally >= 10 ? 0 : tally + 1;
@@ -101,11 +114,18 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
   };
 
   const onDigDeep = useCallback(() => {
+    if (hasPendingNotification("dig-deep")) return;
     const d1 = 1 + Math.floor(Math.random() * 4);
     const d2 = 1 + Math.floor(Math.random() * 4);
     const lose = Math.max(d1, d2);
     const gain = Math.min(d1, d2);
-    setDigDeepPopup({ d1, d2, lose, gain, ts: Date.now() });
+    const created = pushNotification(
+      "dig-deep",
+      "Dig Deep",
+      `Rolled ${d1}, ${d2}. Accept to lose ${lose} HP and gain ${gain} Grit.`,
+      { hp: -lose, grit: gain }
+    );
+    if (created) setDigDeepPending(true);
   }, []);
 
   const onFullRest = useCallback(() => {
@@ -119,28 +139,6 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
   return (
     <div className="mods rest-widget">
       <h3>Rest</h3>
-
-      {digDeepPopup && createPortal(
-        <div className="dig-deep-popup-backdrop" onClick={() => setDigDeepPopup(null)}>
-          <div className="dig-deep-popup" onClick={(event) => event.stopPropagation()}>
-            <button
-              type="button"
-              className="dig-deep-popup-close"
-              onClick={() => setDigDeepPopup(null)}
-              aria-label="Close Dig Deep result"
-            >
-              X
-            </button>
-            <div className="dig-deep-popup-label">Dig Deep</div>
-            <div className="dig-deep-popup-row">
-              <span className="dig-deep-popup-lose">LOSE {digDeepPopup.lose} HP</span>
-              <span className="dig-deep-popup-gain">GAIN {digDeepPopup.gain} GRIT</span>
-            </div>
-            <div className="dig-deep-popup-rolled">rolled {digDeepPopup.d1}, {digDeepPopup.d2}</div>
-          </div>
-        </div>,
-        document.body
-      )}
 
       <div className="rest-stack">
         <button
@@ -166,8 +164,14 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
             ))}
           </span>
         </button>
-        <button type="button" className="rest-stack-btn digdeep" onClick={onDigDeep}>
-          Dig Deep
+        <button
+          type="button"
+          className="rest-stack-btn digdeep"
+          onClick={onDigDeep}
+          disabled={digDeepPending}
+          title={digDeepPending ? "Resolve the pending Dig Deep notification first" : undefined}
+        >
+          {digDeepPending ? "Dig Deep (pending…)" : "Dig Deep"}
         </button>
         <button type="button" className="rest-stack-btn fullrest" onClick={onFullRest}>
           Full Rest (restore Overload dice)

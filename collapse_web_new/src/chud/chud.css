@@ -638,6 +638,120 @@ body {
   );
 }
 
+/* ── Notifications tray ──────────────────────────────────────────────── */
+
+.chud-header-row {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+  z-index: 50;
+}
+
+.notifications-tray {
+  position: relative;
+}
+
+.notifications-bell {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #f8fafc;
+}
+
+.notifications-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-red, #d42b2b);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.notifications-dropdown {
+  position: fixed;
+  width: min(280px, 80vw);
+  max-height: 320px;
+  overflow-y: auto;
+  background: rgba(16, 14, 14, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10001;
+}
+
+.notifications-empty {
+  padding: 10px;
+  font-size: 0.8rem;
+  color: rgba(248, 250, 252, 0.5);
+  text-align: center;
+}
+
+.notification-row {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.notification-row > *:not(.hold-progress-fill) {
+  position: relative;
+  z-index: 1;
+}
+
+.notification-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.82rem;
+}
+
+.notification-row-text strong {
+  color: #f8fafc;
+}
+
+.notification-row-detail {
+  font-size: 0.75rem;
+  color: rgba(248, 250, 252, 0.65);
+}
+
+.notification-row-hint {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.4);
+}
+
+/* Reuse the overlay's panel chrome for the hp-zero row rendered full-screen. */
+.collapse-panel .notification-row {
+  width: 100%;
+  text-align: left;
+  margin-top: 6px;
+}
+
 /* ── Film grain texture overlay ─────────────────────────────────────────── */
 body::after {
   content: '';
