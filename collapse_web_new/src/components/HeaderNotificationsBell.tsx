@@ -3,10 +3,11 @@ import { NotificationsTray } from "../chud/components/NotificationsTray";
 import {
   NOTIFICATIONS_STORAGE_KEY,
   listNotifications,
+  pushNotification,
   removeNotification,
   type PendingNotification,
 } from "../domain/notifications";
-import { adjustGlobalMeters, adjustHpCounter, setChipDesynced } from "../utils/chudVanillaBridge";
+import { adjustGlobalMeters, adjustHpCounter, readCollapsePath, setChipDesynced, setCollapsePath } from "../utils/chudVanillaBridge";
 import { chudStateKey } from "../utils/slotKeys";
 
 /**
@@ -37,6 +38,32 @@ export function HeaderNotificationsBell({ charSlot }: { charSlot: number }) {
           adjustGlobalMeters({ grit: n.effect.grit, collapse: n.effect.collapse });
         }
         if (n.effect.desync) setChipDesynced(true);
+        if (n.kind === "hp-zero") {
+          const path = readCollapsePath(chudStateKey(charSlot));
+          const pathLabel = path ? `${path[0].toUpperCase()}${path.slice(1)}` : null;
+          pushNotification(
+            "collapse-table",
+            "Roll on Collapse Table",
+            pathLabel
+              ? `Roll on the "${pathLabel}" Collapse Table in the handbook.`
+              : "Roll on the Collapse Table in the handbook.",
+            {}
+          );
+        }
+      }
+      removeNotification(id);
+      setNotifications(listNotifications());
+    },
+    [notifications, charSlot]
+  );
+
+  // "Choose Your Path" resolves via a button tap instead of accept/cancel —
+  // persist the choice directly to the slot's CHUD state and clear it.
+  const choose = useCallback(
+    (id: string, key: string) => {
+      const n = notifications.find((item) => item.id === id);
+      if (n?.kind === "choose-path") {
+        setCollapsePath(key, chudStateKey(charSlot));
       }
       removeNotification(id);
       setNotifications(listNotifications());
@@ -50,6 +77,7 @@ export function HeaderNotificationsBell({ charSlot }: { charSlot: number }) {
       onAccept={(id) => resolve(id, true)}
       onCancel={(id) => resolve(id, false)}
       onTapRecorded={() => setNotifications(listNotifications())}
+      onChoice={choose}
     />
   );
 }

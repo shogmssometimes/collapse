@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./chud.css";
-import type { ApproachStats, CoreStats, GearSlotEntry, SaveState } from "../types/chud";
+import type { ApproachStats, CollapsePath, CoreStats, GearSlotEntry, SaveState } from "../types/chud";
 import {
   DEFAULT_INVENTORY_SLOTS,
   DEFAULT_HP_COUNTER,
@@ -70,6 +70,8 @@ export default function Chud() {
     saved?.approachOverloadSpent ?? {}
   );
   const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? DEFAULT_HP_COUNTER);
+  const [hasBeenDownedBefore, setHasBeenDownedBefore] = useState<boolean>(saved?.hasBeenDownedBefore ?? false);
+  const [collapsePath, setCollapsePathState] = useState<CollapsePath | undefined>(saved?.collapsePath);
   const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
   const [gearEntries, setGearEntries] = useState<GearSlotEntry[] | null>(() =>
     typeof window !== "undefined" ? (readGearData(GEAR_SLOTS_KEY)?.entries ?? null) : null
@@ -102,7 +104,13 @@ export default function Chud() {
   // HP hitting 0 queues an "hp-zero" notification (if one isn't already
   // pending) instead of auto-applying +1 Collapse. Only fires on the
   // transition from >0 down to <=0 so it can't re-queue while already dead.
+  // The very first time this ever happens for this character, it also queues
+  // a one-time "Choose Your Path" (Live/Survive/Die) notification — the
+  // book's Collapse Table reminder (queued separately, on hp-zero accept)
+  // references whichever path the player picks here.
   const prevHpRef = useRef(hpCounter);
+  const hasBeenDownedBeforeRef = useRef(hasBeenDownedBefore);
+  hasBeenDownedBeforeRef.current = hasBeenDownedBefore;
   useEffect(() => {
     const prev = prevHpRef.current;
     prevHpRef.current = hpCounter;
@@ -113,7 +121,21 @@ export default function Chud() {
         "Accept to apply +1 Collapse and revive with 1 HP, or cancel to clear without it.",
         { collapse: 1, hp: 1 }
       );
-      if (created) setNotifications(listNotifications());
+      if (!hasBeenDownedBeforeRef.current) {
+        setHasBeenDownedBefore(true);
+        pushNotification(
+          "choose-path",
+          "Choose Your Path",
+          "You've gone down for the first time. This choice determines which Collapse Table you'll roll on from now on.",
+          {},
+          [
+            { key: "live", label: "Live" },
+            { key: "survive", label: "Survive" },
+            { key: "die", label: "Die" },
+          ]
+        );
+      }
+      if (created || !hasBeenDownedBeforeRef.current) setNotifications(listNotifications());
     }
   }, [hpCounter]);
 
@@ -177,12 +199,14 @@ export default function Chud() {
         secondary: prev.secondary,
         statReps: prev.statReps,
         shortRest,
+        hasBeenDownedBefore,
+        collapsePath,
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       // storage unavailable — ignore
     }
-  }, [core, hpCounter, approach, approachDieSize, damageDieSize, approachOverloadSpent, inventorySlots, shortRest]);
+  }, [core, hpCounter, approach, approachDieSize, damageDieSize, approachOverloadSpent, inventorySlots, shortRest, hasBeenDownedBefore, collapsePath]);
 
   // Cross-tab sync
   useEffect(() => {
@@ -198,6 +222,8 @@ export default function Chud() {
         if (typeof s.hpCounter === "number") setHpCounterRaw(s.hpCounter);
         if (typeof s.inventorySlots === "number") setInventorySlotsRaw(Math.max(0, s.inventorySlots));
         if (typeof s.shortRest === "boolean") setShortRest(s.shortRest);
+        if (typeof s.hasBeenDownedBefore === "boolean") setHasBeenDownedBefore(s.hasBeenDownedBefore);
+        if (s.collapsePath) setCollapsePathState(s.collapsePath);
       } catch {
         // malformed storage — ignore
       }
@@ -244,11 +270,22 @@ export default function Chud() {
           adjustGlobalMeters({ grit: n.effect.grit, collapse: n.effect.collapse });
         }
         if (n.effect.desync) setChipDesynced(true);
+        if (n.kind === "hp-zero") {
+          const pathLabel = collapsePath ? `${collapsePath[0].toUpperCase()}${collapsePath.slice(1)}` : null;
+          pushNotification(
+            "collapse-table",
+            "Roll on Collapse Table",
+            pathLabel
+              ? `Roll on the "${pathLabel}" Collapse Table in the handbook.`
+              : "Roll on the Collapse Table in the handbook.",
+            {}
+          );
+        }
       }
       removeNotification(id);
       setNotifications(listNotifications());
     },
-    [notifications, hpCounter, setHpCounter]
+    [notifications, hpCounter, setHpCounter, collapsePath]
   );
 
   return (

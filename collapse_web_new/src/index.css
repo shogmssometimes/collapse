@@ -2268,3 +2268,38 @@ button.hub-card:not(:disabled):active {
   text-transform: uppercase;
   color: rgba(248, 250, 252, 0.4);
 }
+
+/* Choice-style notifications ("Choose Your Path") render buttons instead of
+ * the hold/triple-tap gesture, so they don't need the pressable cursor or
+ * touch-action lockout the gesture rows use. */
+.notification-row-choice {
+  cursor: default;
+  touch-action: auto;
+}
+
+.notification-row-choices {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.notification-choice-btn {
+  flex: 1 1 auto;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.notification-choice-btn:hover,
+.notification-choice-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.35);
+}

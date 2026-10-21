@@ -104,3 +104,32 @@ export function adjustHpCounter(delta: number, chudStateKey: string): void {
     // storage unavailable — ignore
   }
 }
+
+/**
+ * Persists the player's one-time "Choose Your Path" answer (live/survive/die)
+ * directly to the slot's CHUD state, for when the choice notification is
+ * resolved from the outer app's header bell rather than the live iframe.
+ */
+export function setCollapsePath(path: string, chudStateKey: string): void {
+  try {
+    const raw = window.localStorage.getItem(chudStateKey);
+    const parsed: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+    const json = JSON.stringify({ ...parsed, collapsePath: path });
+    window.localStorage.setItem(chudStateKey, json);
+    notify(chudStateKey, json);
+  } catch {
+    // storage unavailable — ignore
+  }
+}
+
+/** Reads the currently-chosen Collapse Table path (if any) for the given slot. */
+export function readCollapsePath(chudStateKey: string): string | undefined {
+  try {
+    const raw = window.localStorage.getItem(chudStateKey);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return typeof parsed.collapsePath === "string" ? parsed.collapsePath : undefined;
+  } catch {
+    return undefined;
+  }
+}

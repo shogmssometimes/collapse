@@ -18,6 +18,7 @@ export function NotificationRow({
   onAccept,
   onCancel,
   onTapRecorded,
+  onChoice,
 }: {
   notification: PendingNotification;
   onAccept: (id: string) => void;
@@ -27,6 +28,9 @@ export function NotificationRow({
    * down as a prop (needed for same-window, same-render-tree updates —
    * cross-window copies pick it up via the existing storage listener). */
   onTapRecorded?: () => void;
+  /** Called when a choice-style notification's button is tapped (see
+   * `notification.choices`). Not used for ordinary accept/cancel rows. */
+  onChoice?: (id: string, key: string) => void;
 }) {
   const [pressing, setPressing] = useState(false);
   const [, forceTick] = useState(0);
@@ -84,6 +88,31 @@ export function NotificationRow({
     }
     onTapRecorded?.();
   };
+
+  // Choice-style notifications (e.g. "Choose Your Path") skip the
+  // hold/triple-tap gesture entirely in favor of a row of buttons.
+  if (notification.choices) {
+    return (
+      <div className="notification-row notification-row-choice">
+        <div className="notification-row-text">
+          <strong>{notification.label}</strong>
+          <span className="notification-row-detail">{notification.detail}</span>
+        </div>
+        <div className="notification-row-choices">
+          {notification.choices.map((choice) => (
+            <button
+              key={choice.key}
+              type="button"
+              className="notification-choice-btn"
+              onClick={() => onChoice?.(notification.id, choice.key)}
+            >
+              {choice.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

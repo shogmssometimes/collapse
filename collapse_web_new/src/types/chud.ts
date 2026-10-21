@@ -25,6 +25,8 @@ export interface StatReps {
   invSlots: number;
 }
 
+export type CollapsePath = "live" | "survive" | "die";
+
 export interface SaveState {
   core: CoreStats;
   hpCounter: number;
@@ -37,6 +39,12 @@ export interface SaveState {
   secondary?: SecondaryStats;
   statReps?: StatReps;
   shortRest?: boolean;
+  /** Whether this character has ever been downed (HP hit 0) before — gates
+   * the one-time "Choose Your Path" (Live/Survive/Die) notification. */
+  hasBeenDownedBefore?: boolean;
+  /** The table the player chose to roll on each time they're downed, set by
+   * the one-time "Choose Your Path" notification. */
+  collapsePath?: CollapsePath;
 }
 
 export type GearSlotEntry = { name: string; units: string; qty: string };

@@ -10,7 +10,7 @@
 // of a given `kind` is pending, the area that produced it is expected to
 // refuse to queue another of the same kind until it's resolved.
 
-export type NotificationKind = "hp-zero" | "dig-deep" | "grit-zero" | "desync";
+export type NotificationKind = "hp-zero" | "dig-deep" | "grit-zero" | "desync" | "collapse-table" | "choose-path";
 
 export type NotificationEffect = {
   hp?: number;
@@ -19,6 +19,8 @@ export type NotificationEffect = {
   /** Flips the HUD's Chip Sync indicator to Desynced when accepted. */
   desync?: boolean;
 };
+
+export type NotificationChoice = { key: string; label: string };
 
 export type PendingNotification = {
   id: string;
@@ -33,6 +35,10 @@ export type PendingNotification = {
    * started in one place counts towards cancelling it from another. */
   cancelTaps?: number;
   cancelTapAt?: number;
+  /** When present, this notification is rendered as a set of mutually
+   * exclusive choice buttons (e.g. "Choose Your Path: Live/Survive/Die")
+   * instead of the usual hold-to-accept/triple-tap-to-cancel gesture. */
+  choices?: NotificationChoice[];
 };
 
 export const NOTIFICATIONS_STORAGE_KEY = "chud.notifications.v1";
@@ -76,7 +82,8 @@ export function pushNotification(
   kind: NotificationKind,
   label: string,
   detail: string,
-  effect: NotificationEffect
+  effect: NotificationEffect,
+  choices?: NotificationChoice[]
 ): PendingNotification | null {
   const items = read();
   if (items.some((n) => n.kind === kind)) return null;
@@ -87,6 +94,7 @@ export function pushNotification(
     detail,
     effect,
     createdAt: Date.now(),
+    ...(choices ? { choices } : {}),
   };
   write([item, ...items]);
   return item;

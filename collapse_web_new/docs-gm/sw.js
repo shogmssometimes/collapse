@@ -1,6 +1,6 @@
 // Bump cache version to force a new cache after major deploys.
 // If you need faster invalidation in the future, update this to v3, v4, etc.
-const CACHE_NAME = "collapse-fullbuild-v8";
+const CACHE_NAME = "collapse-fullbuild-v9";
 
 // Derive the base path from the service worker registration so it works from any repo path.
 const scopeUrl = new URL(self.registration.scope);
@@ -39,36 +39,27 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  // Prefer network for HTML documents (index) so updates are discovered quickly.
+  // Network-first for everything, falling back to cache only when offline.
+  // Several files in this app (notably the CHUD iframe's chud-app.js,
+  // meter-bridge.js, chud.css) are served under fixed, non-hashed
+  // filenames rather than content-hashed ones, so a cache-first strategy
+  // would pin a browser to a stale copy of those files indefinitely after
+  // the very first install — any later deploy would be invisible until the
+  // user manually cleared site data. Preferring the network (with the
+  // cache only as an offline fallback) means every reload picks up the
+  // latest deployed assets whenever the user has connectivity.
   const url = new URL(event.request.url);
   const isDocument = event.request.destination === "document";
   const docFallback = DOC_FALLBACKS.find((path) => url.pathname === path) ?? DOC_FALLBACKS[0];
+  const fallback = isDocument ? docFallback : event.request;
 
-  if (isDocument || url.pathname === `${APP_BASE}` || url.pathname === `${APP_BASE}index.html`) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // put a clone into the cache for offline fallback
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match(docFallback)))
-    );
-    return;
-  }
-
-  // Otherwise use cache-first strategy for static assets to improve offline reliability
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match(docFallback));
-    })
+    fetch(event.request)
+      .then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match(fallback)))
   );
 });
