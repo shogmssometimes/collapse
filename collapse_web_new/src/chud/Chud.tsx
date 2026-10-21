@@ -20,7 +20,7 @@ import { clampApproachToCore } from "../domain/coreApproachMap";
 import { computeWardrobeBonuses } from "../domain/wardrobeBonus";
 import { loadState, readGearData, readWardrobeData } from "../utils/chudPersistence";
 import { wardrobeKey } from "../utils/slotKeys";
-import { adjustGlobalMeters } from "../utils/chudVanillaBridge";
+import { adjustGlobalMeters, setChipDesynced } from "../utils/chudVanillaBridge";
 import {
   NOTIFICATIONS_STORAGE_KEY,
   hasPendingNotification,
@@ -243,6 +243,7 @@ export default function Chud() {
         if (n.effect.grit != null || n.effect.collapse != null) {
           adjustGlobalMeters({ grit: n.effect.grit, collapse: n.effect.collapse });
         }
+        if (n.effect.desync) setChipDesynced(true);
       }
       removeNotification(id);
       setNotifications(listNotifications());

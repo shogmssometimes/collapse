@@ -10,12 +10,14 @@
 // of a given `kind` is pending, the area that produced it is expected to
 // refuse to queue another of the same kind until it's resolved.
 
-export type NotificationKind = "hp-zero" | "dig-deep" | "grit-zero";
+export type NotificationKind = "hp-zero" | "dig-deep" | "grit-zero" | "desync";
 
 export type NotificationEffect = {
   hp?: number;
   grit?: number;
   collapse?: number;
+  /** Flips the HUD's Chip Sync indicator to Desynced when accepted. */
+  desync?: boolean;
 };
 
 export type PendingNotification = {

@@ -310,6 +310,47 @@ body {
   padding-left: 6px;
 }
 
+.approach-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.approach-panel-header h3 {
+  flex-shrink: 0;
+}
+
+.roll-mode-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.roll-mode-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(248, 250, 252, 0.5);
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.roll-mode-btn.active {
+  background: var(--accent-red);
+  color: #0a0d12;
+}
+
 /* ── Stat grids ──────────────────────────────────────────────────────────── */
 
 .core-grid {

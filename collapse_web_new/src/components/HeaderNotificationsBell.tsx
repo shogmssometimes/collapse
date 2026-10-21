@@ -6,7 +6,7 @@ import {
   removeNotification,
   type PendingNotification,
 } from "../domain/notifications";
-import { adjustGlobalMeters, adjustHpCounter } from "../utils/chudVanillaBridge";
+import { adjustGlobalMeters, adjustHpCounter, setChipDesynced } from "../utils/chudVanillaBridge";
 import { chudStateKey } from "../utils/slotKeys";
 
 /**
@@ -36,6 +36,7 @@ export function HeaderNotificationsBell({ charSlot }: { charSlot: number }) {
         if (n.effect.grit != null || n.effect.collapse != null) {
           adjustGlobalMeters({ grit: n.effect.grit, collapse: n.effect.collapse });
         }
+        if (n.effect.desync) setChipDesynced(true);
       }
       removeNotification(id);
       setNotifications(listNotifications());

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { ApproachDieResult, ApproachRollResult, DieSides } from "../../domain/approachDice"
 import { rollFlatDice } from "../../domain/approachDice"
-import { addSetRollRow, setChipDesynced } from "../../utils/chudVanillaBridge"
+import { addSetRollRow } from "../../utils/chudVanillaBridge"
+import { getRollMode } from "../../domain/rollMode"
+import { hasPendingNotification, pushNotification } from "../../domain/notifications"
 
 export type ApproachDieRollResult = ApproachRollResult
 
@@ -297,8 +299,13 @@ export function ApproachDie({
     if (!Number.isFinite(opposition)) return
     const computed = displayTotal - opposition
     setMargin(computed)
-    if (computed === 0) {
-      setChipDesynced(true)
+    if (computed === 0 && getRollMode() === "combat" && !hasPendingNotification("desync")) {
+      pushNotification(
+        "desync",
+        "Chip Desynced",
+        "Margin of 0 in Combat. Accept to desync your Chip, or cancel to ignore it.",
+        { desync: true }
+      )
     }
     setView("margin-result")
   }
