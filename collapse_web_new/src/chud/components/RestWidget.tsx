@@ -1,14 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { ApproachStats } from "../../types/chud";
+import { useCallback, useEffect, useState } from "react";
+import type { CoreStats } from "../../types/chud";
+import { DEFAULT_CORE, computeDerived } from "../../domain/chudStats";
 import {
   NOTIFICATIONS_STORAGE_KEY,
   hasPendingNotification,
   pushNotification,
 } from "../../domain/notifications";
-
-const APPROACH_FIELDS: Array<keyof ApproachStats> = ["force", "finesse", "guts", "logic", "show", "tell"];
-
-const SWIPE_THRESHOLD_PX = 40;
+import {
+  readGlobalMeters,
+  readHpCounter,
+  readCore,
+  resetApproachOverload,
+} from "../../utils/chudVanillaBridge";
+import { grantEngramRestoreBudget, fullRestEngrams } from "../../utils/engramState";
 
 function readState(storageKey: string): Record<string, unknown> {
   try {
@@ -27,91 +31,54 @@ function writeState(storageKey: string, patch: Record<string, unknown>) {
   }
 }
 
-const tallyMarks = (count: number) => {
-  // Five bars per group; a diagonal slash closes out each completed group of
-  // five (classic tally-mark counting), mirroring the HUD's old widget.
-  const groups: number[] = [];
-  let remaining = Math.max(0, Math.min(10, count));
-  while (remaining > 0) {
-    groups.push(Math.min(5, remaining));
-    remaining -= 5;
-  }
-  return groups;
-};
+const SHORT_REST_KINDS = ["short-rest-grit", "short-rest-hp", "short-rest-engrams"] as const;
 
-// Short Rest tally / Dig Deep / Full Rest — moved here (bottom of the AAG
-// page) from the HUD. Short Rest just counts how many have been taken, and
-// Full Rest restores the Approach Overload pool. Dig Deep rolls the
-// lose/gain pair and queues it as a notification (resolved via the CHUD
-// header's notifications tray — long-press to accept, triple-tap to
-// cancel) instead of popping up a self-contained, un-adjudicated result.
-export function RestWidget({ storageKey }: { storageKey: string }) {
-  const [tally, setTally] = useState<number>(() => {
-    const v = readState(storageKey).shortRestTally;
-    return typeof v === "number" ? v : 0;
-  });
+function anyShortRestPending(): boolean {
+  return SHORT_REST_KINDS.some((k) => hasPendingNotification(k));
+}
+
+// Short Rest / Dig Deep / Full Rest, rendered at the bottom of the AAG page.
+// Every Rest effect is rolled up-front (when applicable) and queued as a
+// notification — nothing applies automatically. Dig Deep already followed
+// this pattern; Short/Full Rest now do too:
+//   - Short Rest: choose exactly one of Grit (+1) / HP (1d6) / Engrams
+//     (1d4 restore budget, spent later in the Engram Manager).
+//   - Full Rest: Grit set to 1d6 + Rest Bonus (max 6), HP to max, Overload
+//     dice (Method dice) fully reset, and all Engram charges refilled.
+export function RestWidget({
+  storageKey,
+  deckBuilderStorageKey,
+  core,
+}: {
+  storageKey: string;
+  deckBuilderStorageKey: string;
+  core?: CoreStats;
+}) {
   const [digDeepPending, setDigDeepPending] = useState<boolean>(() =>
     typeof window !== "undefined" ? hasPendingNotification("dig-deep") : false
   );
-  const shortRestPointerStart = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    const handler = (e: StorageEvent) => {
-      if (e.key !== storageKey) return;
-      const s = readState(storageKey);
-      const v = s.shortRestTally;
-      setTally(typeof v === "number" ? v : 0);
-    };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, [storageKey]);
+  const [shortRestPending, setShortRestPending] = useState<boolean>(() =>
+    typeof window !== "undefined" ? anyShortRestPending() : false
+  );
+  const [fullRestPending, setFullRestPending] = useState<boolean>(() =>
+    typeof window !== "undefined" ? hasPendingNotification("full-rest") : false
+  );
+  const [shortRestOpen, setShortRestOpen] = useState(false);
+  const [restBonus, setRestBonus] = useState<number>(() => {
+    const v = readState(storageKey).restBonus;
+    return typeof v === "number" ? v : 0;
+  });
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
       if (e.key !== NOTIFICATIONS_STORAGE_KEY) return;
       setDigDeepPending(hasPendingNotification("dig-deep"));
+      setShortRestPending(anyShortRestPending());
+      setFullRestPending(hasPendingNotification("full-rest"));
     };
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
   }, []);
-
-  const onShortRest = useCallback(() => {
-    const next = tally >= 10 ? 0 : tally + 1;
-    setTally(next);
-    writeState(storageKey, { shortRestTally: next });
-  }, [storageKey, tally]);
-
-  const onClearShortRest = useCallback(() => {
-    setTally(0);
-    writeState(storageKey, { shortRestTally: 0 });
-  }, [storageKey]);
-
-  const handleShortRestPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    shortRestPointerStart.current = { x: event.clientX, y: event.clientY };
-  };
-
-  const handleShortRestPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const start = shortRestPointerStart.current;
-    shortRestPointerStart.current = null;
-    if (!start) return
-    const dx = event.clientX - start.x
-    const dy = event.clientY - start.y
-    // Swipe right (dominant horizontal motion) clears the tally, matching
-    // the swipe-right convention used elsewhere in the app.
-    if (dx >= SWIPE_THRESHOLD_PX && dx > Math.abs(dy)) {
-      onClearShortRest()
-      return
-    }
-    onShortRest()
-  };
-
-  const handleShortRestContextMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
-    // Right-click is the desktop/browser-friendly equivalent of the
-    // swipe-right-to-clear gesture.
-    event.preventDefault()
-    shortRestPointerStart.current = null
-    onClearShortRest()
-  };
 
   const onDigDeep = useCallback(() => {
     if (hasPendingNotification("dig-deep")) return;
@@ -128,13 +95,82 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
     if (created) setDigDeepPending(true);
   }, []);
 
+  const chooseShortRestGrit = useCallback(() => {
+    if (anyShortRestPending()) return;
+    const created = pushNotification(
+      "short-rest-grit",
+      "Short Rest — Restore Grit",
+      "Accept to gain +1 Grit.",
+      { grit: 1 }
+    );
+    if (created) {
+      setShortRestPending(true);
+      setShortRestOpen(false);
+    }
+  }, []);
+
+  const chooseShortRestHp = useCallback(() => {
+    if (anyShortRestPending()) return;
+    const roll = 1 + Math.floor(Math.random() * 6);
+    const created = pushNotification(
+      "short-rest-hp",
+      "Short Rest — Restore HP",
+      `Rolled ${roll}. Accept to gain ${roll} HP.`,
+      { hp: roll },
+      { roll: { die: 6, value: roll } }
+    );
+    if (created) {
+      setShortRestPending(true);
+      setShortRestOpen(false);
+    }
+  }, []);
+
+  const chooseShortRestEngrams = useCallback(() => {
+    if (anyShortRestPending()) return;
+    const roll = 1 + Math.floor(Math.random() * 4);
+    const created = pushNotification(
+      "short-rest-engrams",
+      "Short Rest — Restore Engrams",
+      `Rolled ${roll}. Accept to restore ${roll} Engram charge${roll === 1 ? "" : "s"} (choose which in the Engram Manager).`,
+      { engramRestoreBudget: roll },
+      { roll: { die: 4, value: roll } }
+    );
+    if (created) {
+      setShortRestPending(true);
+      setShortRestOpen(false);
+    }
+  }, []);
+
   const onFullRest = useCallback(() => {
-    const resetSpent: Partial<Record<keyof ApproachStats, number>> = {};
-    APPROACH_FIELDS.forEach((f) => {
-      resetSpent[f] = 0;
-    });
-    writeState(storageKey, { approachOverloadSpent: resetSpent });
-  }, [storageKey]);
+    if (hasPendingNotification("full-rest")) return;
+    const roll = 1 + Math.floor(Math.random() * 6);
+    const targetGrit = Math.min(6, roll + restBonus);
+    const { grit: currentGrit } = readGlobalMeters();
+    const gritDelta = targetGrit - currentGrit;
+    const activeCore = core ?? readCore(storageKey) ?? DEFAULT_CORE;
+    const hpMax = computeDerived(activeCore).hp;
+    const hpDelta = hpMax - readHpCounter(storageKey);
+    const bonusText = restBonus ? ` + ${restBonus} Rest Bonus` : "";
+    const created = pushNotification(
+      "full-rest",
+      "Full Rest",
+      `Rolled ${roll}${bonusText} (max 6) for Grit. Accept to set Grit to ${targetGrit}, restore HP to full, refill all Engram charges, and reset Method dice.`,
+      { grit: gritDelta, hp: hpDelta, restoreOverload: true, fullEngramRestore: true },
+      { roll: { die: 6, value: roll } }
+    );
+    if (created) setFullRestPending(true);
+  }, [core, storageKey, restBonus]);
+
+  const changeRestBonus = useCallback(
+    (delta: number) => {
+      setRestBonus((prev) => {
+        const next = Math.max(0, prev + delta);
+        writeState(storageKey, { restBonus: next });
+        return next;
+      });
+    },
+    [storageKey]
+  );
 
   return (
     <div className="mods rest-widget">
@@ -144,26 +180,25 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
         <button
           type="button"
           className="rest-stack-btn short"
-          onPointerDown={handleShortRestPointerDown}
-          onPointerUp={handleShortRestPointerUp}
-          onPointerLeave={() => { shortRestPointerStart.current = null }}
-          onPointerCancel={() => { shortRestPointerStart.current = null }}
-          onClick={(event) => event.preventDefault()}
-          onContextMenu={handleShortRestContextMenu}
-          title="Tap to count a Short Rest. Swipe right or right-click to clear."
+          onClick={() => setShortRestOpen((v) => !v)}
+          disabled={shortRestPending}
+          title={shortRestPending ? "Resolve the pending Short Rest notification first" : undefined}
         >
-          <span>Short Rest</span>
-          <span className="rest-tally-marks">
-            {tallyMarks(tally).map((n, i) => (
-              <svg key={i} className="rest-tally-group" width="26" height="20" viewBox="0 0 26 20">
-                {[3, 9, 15, 21].slice(0, Math.min(4, n)).map((x, j) => (
-                  <line key={j} x1={x} y1={2} x2={x} y2={18} stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-                ))}
-                {n >= 5 && <line x1={1} y1={18} x2={23} y2={2} stroke="currentColor" strokeWidth={2} strokeLinecap="round" />}
-              </svg>
-            ))}
-          </span>
+          {shortRestPending ? "Short Rest (pending…)" : "Short Rest"}
         </button>
+        {shortRestOpen && !shortRestPending && (
+          <div className="short-rest-choices" role="group" aria-label="Choose one Short Rest option">
+            <button type="button" onClick={chooseShortRestGrit}>
+              Restore Grit (+1)
+            </button>
+            <button type="button" onClick={chooseShortRestHp}>
+              Restore HP (1d6)
+            </button>
+            <button type="button" onClick={chooseShortRestEngrams}>
+              Restore Engrams (1d4)
+            </button>
+          </div>
+        )}
         <button
           type="button"
           className="rest-stack-btn digdeep"
@@ -173,10 +208,44 @@ export function RestWidget({ storageKey }: { storageKey: string }) {
         >
           {digDeepPending ? "Dig Deep (pending…)" : "Dig Deep"}
         </button>
-        <button type="button" className="rest-stack-btn fullrest" onClick={onFullRest}>
-          Full Rest (restore Overload dice)
-        </button>
+        <div className="full-rest-row">
+          <button
+            type="button"
+            className="rest-stack-btn fullrest"
+            onClick={onFullRest}
+            disabled={fullRestPending}
+            title={fullRestPending ? "Resolve the pending Full Rest notification first" : undefined}
+          >
+            {fullRestPending ? "Full Rest (pending…)" : "Full Rest"}
+          </button>
+          <div className="rest-bonus-stepper" title="GM-set Rest Bonus added to the Full Rest Grit roll">
+            <span>Rest Bonus</span>
+            <button type="button" onClick={() => changeRestBonus(-1)} disabled={restBonus <= 0}>
+              −
+            </button>
+            <span className="rest-bonus-value">{restBonus}</span>
+            <button type="button" onClick={() => changeRestBonus(1)}>
+              +
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
+}
+
+// Applies an accepted "full-rest" notification's Engram/Method-dice side
+// effects (the Grit/HP deltas go through the normal effect-application path
+// already shared by every notification kind). Exported so the header bell
+// and Chud.tsx's resolver can call it without duplicating the logic.
+export function applyFullRestExtras(chudStateKey: string, deckBuilderStorageKey: string): void {
+  resetApproachOverload(chudStateKey);
+  fullRestEngrams(deckBuilderStorageKey);
+}
+
+// Applies an accepted "short-rest-engrams" notification: grants the rolled
+// restore budget, to be spent interactively (player's choice of Engram) in
+// the Engram Manager.
+export function applyShortRestEngramBudget(deckBuilderStorageKey: string, amount: number): void {
+  grantEngramRestoreBudget(deckBuilderStorageKey, amount);
 }

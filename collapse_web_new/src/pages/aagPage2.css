@@ -514,3 +514,58 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.aag-page2 .rest-stack-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aag-page2 .short-rest-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.aag-page2 .short-rest-choices button {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(248, 250, 252, 0.9);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.aag-page2 .full-rest-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aag-page2 .rest-bonus-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(248, 250, 252, 0.7);
+}
+
+.aag-page2 .rest-bonus-stepper button {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  cursor: pointer;
+}
+
+.aag-page2 .rest-bonus-value {
+  min-width: 1.2em;
+  text-align: center;
+  font-weight: 700;
+}

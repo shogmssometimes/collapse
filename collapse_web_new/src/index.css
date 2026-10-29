@@ -2325,3 +2325,164 @@ button.hub-card:not(:disabled):active {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.35);
 }
+
+/* --- Engram Manager (spell-slot Engrams) --- */
+.engram-manager-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+
+.engram-capacity-readout {
+  font-size: 0.9rem;
+  color: rgba(248, 250, 252, 0.75);
+}
+
+.engram-restore-budget {
+  font-size: 0.85rem;
+  color: #ffd43b;
+  background: rgba(255, 212, 59, 0.1);
+  border: 1px solid rgba(255, 212, 59, 0.4);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.engram-restore-hint {
+  font-weight: 700;
+}
+
+.engram-catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.engram-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.engram-row.selected {
+  border-color: #ffd43b;
+  background: rgba(255, 212, 59, 0.08);
+}
+
+.engram-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.engram-row-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.engram-name {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.engram-level-badge {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+.engram-effect {
+  font-size: 0.82rem;
+  color: rgba(248, 250, 252, 0.85);
+}
+
+.engram-note {
+  font-size: 0.76rem;
+}
+
+.engram-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.engram-copies-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.engram-copies-count {
+  min-width: 1.2em;
+  text-align: center;
+  font-weight: 700;
+}
+
+.engram-charges-readout {
+  font-size: 0.78rem;
+  color: rgba(248, 250, 252, 0.7);
+}
+
+.engram-restore-btn,
+.engram-select-btn,
+.engram-cancel-btn {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  padding: 4px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.engram-select-btn[aria-pressed="true"] {
+  border-color: #ffd43b;
+  background: rgba(255, 212, 59, 0.16);
+}
+
+.engram-roll-result {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.engram-roll-total {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.engram-spend-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding: 10px 12px;
+  background: rgba(10, 12, 16, 0.92);
+  border: 1px solid rgba(255, 212, 59, 0.4);
+  border-radius: 10px;
+}
+
+.engram-spend-dice-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

@@ -7,8 +7,9 @@ import {
   removeNotification,
   type PendingNotification,
 } from "../domain/notifications";
-import { adjustGlobalMeters, adjustHpCounter, readCollapsePath, setChipDesynced, setCollapsePath } from "../utils/chudVanillaBridge";
-import { chudStateKey } from "../utils/slotKeys";
+import { adjustGlobalMeters, adjustHpCounter, readCollapsePath, setChipDesynced, setCollapsePath, resetApproachOverload } from "../utils/chudVanillaBridge";
+import { chudStateKey, deckBuilderKey } from "../utils/slotKeys";
+import { fullRestEngrams, grantEngramRestoreBudget } from "../utils/engramState";
 
 /**
  * Outer-app header bell for the shared notifications queue (HP hitting 0,
@@ -38,6 +39,9 @@ export function HeaderNotificationsBell({ charSlot }: { charSlot: number }) {
           adjustGlobalMeters({ grit: n.effect.grit, collapse: n.effect.collapse });
         }
         if (n.effect.desync) setChipDesynced(true);
+        if (n.effect.restoreOverload) resetApproachOverload(chudStateKey(charSlot));
+        if (n.effect.fullEngramRestore) fullRestEngrams(deckBuilderKey(charSlot));
+        if (n.effect.engramRestoreBudget) grantEngramRestoreBudget(deckBuilderKey(charSlot), n.effect.engramRestoreBudget);
         if (n.kind === "hp-zero") {
           const path = readCollapsePath(chudStateKey(charSlot));
           const pathLabel = path ? `${path[0].toUpperCase()}${path.slice(1)}` : null;

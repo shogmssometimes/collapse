@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import DeckBuilder from "./pages/DeckBuilder";
+import EngramManager from "./pages/EngramManager";
 import GearPage from "./pages/Gear";
 import NotesPage from "./pages/Notes";
 import CharMgmt, { CHAR_SWITCH_EVENT } from "./pages/CharMgmt";
@@ -571,14 +571,10 @@ export default function App() {
   if (route === "player") {
     return (
       <PlayerShell key={route} onBack={() => setRoute("hub")} chudDock={chudDock} onOpenHud={() => { setHudReturnRoute(route); setRoute("chud"); }} charSlot={charSlot}>
-        <DeckBuilder
+        <EngramManager
           key={`player-${charSlot}`}
           storageKey={deckStorageKey}
           chudStateStorageKey={chudStateKey(charSlot)}
-          showOpsSections={false}
-          showModifierCards={true}
-          showModifierCardCounter={false}
-          showModifierCapacity={true}
         />
       </PlayerShell>
     );
@@ -621,6 +617,7 @@ export default function App() {
           key={`aag-${charSlot}`}
           chudStateStorageKey={chudStateKey(charSlot)}
           gearSlotsStorageKey={gearSlotsKey(charSlot)}
+          deckBuilderStorageKey={deckStorageKey}
           onOpenMgr={() => setRoute("mgr")}
         />
       </PlayerShell>

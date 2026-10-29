@@ -122,7 +122,60 @@ export function setCollapsePath(path: string, chudStateKey: string): void {
   }
 }
 
-/** Reads the currently-chosen Collapse Table path (if any) for the given slot. */
+/** Reads the current Grit/Collapse global meters (for computing Full Rest's
+ * absolute "set Grit" as a delta against whatever it currently is). */
+export function readGlobalMeters(): { grit: number; collapse: number } {
+  try {
+    const raw = window.localStorage.getItem(CSMATRIX_KEY);
+    const graph: CSMatrixGraph = raw ? JSON.parse(raw) : { meta: {} };
+    const meta = graph.meta?.globalMeters ?? {};
+    return { grit: meta.grit ?? 0, collapse: meta.collapse ?? 0 };
+  } catch {
+    return { grit: 0, collapse: 0 };
+  }
+}
+
+/** Reads the current HP counter for the given (slot-aware) `chud.state.v1`
+ * key, for computing Full Rest's "HP to max" as a delta. */
+export function readHpCounter(chudStateKey: string): number {
+  try {
+    const raw = window.localStorage.getItem(chudStateKey);
+    const parsed: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+    return typeof parsed.hpCounter === "number" ? parsed.hpCounter : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Resets the Approach Overload pool (Method dice) to fully unspent for the
+ * given (slot-aware) `chud.state.v1` key — Full Rest only. */
+export function resetApproachOverload(chudStateKey: string): void {
+  try {
+    const raw = window.localStorage.getItem(chudStateKey);
+    const parsed: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+    const prevSpent = (parsed.approachOverloadSpent as Record<string, number>) ?? {};
+    const resetSpent = Object.fromEntries(Object.keys(prevSpent).map((k) => [k, 0]));
+    const json = JSON.stringify({ ...parsed, approachOverloadSpent: resetSpent });
+    window.localStorage.setItem(chudStateKey, json);
+    notify(chudStateKey, json);
+  } catch {
+    // storage unavailable — ignore
+  }
+}
+
+/** Reads the current Core stats for the given (slot-aware) `chud.state.v1`
+ * key, for computing Full Rest's HP-to-max delta. */
+export function readCore(chudStateKey: string): { vigor: number; inference: number; personality: number } | undefined {
+  try {
+    const raw = window.localStorage.getItem(chudStateKey);
+    const parsed: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+    return parsed.core as { vigor: number; inference: number; personality: number } | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+
 export function readCollapsePath(chudStateKey: string): string | undefined {
   try {
     const raw = window.localStorage.getItem(chudStateKey);

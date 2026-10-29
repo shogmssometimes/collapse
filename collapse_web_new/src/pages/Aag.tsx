@@ -15,10 +15,12 @@ const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 4;
 export default function AagPage({
   chudStateStorageKey,
   gearSlotsStorageKey,
+  deckBuilderStorageKey,
   onOpenMgr,
 }: {
   chudStateStorageKey: string;
   gearSlotsStorageKey: string;
+  deckBuilderStorageKey: string;
   onOpenMgr: () => void;
 }) {
   const saved = loadState(chudStateStorageKey);
@@ -131,7 +133,9 @@ export default function AagPage({
           damageDieSize={damageDieSize}
           onDamageDieSizeIncrease={increaseDamageDieSize}
           onDamageDieSizeReset={resetDamageDieSize}
-          restWidget={<RestWidget storageKey={chudStateStorageKey} />}
+          restWidget={
+            <RestWidget storageKey={chudStateStorageKey} deckBuilderStorageKey={deckBuilderStorageKey} core={core} />
+          }
         />
       </div>
     </div>

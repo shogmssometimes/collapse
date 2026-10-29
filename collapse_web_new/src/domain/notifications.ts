@@ -10,7 +10,17 @@
 // of a given `kind` is pending, the area that produced it is expected to
 // refuse to queue another of the same kind until it's resolved.
 
-export type NotificationKind = "hp-zero" | "dig-deep" | "grit-zero" | "desync" | "collapse-table" | "choose-path";
+export type NotificationKind =
+  | "hp-zero"
+  | "dig-deep"
+  | "grit-zero"
+  | "desync"
+  | "collapse-table"
+  | "choose-path"
+  | "short-rest-grit"
+  | "short-rest-hp"
+  | "short-rest-engrams"
+  | "full-rest";
 
 export type NotificationEffect = {
   hp?: number;
@@ -18,6 +28,15 @@ export type NotificationEffect = {
   collapse?: number;
   /** Flips the HUD's Chip Sync indicator to Desynced when accepted. */
   desync?: boolean;
+  /** Full Rest: reset the Approach Overload pool (Method dice) to unspent. */
+  restoreOverload?: boolean;
+  /** Full Rest: refills every equipped Engram's charges to max. */
+  fullEngramRestore?: boolean;
+  /** Short Rest "Restore Engrams": how many Engram charges (from the 1d4
+   * roll) the player may restore, distributed across any equipped Engram
+   * of their choice in the Engram Manager rather than applied
+   * automatically. */
+  engramRestoreBudget?: number;
 };
 
 export type NotificationChoice = { key: string; label: string };
@@ -66,6 +85,21 @@ function write(items: PendingNotification[]) {
   try {
     const json = JSON.stringify({ items } satisfies StoredShape);
     window.localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, json);
+    // The native "storage" event only fires in other tabs/windows, not the
+    // one that made the change — dispatch a synthetic copy so listeners
+    // mounted in this same tab (e.g. the header bell) pick up the update
+    // immediately instead of waiting for a reload or cross-tab write.
+    try {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: NOTIFICATIONS_STORAGE_KEY,
+          newValue: json,
+          storageArea: window.localStorage,
+        })
+      );
+    } catch {
+      // StorageEvent construction can fail in non-browser test environments — ignore.
+    }
   } catch {
     // storage unavailable — ignore
   }

@@ -19,8 +19,9 @@ import type { ApproachDieRollResult } from "./components/ApproachDie";
 import { clampApproachToCore } from "../domain/coreApproachMap";
 import { computeWardrobeBonuses } from "../domain/wardrobeBonus";
 import { loadState, readGearData, readWardrobeData } from "../utils/chudPersistence";
-import { wardrobeKey } from "../utils/slotKeys";
-import { adjustGlobalMeters, setChipDesynced } from "../utils/chudVanillaBridge";
+import { wardrobeKey, deckBuilderKey } from "../utils/slotKeys";
+import { adjustGlobalMeters, setChipDesynced, resetApproachOverload } from "../utils/chudVanillaBridge";
+import { fullRestEngrams, grantEngramRestoreBudget } from "../utils/engramState";
 import {
   NOTIFICATIONS_STORAGE_KEY,
   hasPendingNotification,
@@ -47,6 +48,7 @@ const _chudSlot = (() => {
 const STORAGE_KEY = _chudSlot === 1 ? "chud.state.v1" : `chud.state.slot.${_chudSlot}`;
 const GEAR_SLOTS_KEY = _chudSlot === 1 ? "gear.slots.v1" : `gear.slots.slot.${_chudSlot}`;
 const WARDROBE_KEY = wardrobeKey(_chudSlot);
+const DECK_BUILDER_KEY = deckBuilderKey(_chudSlot);
 const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 4;
 
 // ── RepCard, StatCard, GearBriefWidget ─────────────────────────────────
@@ -270,6 +272,9 @@ export default function Chud() {
           adjustGlobalMeters({ grit: n.effect.grit, collapse: n.effect.collapse });
         }
         if (n.effect.desync) setChipDesynced(true);
+        if (n.effect.restoreOverload) resetApproachOverload(STORAGE_KEY);
+        if (n.effect.fullEngramRestore) fullRestEngrams(DECK_BUILDER_KEY);
+        if (n.effect.engramRestoreBudget) grantEngramRestoreBudget(DECK_BUILDER_KEY, n.effect.engramRestoreBudget);
         if (n.kind === "hp-zero") {
           const pathLabel = collapsePath ? `${collapsePath[0].toUpperCase()}${collapsePath.slice(1)}` : null;
           pushNotification(
