@@ -195,7 +195,7 @@ function openNewNodeMetersPopup(onConfirm) {
 		const src = meters || createEmptyMeters();
 		return {
 			x: clamp6((src.distrust || 0) - (src.trust || 0)),
-			y: clamp6((src.carteBlanche || 0) - (src.surveillance || 0)),
+			y: clamp6((src.surveillance || 0) - (src.carteBlanche || 0)),
 		};
 	};
 	const getBaselineForFaction = (factionName) => {
@@ -405,8 +405,8 @@ function openNewNodeMetersPopup(onConfirm) {
 	};
 	svg.appendChild(mkText('Trust', pad, size/2+2, 'start', '#6ac7ff'));
 	svg.appendChild(mkText('Distrust', size-pad, size/2+2, 'end', '#ffdf7e'));
-	svg.appendChild(mkText('Carte Blanche', size/2, pad-4, 'middle', '#6ac7ff'));
-	svg.appendChild(mkText('Surveillance', size/2, size-pad+14, 'middle', '#ffdf7e'));
+	svg.appendChild(mkText('Surveillance', size/2, pad-4, 'middle', '#6ac7ff'));
+	svg.appendChild(mkText('Carte Blanche', size/2, size-pad+14, 'middle', '#ffdf7e'));
 	// Dot for node position
 	const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
 	dot.setAttribute('r', '8');
@@ -433,7 +433,7 @@ function openNewNodeMetersPopup(onConfirm) {
 
 	// Axis sliders
 	card.appendChild(makeAxisSlider({ axisKey: 'x', label: 'Trust / Distrust Axis', negativeLabel: 'Trust (-)', positiveLabel: 'Distrust (+)' }));
-	card.appendChild(makeAxisSlider({ axisKey: 'y', label: 'Surveillance / Carte Blanche Axis', negativeLabel: 'Surveillance (-)', positiveLabel: 'Carte Blanche (+)' }));
+	card.appendChild(makeAxisSlider({ axisKey: 'y', label: 'Carte Blanche / Surveillance Axis', negativeLabel: 'Carte Blanche (-)', positiveLabel: 'Surveillance (+)' }));
 
 	// Patch refreshResult to also update dot
 	const origRefresh = refreshResult;
@@ -809,15 +809,15 @@ function openGlobalMetersPopup() {
 	const readAxesFromMeters = (srcMeters) => {
 		const src = srcMeters || createEmptyMeters();
 		const axisX = Math.max(-6, Math.min(6, (src.distrust || 0) - (src.trust || 0)));
-		const axisY = Math.max(-6, Math.min(6, (src.carteBlanche || 0) - (src.surveillance || 0)));
+		const axisY = Math.max(-6, Math.min(6, (src.surveillance || 0) - (src.carteBlanche || 0)));
 		return { axisX, axisY };
 	};
 
 	const writeAxesToMeters = (target, axisX, axisY) => {
 		target.trust = axisX < 0 ? Math.abs(axisX) : 0;
 		target.distrust = axisX > 0 ? axisX : 0;
-		target.carteBlanche = axisY > 0 ? axisY : 0;
-		target.surveillance = axisY < 0 ? Math.abs(axisY) : 0;
+		target.surveillance = axisY > 0 ? axisY : 0;
+		target.carteBlanche = axisY < 0 ? Math.abs(axisY) : 0;
 	};
 
 	const readAxesFromFaction = () => readAxesFromMeters(metersByFaction[selectedFaction] || createEmptyMeters());
@@ -993,7 +993,7 @@ function openGlobalMetersPopup() {
 
 	globalSection.appendChild(makeSectionLabel('True Global Layer'));
 	makeAxisSlider({ axisKey: 'globalX', label: 'Trust / Distrust Axis', negativeLabel: 'Trust (-)', positiveLabel: 'Distrust (+)', getValue: () => globalAxisX, setValue: (v) => { globalAxisX = v; }, mount: globalSection });
-	makeAxisSlider({ axisKey: 'globalY', label: 'Surveillance / Carte Blanche Axis', negativeLabel: 'Surveillance (-)', positiveLabel: 'Carte Blanche (+)', getValue: () => globalAxisY, setValue: (v) => { globalAxisY = v; }, mount: globalSection });
+	makeAxisSlider({ axisKey: 'globalY', label: 'Carte Blanche / Surveillance Axis', negativeLabel: 'Carte Blanche (-)', positiveLabel: 'Surveillance (+)', getValue: () => globalAxisY, setValue: (v) => { globalAxisY = v; }, mount: globalSection });
 
 	card.appendChild(totalsRow);
 	refreshTotals();
@@ -1009,7 +1009,7 @@ function openGlobalMetersPopup() {
 	factionSection.appendChild(factionSelect);
 	factionSection.appendChild(makeSectionLabel('Faction Layer'));
 	makeAxisSlider({ axisKey: 'factionX', label: 'Trust / Distrust Axis', negativeLabel: 'Trust (-)', positiveLabel: 'Distrust (+)', getValue: () => Math.max(-6, Math.min(6, globalAxisX + factionAxisX)), setValue: (v) => { factionAxisX = Math.max(-6, Math.min(6, v - globalAxisX)); }, mount: factionSection });
-	makeAxisSlider({ axisKey: 'factionY', label: 'Surveillance / Carte Blanche Axis', negativeLabel: 'Surveillance (-)', positiveLabel: 'Carte Blanche (+)', getValue: () => Math.max(-6, Math.min(6, globalAxisY + factionAxisY)), setValue: (v) => { factionAxisY = Math.max(-6, Math.min(6, v - globalAxisY)); }, mount: factionSection });
+	makeAxisSlider({ axisKey: 'factionY', label: 'Carte Blanche / Surveillance Axis', negativeLabel: 'Carte Blanche (-)', positiveLabel: 'Surveillance (+)', getValue: () => Math.max(-6, Math.min(6, globalAxisY + factionAxisY)), setValue: (v) => { factionAxisY = Math.max(-6, Math.min(6, v - globalAxisY)); }, mount: factionSection });
 
 	card.appendChild(globalSection);
 	card.appendChild(factionSection);
@@ -1254,12 +1254,13 @@ try { syncCanvasHeight(); } catch(e) {}
 function updateEdgePanel() { return; }
 
 // Node list rendering
+// gx: Trust (-) / Distrust (+); gy: Carte Blanche (-) / Surveillance (+).
 function getQuadrantLabel(gx, gy) {
 	if (gx === 0 || gy === 0) return '';
-	if (gx > 0 && gy > 0) return 'Target';
-	if (gx < 0 && gy > 0) return 'Valuable Risk';
-	if (gx < 0 && gy < 0) return 'Asset';
-	return 'Useful Ghost';
+	if (gx > 0 && gy < 0) return 'Target';          // Distrust + Carte Blanche
+	if (gx < 0 && gy < 0) return 'Valuable Risk';    // Trust + Carte Blanche
+	if (gx < 0 && gy > 0) return 'Asset';            // Trust + Surveillance
+	return 'Useful Ghost';                           // Distrust + Surveillance
 }
 function getQuadrantSlug(label) {
 	return label.toLowerCase().replace(/\s+/g, '-');
@@ -1420,6 +1421,15 @@ function loadSample() {
 	if (saved) {
 		try {
 			const parsed = JSON.parse(saved);
+			// Global meters (Collapse/Influence/Record/Grit) are independent of whether
+			// any nodes exist yet, so they must be restored even when parsed.nodes is
+			// empty — otherwise the in-memory globalMeters silently reverts to zero and
+			// gets flushed to localStorage the next time persistGraph() runs (e.g. the
+			// first "Add Node" click), wiping out real saved values.
+			if (parsed && parsed.meta && parsed.meta.globalMeters) {
+				globalMeters = parsed.meta.globalMeters;
+				updateControlMeterBars();
+			}
 			if (parsed && Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
 				// onChange is not yet wired when loadSample runs, so no suppression needed
 				// Use fromJSON for layout, then re-apply fields it may have dropped (notes, color)
@@ -1434,12 +1444,14 @@ function loadSample() {
 				// Normalise any still-missing colors
 				graph.nodes.forEach(n => { if (!sanitizeHexColor(n.color)) n.color = getNodeDisplayColor(n); });
 				try { graph.render(); } catch(e) {}
-				if (parsed.meta && parsed.meta.globalMeters) { globalMeters = parsed.meta.globalMeters; updateControlMeterBars(); }
 				updateGlobalMetersUI();
 				updateNodeList();
 				return;
 			}
-			// otherwise fall back to the sample
+			// No nodes saved yet, but globalMeters (if any) were already restored above.
+			updateGlobalMetersUI();
+			try { updateNodeList(); } catch(e) { /* ignore */ }
+			return;
 		} catch (err) { /* continue to sample */ }
 	}
 	const sample = { nodes: [], edges: [], meta: { globalMeters: { collapse: 0, influence: 0, record: 0, grit: 0 } } };

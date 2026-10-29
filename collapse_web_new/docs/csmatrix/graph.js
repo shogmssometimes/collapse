@@ -166,9 +166,9 @@ class CSGraph {
     // X-axis: Trust (left) ← → Distrust (right)
     makeAxisLabel('Trust',       graphLeft  + axisPad, centerY, 'start',  'middle');
     makeAxisLabel('Distrust',    graphRight - axisPad, centerY, 'end',    'middle');
-    // Y-axis: Carte Blanche (top) ↑ ↓ Surveillance (bottom)
-    makeAxisLabel('Carte Blanche', centerX, graphTop    + axisPad, 'middle', 'hanging');
-    makeAxisLabel('Surveillance',  centerX, graphBottom - axisPad, 'middle', 'auto');
+    // Y-axis: Surveillance (top) ↑ ↓ Carte Blanche (bottom)
+    makeAxisLabel('Surveillance',  centerX, graphTop    + axisPad, 'middle', 'hanging');
+    makeAxisLabel('Carte Blanche', centerX, graphBottom - axisPad, 'middle', 'auto');
     // nodes
     this.nodes.forEach(n => {
       const p = this.gridToPixel(n.gx, n.gy);
