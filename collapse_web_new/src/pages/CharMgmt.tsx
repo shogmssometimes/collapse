@@ -108,6 +108,12 @@ const CharMgmt: React.FC = () => {
   const importSlot = (slotNum: number, file: File) => {
     setImportError(null)
     setImportSuccess(null)
+    if (slotHasData[slotNum - 1]) {
+      const existingName = slotMeta[slotNum - 1].name || `Character ${slotNum}`
+      if (!window.confirm(`Slot ${slotNum} already has "${existingName}". Importing will overwrite this slot's deck, gear, wardrobe, HUD, and notes data. Continue?`)) {
+        return
+      }
+    }
     const reader = new FileReader()
     reader.onload = (e) => {
       try {

@@ -746,6 +746,10 @@ export default function DeckBuilder({
   }
 
   const resetBuilder = () => {
+    const hasProgress = builderState.isLocked || hasBuiltDeck || (builderState.deck?.length ?? 0) > 0 || (builderState.hand?.length ?? 0) > 0 || (builderState.discard?.length ?? 0) > 0
+    if (hasProgress && !window.confirm('Reset Engrams will clear your deck lock, built/shuffled deck, hand, and discard pile, and restore default base/mod counts. This cannot be undone. Continue?')) {
+      return
+    }
     setBuilderState(applyInitialCounts(defaultState(baseCards, modCards, minNulls, modifierCapacityDefault)))
     setCostFilterIndex(0)
     setTargetFilterIndex(0)

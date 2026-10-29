@@ -542,18 +542,45 @@ document.getElementById('btn-export').addEventListener('click', () => {
 	const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
 	const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `csmatrix-${Date.now()}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 });
+function downloadCSMatrixBackup(label) {
+	try {
+		const json = graph.toJSON(); json.meta = { globalMeters };
+		const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob); const a = document.createElement('a');
+		a.href = url; a.download = `csmatrix-backup-${label}-${Date.now()}.json`;
+		document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+	} catch (e) { /* best-effort backup; don't block the action on failure */ }
+}
+
 document.getElementById('import-file').addEventListener('change', (ev) => {
-	const f = ev.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = () => {
+	const f = ev.target.files[0]; if (!f) return;
+	const nodeCount = (graph.nodes || []).length;
+	const confirmMsg = nodeCount > 0
+		? `Importing will replace the current CS Matrix graph (${nodeCount} node${nodeCount === 1 ? '' : 's'} and all edges). A backup of the current graph will be downloaded first. Continue?`
+		: 'Import this CS Matrix graph?';
+	if (!window.confirm(confirmMsg)) { ev.target.value = ''; return; }
+	if (nodeCount > 0) downloadCSMatrixBackup('before-import');
+	const reader = new FileReader(); reader.onload = () => {
 		try {
 			const json = JSON.parse(reader.result);
 			graph.fromJSON(json);
 			if (json.meta && json.meta.globalMeters) { globalMeters = json.meta.globalMeters; updateGlobalMetersUI(); updateControlMeterBars(); }
 			persistGraph();
 		} catch (err) { alert('Invalid JSON file'); }
+		finally { ev.target.value = ''; }
 	};
 	reader.readAsText(f);
 });
-document.getElementById('btn-reset').addEventListener('click', () => { localStorage.removeItem('csmatrix.graph'); loadSample(); });
+document.getElementById('btn-reset').addEventListener('click', () => {
+	const nodeCount = (graph.nodes || []).length;
+	if (nodeCount > 0) {
+		const confirmMsg = `Reset will delete all ${nodeCount} node${nodeCount === 1 ? '' : 's'} and edges in this CS Matrix graph and reload the sample graph. A backup will be downloaded first. Continue?`;
+		if (!window.confirm(confirmMsg)) return;
+		downloadCSMatrixBackup('before-reset');
+	}
+	localStorage.removeItem('csmatrix.graph');
+	loadSample();
+});
 
 // Node edit panel wiring
 // Node panel overlay removed; per-card panels are embedded in the node list.

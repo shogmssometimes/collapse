@@ -224,7 +224,7 @@ function openNewNodeMetersPopup(onConfirm) {
 	titleEl.textContent = 'New Contact — Initial Meters';
 	const subtitleEl = document.createElement('div');
 	subtitleEl.style.cssText = 'font-size:0.72rem;color:rgba(255,255,255,0.3);';
-	subtitleEl.textContent = 'Starts from True Global + selected Faction baseline.';
+	subtitleEl.textContent = 'Starts from the World Baseline plus the selected Faction\u2019s adjustment.';
 	titleRow.appendChild(titleEl);
 	titleRow.appendChild(subtitleEl);
 	card.appendChild(titleRow);
@@ -542,18 +542,45 @@ document.getElementById('btn-export').addEventListener('click', () => {
 	const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
 	const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `csmatrix-${Date.now()}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 });
+function downloadCSMatrixBackup(label) {
+	try {
+		const json = graph.toJSON(); json.meta = { globalMeters };
+		const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob); const a = document.createElement('a');
+		a.href = url; a.download = `csmatrix-backup-${label}-${Date.now()}.json`;
+		document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+	} catch (e) { /* best-effort backup; don't block the action on failure */ }
+}
+
 document.getElementById('import-file').addEventListener('change', (ev) => {
-	const f = ev.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = () => {
+	const f = ev.target.files[0]; if (!f) return;
+	const nodeCount = (graph.nodes || []).length;
+	const confirmMsg = nodeCount > 0
+		? `Importing will replace the current CS Matrix graph (${nodeCount} node${nodeCount === 1 ? '' : 's'} and all edges). A backup of the current graph will be downloaded first. Continue?`
+		: 'Import this CS Matrix graph?';
+	if (!window.confirm(confirmMsg)) { ev.target.value = ''; return; }
+	if (nodeCount > 0) downloadCSMatrixBackup('before-import');
+	const reader = new FileReader(); reader.onload = () => {
 		try {
 			const json = JSON.parse(reader.result);
 			graph.fromJSON(json);
 			if (json.meta && json.meta.globalMeters) { globalMeters = json.meta.globalMeters; updateGlobalMetersUI(); updateControlMeterBars(); }
 			persistGraph();
 		} catch (err) { alert('Invalid JSON file'); }
+		finally { ev.target.value = ''; }
 	};
 	reader.readAsText(f);
 });
-document.getElementById('btn-reset').addEventListener('click', () => { localStorage.removeItem('csmatrix.graph'); loadSample(); });
+document.getElementById('btn-reset').addEventListener('click', () => {
+	const nodeCount = (graph.nodes || []).length;
+	if (nodeCount > 0) {
+		const confirmMsg = `Reset will delete all ${nodeCount} node${nodeCount === 1 ? '' : 's'} and edges in this CS Matrix graph and reload the sample graph. A backup will be downloaded first. Continue?`;
+		if (!window.confirm(confirmMsg)) return;
+		downloadCSMatrixBackup('before-reset');
+	}
+	localStorage.removeItem('csmatrix.graph');
+	loadSample();
+});
 
 // Node edit panel wiring
 // Node panel overlay removed; per-card panels are embedded in the node list.
@@ -991,7 +1018,7 @@ function openGlobalMetersPopup() {
 		mount.appendChild(wrap);
   };
 
-	globalSection.appendChild(makeSectionLabel('True Global Layer'));
+	globalSection.appendChild(makeSectionLabel('World Baseline (All Factions)'));
 	makeAxisSlider({ axisKey: 'globalX', label: 'Trust / Distrust Axis', negativeLabel: 'Trust (-)', positiveLabel: 'Distrust (+)', getValue: () => globalAxisX, setValue: (v) => { globalAxisX = v; }, mount: globalSection });
 	makeAxisSlider({ axisKey: 'globalY', label: 'Carte Blanche / Surveillance Axis', negativeLabel: 'Carte Blanche (-)', positiveLabel: 'Surveillance (+)', getValue: () => globalAxisY, setValue: (v) => { globalAxisY = v; }, mount: globalSection });
 
@@ -1007,7 +1034,7 @@ function openGlobalMetersPopup() {
 	card.appendChild(interactionHint);
 
 	factionSection.appendChild(factionSelect);
-	factionSection.appendChild(makeSectionLabel('Faction Layer'));
+	factionSection.appendChild(makeSectionLabel('Faction Adjustment (vs. World Baseline)'));
 	makeAxisSlider({ axisKey: 'factionX', label: 'Trust / Distrust Axis', negativeLabel: 'Trust (-)', positiveLabel: 'Distrust (+)', getValue: () => Math.max(-6, Math.min(6, globalAxisX + factionAxisX)), setValue: (v) => { factionAxisX = Math.max(-6, Math.min(6, v - globalAxisX)); }, mount: factionSection });
 	makeAxisSlider({ axisKey: 'factionY', label: 'Carte Blanche / Surveillance Axis', negativeLabel: 'Carte Blanche (-)', positiveLabel: 'Surveillance (+)', getValue: () => Math.max(-6, Math.min(6, globalAxisY + factionAxisY)), setValue: (v) => { factionAxisY = Math.max(-6, Math.min(6, v - globalAxisY)); }, mount: factionSection });
 
@@ -1021,16 +1048,16 @@ function openGlobalMetersPopup() {
 			globalSection.style.pointerEvents = 'auto';
 			factionSection.style.opacity = '0.45';
 			factionSection.style.pointerEvents = 'none';
-			interactionHint.textContent = '';
-			globalActionBtn.textContent = globalConfirmed ? 'Save Global Changes' : 'Confirm True Global Layer';
+			interactionHint.textContent = 'This baseline applies to every faction. Confirm it before adjusting a faction\u2019s standing.';
+			globalActionBtn.textContent = globalConfirmed ? 'Save World Baseline' : 'Confirm World Baseline';
 		} else {
 			globalSection.style.display = 'none';
 			globalSection.style.opacity = '0.75';
 			globalSection.style.pointerEvents = 'none';
 			factionSection.style.opacity = '1';
 			factionSection.style.pointerEvents = 'auto';
-			interactionHint.textContent = '';
-			globalActionBtn.textContent = 'Adjust True Global Layer';
+			interactionHint.textContent = 'Adjusts this faction\u2019s standing relative to the World Baseline above.';
+			globalActionBtn.textContent = 'Edit World Baseline';
 		}
 	};
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useUndoToast } from '../components/UndoToast';
 
 const NOTES_STORAGE_KEY = 'collapse.notes.v1';
 
@@ -67,8 +68,24 @@ export default function NotesPage({ storageKey = NOTES_STORAGE_KEY }: { storageK
     });
   };
 
+  const { toast, showUndo } = useUndoToast();
+
   const deleteModule = (id: string) => {
-    setModules((prev) => (prev.length <= 1 ? prev : prev.filter((module) => module.id !== id)));
+    setModules((prev) => {
+      if (prev.length <= 1) return prev;
+      const idx = prev.findIndex((module) => module.id === id);
+      if (idx === -1) return prev;
+      const removed = prev[idx];
+      const next = prev.filter((module) => module.id !== id);
+      showUndo(`Deleted "${removed.title || 'Untitled'}"`, () => {
+        setModules((cur) => {
+          const restored = [...cur];
+          restored.splice(Math.min(idx, restored.length), 0, removed);
+          return restored;
+        });
+      });
+      return next;
+    });
   };
 
   const toggleCollapsed = (id: string) => {
@@ -230,6 +247,7 @@ export default function NotesPage({ storageKey = NOTES_STORAGE_KEY }: { storageK
           Add new module
         </button>
       </div>
+      {toast}
     </div>
   );
 }

@@ -128,7 +128,7 @@ const SubAppFrame: React.FC<{ title: string; src: string; onBack: () => void; on
         onLoad={onFrameLoad}
         style={{ border: "none" }}
         allow="fullscreen"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-pointer-lock"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-pointer-lock allow-modals"
       />
     </div>
   </main>
@@ -228,7 +228,7 @@ const ChudDock: React.FC<{ basePath: string; charSlot?: number }> = ({ basePath,
                 title="HUD"
                 src={`${basePath}chud/index.html?slot=${charSlot}`}
                 allow="fullscreen"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-pointer-lock"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-pointer-lock allow-modals"
               />
             </div>
           </div>
