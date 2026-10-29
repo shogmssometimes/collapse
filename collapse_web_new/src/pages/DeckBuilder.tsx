@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useState, useCallback, useRef} from 'react'
 import ImportExportJSON from '../components/ImportExportJSON'
-import { startPlaySelection, toggleAttach, finalizeSelection, cancelSelection, ActivePlay } from '../utils/playFlow'
+import { startPlaySelection, toggleAttach, finalizeSelection, cancelSelection, canAttachEngramType, ActivePlay } from '../utils/playFlow'
 import { getModCapacityUsed, canAddModCardFrom } from '../utils/modCapacity'
 import { fullRestEngram, type EngramDef, type EquippedEngram } from '../domain/engrams'
 import Handbook from '../data/handbook'
@@ -499,6 +499,10 @@ export default function DeckBuilder({
         setOpsError('Select a base before attaching modifiers.')
         return
       }
+      if (!canAttachEngramType(activePlay.mods, cardId)) {
+        setOpsError('Only one Engram can be active at a time. Clear it before attaching a different Engram.')
+        return
+      }
       setActivePlay((prev) => toggleAttach(prev, cardId, handCountsFromPending, cardCosts, builderState.modifierCapacity))
       setPendingDeckPlay((prev) => [...prev, cardId])
       setOpsError(null)
@@ -876,7 +880,7 @@ export default function DeckBuilder({
         ? 'Selected Base'
         : (isQueuedModifier ? 'Queued' : null)
       const canPlayBase = isBase && !activePlay
-      const canAttach = !isBase && !!activePlay
+      const canAttach = !isBase && !!activePlay && canAttachEngramType(activePlay?.mods ?? [], id)
       const isQueuedBase = isBase && !!activePlay && activePlay.baseHandIndex === index
       const isAttachedToQueue = isQueuedBase || isQueuedModifier
       let modText: string | null = null
@@ -1078,6 +1082,11 @@ export default function DeckBuilder({
       return
     }
     if (!modIdSet.has(cardId)) return
+    if (!canAttachEngramType(activePlay.mods, cardId)) {
+      setOpsError('Only one Engram can be active at a time. Clear it before attaching a different Engram.')
+      setAttachWarningId(cardId)
+      return
+    }
     const handCounts = (builderState.hand ?? []).reduce<Record<string, number>>((acc, it) => {
       acc[it.id] = (acc[it.id] ?? 0) + 1
       return acc
