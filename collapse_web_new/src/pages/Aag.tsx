@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ApproachStats, CoreStats } from "../types/chud";
-import { DEFAULT_APPROACH, DEFAULT_WT, DEFAULT_INVENTORY_SLOTS, computeDerived } from "../domain/chudStats";
+import { DEFAULT_APPROACH, DEFAULT_WT, computeDerived, computeInventorySlots } from "../domain/chudStats";
 import { isDieSides, stepUp, type DieSides } from "../domain/approachDice";
 import { clampApproachToCore } from "../domain/coreApproachMap";
 import { loadState, readGearData } from "../utils/chudPersistence";
@@ -29,13 +29,11 @@ export default function AagPage({
     isDieSides(saved?.damageDieSize) ? saved.damageDieSize : DEFAULT_DAMAGE_DIE_SIZE
   );
   const [wt, setWtRaw] = useState<number>(saved?.wt ?? DEFAULT_WT);
-  const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
   const [gearSlotsUsed, setGearSlotsUsed] = useState<number>(() =>
     typeof window !== "undefined" ? (readGearData(gearSlotsStorageKey)?.slotsUsed ?? 0) : 0
   );
 
   const setWt = useCallback((v: number) => setWtRaw(Math.max(0, v)), []);
-  const setInventorySlots = useCallback((v: number) => setInventorySlotsRaw(Math.max(0, v)), []);
 
   // A Core stat's value is the total pool its two linked Approaches draw
   // from (see CORE_APPROACH_MAP). If the Core stat is lowered below what's
@@ -69,11 +67,12 @@ export default function AagPage({
   }, []);
 
   const derived = computeDerived(core);
+  const inventorySlots = computeInventorySlots(core);
   const isOverEncumbered = gearSlotsUsed > inventorySlots;
 
   // Persist the fields this page owns, merging with whatever the CHUD iframe
-  // has saved for the fields it owns (hpCounter, secondary, statReps, etc.)
-  // so neither side clobbers the other.
+  // has saved for the fields it owns (hpCounter, secondary, etc.) so neither
+  // side clobbers the other.
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(chudStateStorageKey);
@@ -100,7 +99,6 @@ export default function AagPage({
           if (s.approach) setApproach(clampApproachToCore(s.approach, s.core ?? core));
           if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
           if (typeof s.wt === "number") setWtRaw(Math.max(0, s.wt));
-          if (typeof s.inventorySlots === "number") setInventorySlotsRaw(Math.max(0, s.inventorySlots));
         } catch {
           // malformed storage — ignore
         }
@@ -126,8 +124,6 @@ export default function AagPage({
           onWtDecr={() => setWt(wt - 1)}
           capacity={derived.capacity}
           inventorySlots={inventorySlots}
-          onInventoryIncr={() => setInventorySlots(inventorySlots + 1)}
-          onInventoryDecr={() => setInventorySlots(inventorySlots - 1)}
           core={core}
           onCoreChange={setCoreField}
           approach={approach}

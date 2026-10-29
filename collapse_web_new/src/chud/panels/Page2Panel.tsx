@@ -24,8 +24,6 @@ export function Page2Panel({
   onWtDecr,
   capacity,
   inventorySlots,
-  onInventoryIncr,
-  onInventoryDecr,
   core,
   onCoreChange,
   approach,
@@ -43,8 +41,6 @@ export function Page2Panel({
   onWtDecr: () => void;
   capacity: number;
   inventorySlots: number;
-  onInventoryIncr: () => void;
-  onInventoryDecr: () => void;
   core: CoreStats;
   onCoreChange: (field: keyof CoreStats, updater: (v: number) => number) => void;
   approach: ApproachStats;
@@ -91,18 +87,18 @@ export function Page2Panel({
         />
       </div>
 
-      {/* Row 3: Capacity | Inventory Slots (25% smaller, 2-across on mobile) */}
+      {/* Row 3: Capacity | Inventory Slots (25% smaller, 2-across on mobile).
+          Inventory Slots is derived (Vigor + Inference + Personality), not
+          separately set. */}
       <div className="core-grid row-compact-3">
         <div className="chip">
           <span>Capacity</span>
           <strong>{capacity}</strong>
         </div>
-        <StatCard
-          label="Inventory Slots"
-          value={inventorySlots}
-          onIncr={onInventoryIncr}
-          onDecr={onInventoryDecr}
-        />
+        <div className="chip">
+          <span>Inventory Slots</span>
+          <strong>{inventorySlots}</strong>
+        </div>
       </div>
 
       {/* Row 5: Core Stats */}

@@ -21,10 +21,6 @@ export interface SecondaryStats {
   personality: number;
 }
 
-export interface StatReps {
-  invSlots: number;
-}
-
 export type CollapsePath = "live" | "survive" | "die";
 
 export interface SaveState {
@@ -35,9 +31,10 @@ export interface SaveState {
   damageDieSize?: import('../domain/approachDice').DieSides;
   approachOverloadSpent?: Partial<Record<keyof ApproachStats, number>>;
   wt: number;
+  /** Derived as vigor + inference + personality — persisted as an echo for
+   * pages that read it (Gear, GearPanel, HPPanel), never set directly. */
   inventorySlots: number;
   secondary?: SecondaryStats;
-  statReps?: StatReps;
   shortRest?: boolean;
   /** Whether this character has ever been downed (HP hit 0) before — gates
    * the one-time "Choose Your Path" (Live/Survive/Die) notification. */

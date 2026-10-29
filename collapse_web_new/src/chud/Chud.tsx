@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./chud.css";
 import type { ApproachStats, CollapsePath, CoreStats, GearSlotEntry, SaveState } from "../types/chud";
 import {
-  DEFAULT_INVENTORY_SLOTS,
   DEFAULT_HP_COUNTER,
   DEFAULT_APPROACH,
   computeDerived,
+  computeInventorySlots,
 } from "../domain/chudStats";
 import {
   DEFAULT_DIE_SIZE,
@@ -72,7 +72,6 @@ export default function Chud() {
   const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? DEFAULT_HP_COUNTER);
   const [hasBeenDownedBefore, setHasBeenDownedBefore] = useState<boolean>(saved?.hasBeenDownedBefore ?? false);
   const [collapsePath, setCollapsePathState] = useState<CollapsePath | undefined>(saved?.collapsePath);
-  const [inventorySlots, setInventorySlotsRaw] = useState<number>(saved?.inventorySlots ?? DEFAULT_INVENTORY_SLOTS);
   const [gearEntries, setGearEntries] = useState<GearSlotEntry[] | null>(() =>
     typeof window !== "undefined" ? (readGearData(GEAR_SLOTS_KEY)?.entries ?? null) : null
   );
@@ -91,6 +90,7 @@ export default function Chud() {
 
   const derived = computeDerived(core);
   const hpMax = derived.hp;
+  const inventorySlots = computeInventorySlots(core);
 
   const [notifications, setNotifications] = useState<PendingNotification[]>(() =>
     typeof window !== "undefined" ? listNotifications() : []
@@ -176,8 +176,8 @@ export default function Chud() {
   }, [approach, approachOverloadSpent, approachWardrobeBonus]);
 
   // Persist to localStorage. Merge with whatever is currently saved so
-  // fields owned by the AAG/MGR pages (wt, secondary, statReps) aren't
-  // clobbered. `approach` itself (the distributed ratings) is owned by the
+  // fields owned by the AAG/MGR pages (wt, secondary) aren't clobbered.
+  // `approach` itself (the distributed ratings) is owned by the
   // AAG page too — this is only ever an echo of the synced value, never a
   // write from here — but approachDieSize/damageDieSize/approachOverloadSpent
   // are owned here now that the Approach dice live in the HUD.
@@ -199,7 +199,6 @@ export default function Chud() {
         approachOverloadSpent,
         inventorySlots,
         secondary: prev.secondary,
-        statReps: prev.statReps,
         shortRest,
         hasBeenDownedBefore,
         collapsePath,
@@ -222,7 +221,6 @@ export default function Chud() {
         if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
         if (s.approachOverloadSpent) setApproachOverloadSpent(s.approachOverloadSpent);
         if (typeof s.hpCounter === "number") setHpCounterRaw(s.hpCounter);
-        if (typeof s.inventorySlots === "number") setInventorySlotsRaw(Math.max(0, s.inventorySlots));
         if (typeof s.shortRest === "boolean") setShortRest(s.shortRest);
         if (typeof s.hasBeenDownedBefore === "boolean") setHasBeenDownedBefore(s.hasBeenDownedBefore);
         if (s.collapsePath) setCollapsePathState(s.collapsePath);

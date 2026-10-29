@@ -1,8 +1,8 @@
 import { RepCard } from "../components/RepCard";
-import type { SecondaryStats, StatReps } from "../../types/chud";
+import type { SecondaryStats } from "../../types/chud";
 
-// "Reps" section: Major (secondary stat) reps + Minor (Inventory) reps.
-// Plain section (no accordion) — lives on the standalone MGR page.
+// "Reps" section: Major (secondary stat) reps. Plain section (no accordion)
+// — lives on the standalone MGR page.
 export function SecondaryStatsPanel({
   secondary,
   core,
@@ -10,12 +10,6 @@ export function SecondaryStatsPanel({
   onIncrementRep,
   onResetRep,
   onConfirmLevelUp,
-  statReps,
-  statRepThreshold,
-  statLevelUpReady,
-  onIncrementStatRep,
-  onResetStatRep,
-  onConfirmStatLevelUp,
 }: {
   secondary: SecondaryStats;
   core: Record<string, number>;
@@ -23,12 +17,6 @@ export function SecondaryStatsPanel({
   onIncrementRep: (field: keyof SecondaryStats) => void;
   onResetRep: (field: keyof SecondaryStats) => void;
   onConfirmLevelUp: (field: keyof SecondaryStats) => void;
-  statReps: StatReps;
-  statRepThreshold: (field: keyof StatReps) => number;
-  statLevelUpReady: Record<keyof StatReps, boolean>;
-  onIncrementStatRep: (field: keyof StatReps) => void;
-  onResetStatRep: (field: keyof StatReps) => void;
-  onConfirmStatLevelUp: (field: keyof StatReps) => void;
 }) {
   return (
     <div className="mods">
@@ -48,22 +36,6 @@ export function SecondaryStatsPanel({
             onTap={() => onIncrementRep(field)}
             onReset={() => onResetRep(field)}
             onLevelUp={() => onConfirmLevelUp(field)}
-          />
-        ))}
-      </div>
-      <div className="core-grid secondary-grid" style={{ marginTop: 8 }}>
-        {([
-          ['invSlots', 'INV'],
-        ] as Array<[keyof StatReps, string]>).map(([field, label]) => (
-          <RepCard
-            key={field}
-            label={label}
-            reps={statReps[field]}
-            threshold={statRepThreshold(field)}
-            ready={statLevelUpReady[field]}
-            onTap={() => onIncrementStatRep(field)}
-            onReset={() => onResetStatRep(field)}
-            onLevelUp={() => onConfirmStatLevelUp(field)}
           />
         ))}
       </div>
