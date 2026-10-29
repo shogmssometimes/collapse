@@ -302,8 +302,8 @@ export function ApproachDie({
     if (computed === 0 && getRollMode() === "combat" && !hasPendingNotification("desync")) {
       pushNotification(
         "desync",
-        "Chip Desynced",
-        "Margin of 0 in Combat. Accept to desync your Chip, or cancel to ignore it.",
+        "Desynced",
+        "Margin of 0 in Combat. Accept to desync, or cancel to ignore it.",
         { desync: true }
       )
     }
@@ -416,9 +416,9 @@ export function ApproachDie({
                         overloaded.has(index)
                           ? "Already Overloaded"
                           : didExplode
-                          ? "Tap to Overload: doubles only the original roll, spend 1 from the Approach pool"
+                          ? "Tap to Overload: doubles only the original roll, spend 1 from the Method pool"
                           : onOverload
-                          ? "Tap to Overload: double this die, spend 1 from the Approach pool"
+                          ? "Tap to Overload: double this die, spend 1 from the Method pool"
                           : undefined
                       }
                     >

@@ -30,7 +30,7 @@ const STATUS_EFFECTS_CATALOG = [
   { name: 'Hastened', effect: 'Any movement costs 1 less AP' },
   { name: 'Inspired', effect: 'Gain 1 Grit' },
   { name: 'Energized', effect: 'Gain +1AP' },
-  { name: 'Overclocked', effect: 'Chip damage die steps up one tier' },
+  { name: 'Overclocked', effect: 'Damage die steps up one tier' },
   { name: 'Bleeding', effect: 'On hit, Lose 1HP regardless of WT' },
   { name: 'Charmed', effect: 'Treat source as friendly' },
   { name: 'Demoralized', effect: 'Cannot Ganbare or receive Ganbare' },
@@ -38,7 +38,7 @@ const STATUS_EFFECTS_CATALOG = [
   { name: 'Pressured', effect: 'Cannot Flank or gain positional bonuses' },
   { name: 'Exhausted', effect: 'Reduce all AO/PCDC rolls by 1d4' },
   { name: 'Downed', effect: 'Out of the fight, must be revived' },
-  { name: 'Desynced', effect: 'Your Chip is Desynced' },
+  { name: 'Desynced', effect: 'You are Desynced' },
 ]
 function readUI() {
   try { const r = localStorage.getItem(UI_KEY); return r ? JSON.parse(r) : {} } catch { return {} }
@@ -626,7 +626,7 @@ function buildCombatPanel() {
   const refresh = () => {
     const state = readCombat()
     const desynced = !!state.chipDesynced
-    chipBtn.innerHTML = desynced ? 'Chip<br>Desynced' : 'Chip<br>Synced'
+    chipBtn.innerHTML = desynced ? 'Desynced' : 'Synced'
     chipBtn.dataset.desynced = desynced ? '1' : '0'
   }
 
@@ -916,7 +916,7 @@ function buildStatusRollsPanel() {
 
     // ── Step 1: Choose Approach ──────────────────────────────────────
     const renderApproachPicker = () => {
-      title.textContent = 'Choose Approach'
+      title.textContent = 'Choose Method'
       body.innerHTML = ''
       const grid = document.createElement('div')
       grid.className = 'status-roll-save-approach-grid'
@@ -972,7 +972,7 @@ function buildStatusRollsPanel() {
       const backBtn = document.createElement('button')
       backBtn.className = 'status-roll-save-back'
       backBtn.setAttribute('data-touch-blocker-ignore', '')
-      backBtn.textContent = '← Choose Approach'
+      backBtn.textContent = '← Choose Method'
       backBtn.addEventListener('click', () => { clearArmedTimers(); renderApproachPicker() })
       closeBtn.addEventListener('click', clearArmedTimers)
 
@@ -1070,8 +1070,8 @@ function buildStatusRollsPanel() {
           chip.title = overloadedSet.has(index)
             ? 'Already Overloaded'
             : didExplode
-              ? 'Tap to Overload: doubles only the original roll, spend 1 from the Approach pool'
-              : 'Tap to Overload: double this die, spend 1 from the Approach pool'
+              ? 'Tap to Overload: doubles only the original roll, spend 1 from the Method pool'
+              : 'Tap to Overload: double this die, spend 1 from the Method pool'
           chip.textContent = `D${dieSize}: ${dieRoll.rolls.join(' + ')}`
           if (didExplode) {
             const tag = document.createElement('span')

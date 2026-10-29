@@ -800,7 +800,7 @@ export default function GearPage({
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 0', minWidth: 0 }}>
                 <label style={{ fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)' }}>
-                  Approach
+                  Method
                 </label>
                 <div style={{ position: 'relative' }}>
                   <select

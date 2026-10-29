@@ -91,7 +91,7 @@ export function ApproachPanel({
   return (
     <div className="mods">
       <div className="approach-panel-header">
-        <h3>Approach</h3>
+        <h3>Method</h3>
         <RollModeToggle />
       </div>
       <div className="core-grid approach-grid">

@@ -11,7 +11,7 @@ export function ApproachDieSizeControl({
   die,
   onIncrease,
   onReset,
-  label = "SHARED APPROACH DIE",
+  label = "SHARED METHOD DIE",
   compact = false,
 }: {
   die: DieSides

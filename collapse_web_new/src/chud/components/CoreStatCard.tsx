@@ -82,7 +82,7 @@ export function CoreStatCard({
       className={`core-card interactive${pressing ? " pressing" : ""}`}
       role="button"
       tabIndex={0}
-      aria-label={`${label} ${value}. Tap to increase, triple-tap to decrease, long-press to distribute into Approaches.`}
+      aria-label={`${label} ${value}. Tap to increase, triple-tap to decrease, long-press to distribute into Methods.`}
       onPointerDown={handlePointerDown}
       onPointerUp={cancelLongPress}
       onPointerLeave={cancelLongPress}

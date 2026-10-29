@@ -486,7 +486,7 @@ const STATUS_EFFECTS_CATALOG: { name: string; effect: string }[] = [
   { name: "Hastened", effect: "Any movement costs 1 less AP" },
   { name: "Inspired", effect: "Gain 1 Grit" },
   { name: "Energized", effect: "Gain +1AP" },
-  { name: "Overclocked", effect: "Chip damage die steps up one tier" },
+  { name: "Overclocked", effect: "Damage die steps up one tier" },
   { name: "Bleeding", effect: "On hit, Lose 1HP regardless of WT" },
   { name: "Charmed", effect: "Treat source as friendly" },
   { name: "Demoralized", effect: "Cannot Ganbare or receive Ganbare" },
@@ -494,7 +494,7 @@ const STATUS_EFFECTS_CATALOG: { name: string; effect: string }[] = [
   { name: "Pressured", effect: "Cannot Flank or gain positional bonuses" },
   { name: "Exhausted", effect: "Reduce all AO/PCDC rolls by 1d4" },
   { name: "Downed", effect: "Out of the fight, must be revived" },
-  { name: "Desynced", effect: "Your Chip is Desynced" },
+  { name: "Desynced", effect: "You are Desynced" },
 ];
 
 function normalizeStatusName(s: string): string {
