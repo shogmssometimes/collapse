@@ -224,7 +224,7 @@ function openNewNodeMetersPopup(onConfirm) {
 	titleEl.textContent = 'New Contact — Initial Meters';
 	const subtitleEl = document.createElement('div');
 	subtitleEl.style.cssText = 'font-size:0.72rem;color:rgba(255,255,255,0.3);';
-	subtitleEl.textContent = 'Starts from True Global + selected Faction baseline.';
+	subtitleEl.textContent = 'Starts from the World Baseline plus the selected Faction\u2019s adjustment.';
 	titleRow.appendChild(titleEl);
 	titleRow.appendChild(subtitleEl);
 	card.appendChild(titleRow);
@@ -991,7 +991,7 @@ function openGlobalMetersPopup() {
 		mount.appendChild(wrap);
   };
 
-	globalSection.appendChild(makeSectionLabel('True Global Layer'));
+	globalSection.appendChild(makeSectionLabel('World Baseline (All Factions)'));
 	makeAxisSlider({ axisKey: 'globalX', label: 'Trust / Distrust Axis', negativeLabel: 'Trust (-)', positiveLabel: 'Distrust (+)', getValue: () => globalAxisX, setValue: (v) => { globalAxisX = v; }, mount: globalSection });
 	makeAxisSlider({ axisKey: 'globalY', label: 'Carte Blanche / Surveillance Axis', negativeLabel: 'Carte Blanche (-)', positiveLabel: 'Surveillance (+)', getValue: () => globalAxisY, setValue: (v) => { globalAxisY = v; }, mount: globalSection });
 
@@ -1007,7 +1007,7 @@ function openGlobalMetersPopup() {
 	card.appendChild(interactionHint);
 
 	factionSection.appendChild(factionSelect);
-	factionSection.appendChild(makeSectionLabel('Faction Layer'));
+	factionSection.appendChild(makeSectionLabel('Faction Adjustment (vs. World Baseline)'));
 	makeAxisSlider({ axisKey: 'factionX', label: 'Trust / Distrust Axis', negativeLabel: 'Trust (-)', positiveLabel: 'Distrust (+)', getValue: () => Math.max(-6, Math.min(6, globalAxisX + factionAxisX)), setValue: (v) => { factionAxisX = Math.max(-6, Math.min(6, v - globalAxisX)); }, mount: factionSection });
 	makeAxisSlider({ axisKey: 'factionY', label: 'Carte Blanche / Surveillance Axis', negativeLabel: 'Carte Blanche (-)', positiveLabel: 'Surveillance (+)', getValue: () => Math.max(-6, Math.min(6, globalAxisY + factionAxisY)), setValue: (v) => { factionAxisY = Math.max(-6, Math.min(6, v - globalAxisY)); }, mount: factionSection });
 
@@ -1021,16 +1021,16 @@ function openGlobalMetersPopup() {
 			globalSection.style.pointerEvents = 'auto';
 			factionSection.style.opacity = '0.45';
 			factionSection.style.pointerEvents = 'none';
-			interactionHint.textContent = '';
-			globalActionBtn.textContent = globalConfirmed ? 'Save Global Changes' : 'Confirm True Global Layer';
+			interactionHint.textContent = 'This baseline applies to every faction. Confirm it before adjusting a faction\u2019s standing.';
+			globalActionBtn.textContent = globalConfirmed ? 'Save World Baseline' : 'Confirm World Baseline';
 		} else {
 			globalSection.style.display = 'none';
 			globalSection.style.opacity = '0.75';
 			globalSection.style.pointerEvents = 'none';
 			factionSection.style.opacity = '1';
 			factionSection.style.pointerEvents = 'auto';
-			interactionHint.textContent = '';
-			globalActionBtn.textContent = 'Adjust True Global Layer';
+			interactionHint.textContent = 'Adjusts this faction\u2019s standing relative to the World Baseline above.';
+			globalActionBtn.textContent = 'Edit World Baseline';
 		}
 	};
 

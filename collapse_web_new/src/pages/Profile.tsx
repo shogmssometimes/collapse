@@ -79,23 +79,23 @@ const DisplayCard: React.FC<{
   const displayName = charName || 'Unknown Operative';
 
   return (
-    <div style={{ width: '100%', maxWidth: 340, borderRadius: 16, overflow: 'hidden', border: '1.5px solid var(--accent)', boxShadow: '0 0 0 1px rgba(15,246,255,0.08), 0 0 32px rgba(15,246,255,0.12), 0 8px 40px rgba(0,0,0,0.7)', background: 'linear-gradient(175deg, #0f1214 0%, #0c0a08 60%, #0f1214 100%)', display: 'flex', flexDirection: 'column' }}>
+    <section aria-label={`Bio card for ${displayName}`} style={{ width: '100%', maxWidth: 340, borderRadius: 16, overflow: 'hidden', border: '1.5px solid var(--accent)', boxShadow: '0 0 0 1px rgba(15,246,255,0.08), 0 0 32px rgba(15,246,255,0.12), 0 8px 40px rgba(0,0,0,0.7)', background: 'linear-gradient(175deg, #0f1214 0%, #0c0a08 60%, #0f1214 100%)', display: 'flex', flexDirection: 'column' }}>
 
       {/* Header stripe — EDIT lives here so it never overlaps content */}
       <div style={{ background: 'linear-gradient(90deg, #0c2a2e 0%, #0f3a40 50%, #0c2a2e 100%)', borderBottom: '1px solid var(--accent)', padding: '8px 12px 8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.18em', fontSize: '1.05rem', color: 'var(--accent)', flex: 1 }}>COLLAPSE</span>
         <span style={{ fontSize: '0.62rem', color: 'rgba(15,246,255,0.5)', letterSpacing: '0.14em', fontFamily: 'var(--font-display)' }}>OPERATIVE ID</span>
-        <button type="button" onClick={onEdit} style={{ background: 'rgba(15,246,255,0.12)', border: '1px solid rgba(15,246,255,0.3)', borderRadius: 5, color: 'var(--accent)', fontSize: '0.6rem', letterSpacing: '0.12em', fontFamily: 'var(--font-display)', padding: '3px 9px', cursor: 'pointer', flexShrink: 0 }}>EDIT</button>
+        <button type="button" onClick={onEdit} aria-label="Edit bio card" style={{ background: 'rgba(15,246,255,0.12)', border: '1px solid rgba(15,246,255,0.3)', borderRadius: 5, color: 'var(--accent)', fontSize: '0.6rem', letterSpacing: '0.12em', fontFamily: 'var(--font-display)', padding: '3px 9px', cursor: 'pointer', flexShrink: 0 }}>EDIT</button>
       </div>
 
       {/* Photo */}
       <div style={{ padding: '16px 16px 0' }}>
         <div style={{ width: '100%', height: 200, borderRadius: 8, border: '1px solid rgba(15,246,255,0.25)', background: 'rgba(15,246,255,0.04)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {data.pfpUrl && !imgError ? (
-            <img src={data.pfpUrl} alt="Profile" onError={onImgError} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <img src={data.pfpUrl} alt={`${displayName} portrait`} onError={onImgError} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'rgba(15,246,255,0.3)' }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+            <div role="img" aria-label="No photo set" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'rgba(15,246,255,0.3)' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" aria-hidden>
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
               </svg>
@@ -108,7 +108,7 @@ const DisplayCard: React.FC<{
       {/* Name */}
       <div style={{ padding: '14px 16px 14px' }}>
         <div style={{ fontSize: '0.6rem', color: 'rgba(15,246,255,0.5)', letterSpacing: '0.16em', fontFamily: 'var(--font-display)', marginBottom: 3 }}>OPERATIVE NAME</div>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', letterSpacing: '0.06em', color: '#fff', lineHeight: 1, wordBreak: 'break-word' }}>{displayName}</div>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: '1.6rem', letterSpacing: '0.06em', color: '#fff', lineHeight: 1, wordBreak: 'break-word' }}>{displayName}</h2>
       </div>
 
       <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(15,246,255,0.25), transparent)', margin: '0 16px' }} />
@@ -118,14 +118,14 @@ const DisplayCard: React.FC<{
         <>
           <div style={{ padding: '14px 16px 12px' }}>
             <div style={{ fontSize: '0.62rem', color: 'rgba(15,246,255,0.55)', letterSpacing: '0.18em', fontFamily: 'var(--font-display)', marginBottom: 8 }}>KEY FEATURES</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <ul style={{ display: 'flex', flexDirection: 'column', gap: 5, margin: 0, padding: 0, listStyle: 'none' }}>
               {data.keyFeatures.filter(f => f.trim()).map((feat, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                  <span style={{ color: 'var(--accent)', fontSize: '0.65rem', flexShrink: 0, marginTop: 2 }}>◆</span>
+                <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                  <span aria-hidden style={{ color: 'var(--accent)', fontSize: '0.65rem', flexShrink: 0, marginTop: 2 }}>◆</span>
                   <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)', letterSpacing: '0.03em' }}>{feat}</span>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
           <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(15,246,255,0.25), transparent)', margin: '0 16px' }} />
         </>
@@ -150,11 +150,11 @@ const DisplayCard: React.FC<{
       {/* Barcode footer */}
       <div style={{ background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(15,246,255,0.12)', padding: '8px 16px 10px' }}>
         <BarcodeStripe />
-        <div style={{ fontFamily: 'Courier Prime, Courier New, monospace', fontSize: '0.55rem', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', textAlign: 'center', marginTop: 2 }}>
+        <div style={{ fontFamily: 'Courier Prime, Courier New, monospace', fontSize: '0.55rem', color: 'rgba(255,255,255,0.62)', letterSpacing: '0.2em', textAlign: 'center', marginTop: 2 }}>
           COLLAPSE-RPG • OPERATIVE FILE
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -230,6 +230,7 @@ const SetupForm: React.FC<{
           value={data.rawImgurInput}
           onChange={e => handleImgurInput(e.target.value)}
           placeholder="https://imgur.com/XXXXX"
+          aria-label="Photo URL (Imgur)"
           style={{ width: '100%', background: 'rgba(15,246,255,0.04)', border: '1px solid rgba(15,246,255,0.18)', borderRadius: 6, color: '#fff', fontSize: '0.72rem', fontFamily: 'Courier Prime, Courier New, monospace', padding: '7px 10px', outline: 'none', boxSizing: 'border-box' }}
         />
         {data.pfpUrl && data.pfpUrl !== data.rawImgurInput && (
@@ -253,16 +254,17 @@ const SetupForm: React.FC<{
                   onChange={e => updateFeature(idx, e.target.value)}
                   onBlur={() => setEditingFeatureIdx(null)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingFeatureIdx(null); }}
+                  aria-label={`Key feature ${idx + 1}`}
                   style={{ flex: 1, background: 'rgba(15,246,255,0.06)', border: '1px solid rgba(15,246,255,0.25)', borderRadius: 4, color: '#fff', fontSize: '0.78rem', fontFamily: 'inherit', padding: '4px 8px', outline: 'none' }}
                   autoFocus
                 />
               ) : (
-                <button type="button" onClick={() => setEditingFeatureIdx(idx)} style={{ flex: 1, background: 'none', border: '1px solid transparent', borderRadius: 4, color: feat ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.25)', fontSize: '0.78rem', fontFamily: 'inherit', padding: '4px 8px', textAlign: 'left', cursor: 'text' }}>
+                <button type="button" onClick={() => setEditingFeatureIdx(idx)} aria-label={feat ? `Edit key feature ${idx + 1}: ${feat}` : `Add key feature ${idx + 1}`} style={{ flex: 1, background: 'none', border: '1px solid transparent', borderRadius: 4, color: feat ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.25)', fontSize: '0.78rem', fontFamily: 'inherit', padding: '4px 8px', textAlign: 'left', cursor: 'text' }}>
                   {feat || `Tap to add feature…`}
                 </button>
               )}
               {data.keyFeatures.length > 1 && (
-                <button type="button" onClick={() => removeFeature(idx)} aria-label="Remove" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem', cursor: 'pointer', padding: '2px 4px', flexShrink: 0 }}
+                <button type="button" onClick={() => removeFeature(idx)} aria-label={`Remove key feature ${idx + 1}`} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem', cursor: 'pointer', padding: '2px 4px', flexShrink: 0 }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#d42b2b')}
                   onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.2)')}>✕</button>
               )}
@@ -302,7 +304,7 @@ export default function ProfilePage({
   const miniMatrixSrc = `${BASE_URL}csmatrix/index.html?mini=1`;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1.5rem 1rem 4rem' }}>
+    <main aria-label="Bio Card" style={{ minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1.5rem 1rem 4rem' }}>
       {mode === 'display' ? (
         <DisplayCard
           data={data}
@@ -323,6 +325,6 @@ export default function ProfilePage({
           onDone={() => setMode('display')}
         />
       )}
-    </div>
+    </main>
   );
 }

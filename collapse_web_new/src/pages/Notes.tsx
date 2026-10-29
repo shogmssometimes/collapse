@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const NOTES_STORAGE_KEY = 'collapse.notes.v1';
 
@@ -71,28 +71,8 @@ export default function NotesPage({ storageKey = NOTES_STORAGE_KEY }: { storageK
     setModules((prev) => (prev.length <= 1 ? prev : prev.filter((module) => module.id !== id)));
   };
 
-  const holdTimerRef = useRef<Record<string, number | null>>({});
-
   const toggleCollapsed = (id: string) => {
     setModules((prev) => prev.map((module) => (module.id === id ? { ...module, collapsed: !module.collapsed } : module)));
-  };
-
-  const cancelLongPress = (id: string) => {
-    const timer = holdTimerRef.current[id];
-    if (timer) {
-      window.clearTimeout(timer);
-      holdTimerRef.current[id] = null;
-    }
-  };
-
-  const startLongPress = (id: string, event: React.PointerEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    if (target.closest('button') || target.closest('input') || target.closest('textarea')) return;
-    cancelLongPress(id);
-    holdTimerRef.current[id] = window.setTimeout(() => {
-      toggleCollapsed(id);
-      holdTimerRef.current[id] = null;
-    }, 450);
   };
 
   return (
@@ -118,10 +98,9 @@ export default function NotesPage({ storageKey = NOTES_STORAGE_KEY }: { storageK
           >
             <div style={{ display: 'grid', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <div
-                  onPointerDown={(event) => startLongPress(module.id, event)}
-                  onPointerUp={() => cancelLongPress(module.id)}
-                  onPointerLeave={() => cancelLongPress(module.id)}
+                <button
+                  type="button"
+                  onClick={() => toggleCollapsed(module.id)}
                   style={{
                     width: 44,
                     height: 44,
@@ -135,10 +114,12 @@ export default function NotesPage({ storageKey = NOTES_STORAGE_KEY }: { storageK
                     userSelect: 'none',
                     flexShrink: 0,
                   }}
-                  title={module.collapsed ? 'Hold to reveal' : 'Hold to hide'}
+                  aria-pressed={!module.collapsed}
+                  aria-label={module.collapsed ? 'Show note' : 'Hide note'}
+                  title={module.collapsed ? 'Show note' : 'Hide note'}
                 >
                   <span style={{ fontSize: '1.3rem' }}>{module.collapsed ? '🚫' : '👁'}</span>
-                </div>
+                </button>
                 <input
                   value={module.title}
                   onChange={(event) => updateModule(module.id, { title: event.target.value })}
@@ -226,7 +207,7 @@ export default function NotesPage({ storageKey = NOTES_STORAGE_KEY }: { storageK
               )}
               {module.collapsed && (
                 <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.88rem', padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)' }}>
-                  Long-press the icon to show this note.
+                  Tap the icon above to show this note.
                 </div>
               )}
             </div>
