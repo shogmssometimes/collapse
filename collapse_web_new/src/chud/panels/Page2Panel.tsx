@@ -88,8 +88,7 @@ export function Page2Panel({
       </div>
 
       {/* Row 3: Capacity | Inventory Slots (25% smaller, 2-across on mobile).
-          Inventory Slots is derived (Vigor + Inference + Personality), not
-          separately set. */}
+          Inventory Slots is derived (Vigor), not separately set. */}
       <div className="core-grid row-compact-3">
         <div className="chip">
           <span>Capacity</span>

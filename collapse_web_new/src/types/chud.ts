@@ -30,8 +30,8 @@ export interface SaveState {
   damageDieSize?: import('../domain/approachDice').DieSides;
   approachOverloadSpent?: Partial<Record<keyof ApproachStats, number>>;
   wt: number;
-  /** Derived as vigor + inference + personality — persisted as an echo for
-   * pages that read it (Gear, GearPanel, HPPanel), never set directly. */
+  /** Derived as Vigor — persisted as an echo for pages that read it (Gear,
+   * GearPanel, HPPanel), never set directly. */
   inventorySlots: number;
   secondary?: SecondaryStats;
   shortRest?: boolean;

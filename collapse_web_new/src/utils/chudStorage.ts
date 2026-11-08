@@ -7,7 +7,9 @@ export function readChudCapacity(key: string): number | null {
     const raw = window.localStorage.getItem(key)
     if (!raw) return null
     const s = JSON.parse(raw)
-    if (typeof s?.core?.inference === 'number') return 6 + s.core.inference * 2
+    if (typeof s?.core?.inference === 'number' && typeof s?.core?.personality === 'number') {
+      return 4 + s.core.inference + s.core.personality
+    }
     return null
   } catch {
     return null

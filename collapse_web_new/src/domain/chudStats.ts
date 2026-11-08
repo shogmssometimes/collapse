@@ -18,16 +18,38 @@ export const DEFAULT_SECONDARY: SecondaryStats = {
   personality: 0,
 };
 
+// Derived Vitals, per the handbook's Phase 6 example (YOU/Vie):
+//   HP (Max)        = 6 + Vigor + Inference
+//   Capacity        = 4 + Inference + Personality
+//   Readiness (RDY) = Vigor + Personality
 export function computeDerived(core: CoreStats) {
   return {
-    hp: 8 + core.vigor * 2,
-    capacity: 6 + core.inference * 2,
-    readyness: 3 + core.personality * 2,
+    hp: 6 + core.vigor + core.inference,
+    capacity: 4 + core.inference + core.personality,
+    readyness: core.vigor + core.personality,
   };
 }
 
-// Inventory Slots = Vigor + Inference + Personality (handbook rule) — always
-// derived from Core stats, never a separately set/leveled value.
+// Inventory Slots = Vigor (handbook rule) — always derived from Core
+// stats, never a separately set/leveled value. (Not to be confused with
+// the Fumble Number, which is V+I+P.)
 export function computeInventorySlots(core: CoreStats): number {
+  return core.vigor;
+}
+
+// Fumble Number = V+I+P — the margin by which an opponent must beat you to
+// cause a Fumble (see the Combat section). Not yet surfaced in any UI.
+export function computeFumbleNumber(core: CoreStats): number {
   return core.vigor + core.inference + core.personality;
+}
+
+// Skills = Inference — how many Skills the character knows.
+export function computeSkillCount(core: CoreStats): number {
+  return core.inference;
+}
+
+// Ganbare Charges = Personality — how many times a day you can give
+// Ganbare! to an ally.
+export function computeGanbareCharges(core: CoreStats): number {
+  return core.personality;
 }
