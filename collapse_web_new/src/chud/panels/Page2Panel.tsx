@@ -25,7 +25,9 @@ export function Page2Panel({
   capacity,
   inventorySlots,
   skillCount,
-  ganbareCharges,
+  ganbareRemaining,
+  ganbareMax,
+  onSpendGanbare,
   fumbleNumber,
   core,
   onCoreChange,
@@ -45,7 +47,9 @@ export function Page2Panel({
   capacity: number;
   inventorySlots: number;
   skillCount: number;
-  ganbareCharges: number;
+  ganbareRemaining: number;
+  ganbareMax: number;
+  onSpendGanbare: () => void;
   fumbleNumber: number;
   core: CoreStats;
   onCoreChange: (field: keyof CoreStats, updater: (v: number) => number) => void;
@@ -113,10 +117,18 @@ export function Page2Panel({
           <span>Skills</span>
           <strong>{skillCount}</strong>
         </div>
-        <div className="chip">
+        <button
+          type="button"
+          className="chip chip-spendable"
+          onClick={onSpendGanbare}
+          disabled={ganbareRemaining <= 0}
+          aria-label={`Ganbare! Charges ${ganbareRemaining} of ${ganbareMax} remaining. Tap to spend a Charge.`}
+        >
           <span>Ganbare! Charges</span>
-          <strong>{ganbareCharges}</strong>
-        </div>
+          <strong>
+            {ganbareRemaining}/{ganbareMax}
+          </strong>
+        </button>
         <div className="chip">
           <span>Fumble No.</span>
           <strong>{fumbleNumber}</strong>

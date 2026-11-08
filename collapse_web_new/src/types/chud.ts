@@ -41,6 +41,9 @@ export interface SaveState {
   /** The table the player chose to roll on each time they're downed, set by
    * the one-time "Choose Your Path" notification. */
   collapsePath?: CollapsePath;
+  /** Ganbare! Charges spent (max = Personality, see computeGanbareCharges).
+   * Restored to 0 by a Full Rest. Charges do not use Capacity. */
+  ganbareSpent?: number;
 }
 
 export type GearSlotEntry = { name: string; units: string; qty: string };

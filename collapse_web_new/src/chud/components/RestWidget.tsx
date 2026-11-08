@@ -11,6 +11,7 @@ import {
   readHpCounter,
   readCore,
   resetApproachOverload,
+  resetGanbareCharges,
 } from "../../utils/chudVanillaBridge";
 import { grantEngramRestoreBudget, fullRestEngrams } from "../../utils/engramState";
 
@@ -44,7 +45,8 @@ function anyShortRestPending(): boolean {
 //   - Short Rest: choose exactly one of Grit (+1) / HP (1d6) / Engrams
 //     (1d4 restore budget, spent later in the Engram Manager).
 //   - Full Rest: Grit set to 1d6 + Rest Bonus (max 6), HP to max, Overload
-//     dice (Method dice) fully reset, and all Engram charges refilled.
+//     dice (Method dice) fully reset, all Engram charges refilled, and
+//     Ganbare! Charges restored to max.
 export function RestWidget({
   storageKey,
   deckBuilderStorageKey,
@@ -154,7 +156,7 @@ export function RestWidget({
     const created = pushNotification(
       "full-rest",
       "Full Rest",
-      `Rolled ${roll}${bonusText} (max 6) for Grit. Accept to set Grit to ${targetGrit}, restore HP to full, refill all Engram charges, and reset Method dice.`,
+      `Rolled ${roll}${bonusText} (max 6) for Grit. Accept to set Grit to ${targetGrit}, restore HP to full, refill all Engram charges, reset Method dice, and restore all Ganbare! Charges.`,
       { grit: gritDelta, hp: hpDelta, restoreOverload: true, fullEngramRestore: true },
       { roll: { die: 6, value: roll } }
     );
@@ -240,6 +242,7 @@ export function RestWidget({
 // and Chud.tsx's resolver can call it without duplicating the logic.
 export function applyFullRestExtras(chudStateKey: string, deckBuilderStorageKey: string): void {
   resetApproachOverload(chudStateKey);
+  resetGanbareCharges(chudStateKey);
   fullRestEngrams(deckBuilderStorageKey);
 }
 

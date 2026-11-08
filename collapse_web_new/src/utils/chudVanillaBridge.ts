@@ -163,6 +163,20 @@ export function resetApproachOverload(chudStateKey: string): void {
   }
 }
 
+/** Restores all Ganbare! Charges (spent count back to 0) for the given
+ * (slot-aware) `chud.state.v1` key — Full Rest only. */
+export function resetGanbareCharges(chudStateKey: string): void {
+  try {
+    const raw = window.localStorage.getItem(chudStateKey);
+    const parsed: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+    const json = JSON.stringify({ ...parsed, ganbareSpent: 0 });
+    window.localStorage.setItem(chudStateKey, json);
+    notify(chudStateKey, json);
+  } catch {
+    // storage unavailable — ignore
+  }
+}
+
 /** Reads the current Core stats for the given (slot-aware) `chud.state.v1`
  * key, for computing Full Rest's HP-to-max delta. */
 export function readCore(chudStateKey: string): { vigor: number; inference: number; personality: number } | undefined {
