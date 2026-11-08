@@ -330,6 +330,27 @@
   font-size: 1.2rem;
 }
 
+/* Row 4: Skills | Ganbare! Charges | Fumble Number — same compact sizing
+   as row 3, but always 3-across (including on mobile). */
+.aag-page2 .row-vitals-3 {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.aag-page2 .row-vitals-3 .chip {
+  padding: 6px 3px;
+  border-radius: 3px;
+  gap: 2px;
+}
+
+.aag-page2 .row-vitals-3 .chip span {
+  font-size: 0.5rem;
+}
+
+.aag-page2 .row-vitals-3 .chip strong {
+  font-size: 1.2rem;
+}
+
 .aag-page2 .core-card {
   align-items: center;
   text-align: center;

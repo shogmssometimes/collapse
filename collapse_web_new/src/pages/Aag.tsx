@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ApproachStats, CoreStats } from "../types/chud";
-import { DEFAULT_APPROACH, DEFAULT_WT, computeDerived, computeInventorySlots } from "../domain/chudStats";
+import {
+  DEFAULT_APPROACH,
+  DEFAULT_WT,
+  computeDerived,
+  computeFumbleNumber,
+  computeGanbareCharges,
+  computeInventorySlots,
+  computeSkillCount,
+} from "../domain/chudStats";
 import { isDieSides, stepUp, type DieSides } from "../domain/approachDice";
 import { clampApproachToCore } from "../domain/coreApproachMap";
 import { loadState, readGearData } from "../utils/chudPersistence";
@@ -71,6 +79,9 @@ export default function AagPage({
   const derived = computeDerived(core);
   const inventorySlots = computeInventorySlots(core);
   const isOverEncumbered = gearSlotsUsed > inventorySlots;
+  const skillCount = computeSkillCount(core);
+  const ganbareCharges = computeGanbareCharges(core);
+  const fumbleNumber = computeFumbleNumber(core);
 
   // Persist the fields this page owns, merging with whatever the CHUD iframe
   // has saved for the fields it owns (hpCounter, secondary, etc.) so neither
@@ -128,6 +139,9 @@ export default function AagPage({
           onWtDecr={() => setWt(wt - 1)}
           capacity={derived.capacity}
           inventorySlots={inventorySlots}
+          skillCount={skillCount}
+          ganbareCharges={ganbareCharges}
+          fumbleNumber={fumbleNumber}
           core={core}
           onCoreChange={setCoreField}
           approach={approach}

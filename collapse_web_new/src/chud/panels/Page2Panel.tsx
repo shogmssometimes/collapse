@@ -24,6 +24,9 @@ export function Page2Panel({
   onWtDecr,
   capacity,
   inventorySlots,
+  skillCount,
+  ganbareCharges,
+  fumbleNumber,
   core,
   onCoreChange,
   approach,
@@ -41,6 +44,9 @@ export function Page2Panel({
   onWtDecr: () => void;
   capacity: number;
   inventorySlots: number;
+  skillCount: number;
+  ganbareCharges: number;
+  fumbleNumber: number;
   core: CoreStats;
   onCoreChange: (field: keyof CoreStats, updater: (v: number) => number) => void;
   approach: ApproachStats;
@@ -97,6 +103,23 @@ export function Page2Panel({
         <div className="chip">
           <span>Inventory Slots</span>
           <strong>{inventorySlots}</strong>
+        </div>
+      </div>
+
+      {/* Row 4: Skills | Ganbare Charges | Fumble Number — all derived
+          from Core stats (Inference, Personality, V+I+P respectively). */}
+      <div className="core-grid row-vitals-3">
+        <div className="chip">
+          <span>Skills</span>
+          <strong>{skillCount}</strong>
+        </div>
+        <div className="chip">
+          <span>Ganbare! Charges</span>
+          <strong>{ganbareCharges}</strong>
+        </div>
+        <div className="chip">
+          <span>Fumble No.</span>
+          <strong>{fumbleNumber}</strong>
         </div>
       </div>
 
