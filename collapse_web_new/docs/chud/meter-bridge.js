@@ -7,38 +7,40 @@ const UI_KEY = 'chud.ui.v1'
 const STATUS_ROLL_MAX = 50
 const STATUS_ROLL_MAX_ROWS = 10
 const STATUS_ROLL_DEFAULT_ROWS = 2
+// Handbook's Status Effects table (Phase "Environmental Effects In
+// Action"), 27 entries, transcribed verbatim — see /tmp/v10.txt around
+// line 2195 for the source table. This replaces an older, pre-handbook
+// list that used retired terminology (AP, Mod Engrams, Overdrive) and
+// included statuses that don't exist in the handbook (Inspired,
+// Overclocked, Exhausted, Pressured).
 const STATUS_EFFECTS_CATALOG = [
-  { name: 'Slowed', effect: 'Any movement costs +1 additional AP' },
+  { name: 'Slowed', effect: 'Any movement costs an Action instead' },
   { name: 'Bound', effect: 'Cannot take movement actions' },
-  { name: 'Stunned', effect: 'Reduce AP by 1d4' },
-  { name: 'Distracted', effect: 'Cannot purchase/use Reaction Tokens' },
-  { name: 'Taunted', effect: 'Must target Taunter with Combat Action or lose 2AP' },
+  { name: 'Stunned', effect: 'Can not use Gear' },
+  { name: 'Distracted', effect: 'Must use all Actions (Free Actions Included) during your Turn, no holding Actions.' },
+  { name: 'Taunted', effect: 'Must target Taunter with Combat Action or lose Combat Action' },
   { name: 'Marked', effect: 'Cannot be Hidden' },
   { name: 'Exposed', effect: 'WT reduced by 1' },
-  { name: 'Nullified', effect: 'Cannot use Mod Engrams' },
+  { name: 'Nullified', effect: 'Cannot use Engrams' },
   { name: 'Overheated', effect: 'Cannot use Grit' },
   { name: 'Irradiated', effect: 'Lose 1 Grit' },
-  { name: 'Afflicted (Poison, Burn, Suffocation etc)', effect: 'At the bottom of your turn, roll a dice, on evens reduce WT by 1, on odds, nothing happens.' },
-  { name: 'Frightened', effect: 'Must remain adjacent to fear source' },
-  { name: 'Crushed', effect: 'Double AP Costs' },
+  { name: 'Afflicted (Poison, Burn, Suffocation etc)', effect: 'At the bottom of your turn, roll a die, on evens reduce WT by 1, on odds, nothing happens.' },
+  { name: 'Frightened', effect: 'Must remain in an adjacent zone to fear source' },
+  { name: 'Crushed', effect: "Roll 1d6, on 1-2, lose your Movement Action, 3-4 lose your Non Movement Action, 5-6 can't use Gear" },
   { name: 'Confused', effect: 'Roll twice, take lower' },
-  { name: 'Hacked', effect: 'Roll 1d4, control target for that # of Turns' },
+  { name: 'Hacked', effect: 'Roll xd4, control target for that # of Turns' },
   { name: 'Discombobulated', effect: 'Roll 1d4, on 1, Combat Actions hit a random target' },
   { name: 'Focused', effect: 'On rolls, roll twice, take higher' },
-  { name: 'Shielded', effect: 'Damage halved' },
+  { name: 'Shielded', effect: 'Target absorbs xd4 Wounds before reducing HP' },
   { name: 'Fortified', effect: 'WT increased by 1' },
-  { name: 'Hastened', effect: 'Any movement costs 1 less AP' },
-  { name: 'Inspired', effect: 'Gain 1 Grit' },
-  { name: 'Energized', effect: 'Gain +1AP' },
-  { name: 'Overclocked', effect: 'Damage die steps up one tier' },
-  { name: 'Bleeding', effect: 'On hit, Lose 1HP regardless of WT' },
+  { name: 'Hastened', effect: 'Gain an extra Movement Action each round this remains active' },
+  { name: 'Energized', effect: 'Gain +1 Non Movement Action' },
+  { name: 'Bleeding', effect: 'Lose 1HP at the bottom of your turn' },
   { name: 'Charmed', effect: 'Treat source as friendly' },
   { name: 'Demoralized', effect: 'Cannot Ganbare or receive Ganbare' },
-  { name: 'Rattled', effect: 'Cannot use Overdrive' },
-  { name: 'Pressured', effect: 'Cannot Flank or gain positional bonuses' },
-  { name: 'Exhausted', effect: 'Reduce all AO/PCDC rolls by 1d4' },
+  { name: 'Rattled', effect: 'Cannot use Overload' },
   { name: 'Downed', effect: 'Out of the fight, must be revived' },
-  { name: 'Desynced', effect: 'You are Desynced' },
+  { name: 'Desynced', effect: 'Your Enhancer is Desynced' },
 ]
 function readUI() {
   try { const r = localStorage.getItem(UI_KEY); return r ? JSON.parse(r) : {} } catch { return {} }
@@ -350,13 +352,14 @@ function createStyles() {
     @keyframes status-roll-save-pips-error { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
     .status-roll-save-pip { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); }
     .status-roll-save-pip.armed { background: #0ff6ff; border-color: #0ff6ff; }
+    .status-roll-save-pip.spent { background: rgba(255,159,107,0.18); border-color: rgba(255,159,107,0.35); opacity: 0.6; }
     .status-roll-save-wardrobe-pip { display: inline-flex; align-items: center; gap: 2px; font-size: 9px; font-weight: 700; color: #ffd43b; background: rgba(255,212,59,0.14); border: 1px solid rgba(255,212,59,0.5); border-radius: 999px; padding: 1px 6px; }
     .status-roll-save-armed-hint { text-align: center; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(248,250,252,0.55); }
     .status-roll-save-dice { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
     .status-roll-save-chip { padding: 5px 8px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #e9f0ff; font-size: 10px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
     .status-roll-save-chip:disabled { cursor: default; opacity: 0.7; }
     .status-roll-save-chip.overloaded { border-color: #ffd43b; background: rgba(255,212,59,0.14); color: #ffd43b; }
-    .status-roll-save-chip.exploded { border-color: #0ff6ff; }
+    .status-roll-save-chip.top { border-color: #0ff6ff; }
     .status-roll-save-chip-tag { font-size: 8px; font-weight: 800; letter-spacing: 0.05em; }
     .status-roll-save-chip-tag.doubled { color: #ffd43b; }
     .status-roll-save-total { width: 100%; text-align: center; font-size: 16px; font-weight: 800; color: #e9f0ff; margin-top: 2px; }
@@ -750,13 +753,14 @@ function buildStatusRollsPanel() {
   ]
   const CHUD_STATE_KEY = 'chud.state.v1'
   const WARDROBE_STORAGE_KEY = 'wardrobe.v1'
+  // Method dice are always d10 — see domain/approachDice.ts's METHOD_DIE.
+  const METHOD_DIE = 10
   const readApproachState = () => {
     try {
       const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}')
       const approach = s?.approach && typeof s.approach === 'object' ? s.approach : {}
-      const dieSize = Number(s?.approachDieSize) || 8
-      return { approach, dieSize }
-    } catch { return { approach: {}, dieSize: 8 } }
+      return { approach }
+    } catch { return { approach: {} } }
   }
   // Mirrors domain/wardrobeBonus.ts: sum each Wardrobe row's "+N" Quality
   // onto the Approach it's assigned to. A Save is an Approach Roll, so these
@@ -780,14 +784,12 @@ function buildStatusRollsPanel() {
       return { bonus, items }
     } catch { return { bonus: 0, items: [] } }
   }
-  // Mirrors domain/approachDice.ts: roll each die once, explode once (one
-  // extra die, no re-chaining) when a die lands on its max face.
-  const rollApproachExplodeDice = (count, dieSize) => {
+  // Mirrors domain/approachDice.ts: Method dice are always d10 and never
+  // Explode. `total` is the single highest face rolled, not a sum.
+  const rollMethodDice = (count) => {
     const dice = []
     for (let i = 0; i < Math.max(0, count); i++) {
-      const rolls = [1 + Math.floor(Math.random() * dieSize)]
-      if (rolls[0] === dieSize) rolls.push(1 + Math.floor(Math.random() * dieSize))
-      dice.push({ rolls, total: rolls.reduce((sum, n) => sum + n, 0) })
+      dice.push(1 + Math.floor(Math.random() * METHOD_DIE))
     }
     return dice
   }
@@ -941,7 +943,7 @@ function buildStatusRollsPanel() {
       title.textContent = `${label} Save`
       body.innerHTML = ''
 
-      const { approach, dieSize } = readApproachState()
+      const { approach } = readApproachState()
       const base = Number(approach?.[field]) || 0
       const { bonus: wardrobeBonus, items: wardrobeItems } = readWardrobeBonus(field)
       const rating = base + wardrobeBonus
@@ -1013,9 +1015,14 @@ function buildStatusRollsPanel() {
           badge.textContent = `+${wardrobeBonus} 👕`
           pips.appendChild(badge)
         }
-        for (let i = 0; i < available; i++) {
+        // Always show the full Method pool (rating), not just what's
+        // currently available — an Overloaded-and-spent die's pip stays
+        // visible (dimmed) instead of vanishing. Mirrors ApproachDie.tsx.
+        for (let i = 0; i < rating; i++) {
+          const isAvailable = i < available
+          const isArmed = isAvailable && i < armed
           const pip = document.createElement('span')
-          pip.className = `status-roll-save-pip${i < armed ? ' armed' : ''}${i < armed && armedFading ? ' fading' : ''}`
+          pip.className = `status-roll-save-pip${isArmed ? ' armed' : ''}${isArmed && armedFading ? ' fading' : ''}${!isAvailable ? ' spent' : ''}`
           pips.appendChild(pip)
         }
         armedHint.textContent = available <= 0
@@ -1040,7 +1047,7 @@ function buildStatusRollsPanel() {
       rollBtn.addEventListener('click', () => {
         if (armed <= 0) return
         clearArmedTimers()
-        dice = rollApproachExplodeDice(armed, dieSize)
+        dice = rollMethodDice(armed)
         overloadedSet.clear()
         pips.style.display = 'none'
         armedHint.style.display = 'none'
@@ -1050,35 +1057,31 @@ function buildStatusRollsPanel() {
         result.style.display = 'none'
       })
 
-      // Overload doubles only the original face of a die — an explosion's
-      // extra roll(s) are added on top, un-doubled, same as the real card.
-      const overloadedValue = (dieRoll) =>
-        dieRoll.rolls[0] * 2 + dieRoll.rolls.slice(1).reduce((sum, r) => sum + r, 0)
+      // Overload doubles a die's face. No die Explodes, so this is the
+      // only modifier a die's effective value ever gets.
+      const effectiveValue = (value, index) => (overloadedSet.has(index) ? value * 2 : value)
 
-      const currentTotal = () => (dice ?? []).reduce(
-        (sum, dieRoll, index) => sum + (overloadedSet.has(index) ? overloadedValue(dieRoll) : dieRoll.total), 0
-      )
+      // Total is the single highest effective die, never a sum — see
+      // domain/approachDice.ts.
+      const currentTotal = () => {
+        if (!dice || dice.length === 0) return 0
+        return Math.max(...dice.map((value, index) => effectiveValue(value, index)))
+      }
 
       const renderDiceChips = () => {
         diceWrap.innerHTML = ''
-        ;(dice ?? []).forEach((dieRoll, index) => {
-          const didExplode = dieRoll.rolls.length > 1
+        const values = (dice ?? []).map((value, index) => effectiveValue(value, index))
+        const topValue = values.length ? Math.max(...values) : null
+        ;(dice ?? []).forEach((value, index) => {
+          const isTop = values[index] === topValue
           const chip = document.createElement('button')
-          chip.className = `status-roll-save-chip${overloadedSet.has(index) ? ' overloaded' : ''}${didExplode ? ' exploded' : ''}`
+          chip.className = `status-roll-save-chip${overloadedSet.has(index) ? ' overloaded' : ''}${isTop ? ' top' : ''}`
           chip.setAttribute('data-touch-blocker-ignore', '')
           chip.disabled = overloadedSet.has(index) || available <= 0
           chip.title = overloadedSet.has(index)
             ? 'Already Overloaded'
-            : didExplode
-              ? 'Tap to Overload: doubles only the original roll, spend 1 from the Method pool'
-              : 'Tap to Overload: double this die, spend 1 from the Method pool'
-          chip.textContent = `D${dieSize}: ${dieRoll.rolls.join(' + ')}`
-          if (didExplode) {
-            const tag = document.createElement('span')
-            tag.className = 'status-roll-save-chip-tag'
-            tag.textContent = 'EXPLODE'
-            chip.appendChild(tag)
-          }
+            : 'Tap to Overload: double this die, spend 1 from the Method pool'
+          chip.textContent = `D${METHOD_DIE}: ${value}`
           if (overloadedSet.has(index)) {
             const tag = document.createElement('span')
             tag.className = 'status-roll-save-chip-tag doubled'
