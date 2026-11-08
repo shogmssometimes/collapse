@@ -322,14 +322,20 @@ export function ApproachDie({
     hasWoundValue && (woundMode === "threshold" ? value >= woundThresholdNumber : value === woundThresholdNumber)
   const successCount = hasWoundValue ? damageDice.filter(isSuccess).length : 0
 
-  const wardrobePipCount = Math.min(wardrobeBonus, available)
+  const wardrobePipCount = Math.min(wardrobeBonus, rating)
+  // How many dice from the full pool are currently spent/unavailable
+  // (Overloaded earlier today, or on a prior roll) — the pips render the
+  // full Method rating, with these shown as "spent" instead of just
+  // disappearing, so the player can see their whole pool, not just what's
+  // left of it.
+  const spentPipCount = Math.max(0, rating - available)
 
   return (
     <button
       ref={boxRef}
       type="button"
       className={`approach-die${charging ? " charging" : ""}${errorFlash ? " error" : ""}`}
-      aria-label={`${label}, rating ${rating}: ${armed} armed of ${available} available${wardrobeBonus > 0 ? ` (includes +${wardrobeBonus} from Wardrobe)` : ""}. Tap to arm a die, hold to roll.`}
+      aria-label={`${label}, rating ${rating}: ${armed} armed of ${available} available${spentPipCount > 0 ? `, ${spentPipCount} spent until Full Rest` : ""}${wardrobeBonus > 0 ? ` (includes +${wardrobeBonus} from Wardrobe)` : ""}. Tap to arm a die, hold to roll.`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={cancelPress}
@@ -344,12 +350,13 @@ export function ApproachDie({
       <span className="approach-die-label">{label}</span>
       <span className="approach-die-rating" aria-hidden="true">{rating}</span>
       <div className="approach-die-pips" aria-hidden="true">
-        {Array.from({ length: available }, (_, index) => {
-          const isWardrobePip = index >= available - wardrobePipCount
+        {Array.from({ length: rating }, (_, index) => {
+          const isSpent = index >= available
+          const isWardrobePip = index >= rating - wardrobePipCount
           return (
             <span
               key={index}
-              className={`approach-die-pip${index < armed ? " armed" : ""}${isWardrobePip ? " wardrobe" : ""}${index < armed && armedFading ? " fading" : ""}`}
+              className={`approach-die-pip${index < armed ? " armed" : ""}${isWardrobePip ? " wardrobe" : ""}${index < armed && armedFading ? " fading" : ""}${isSpent ? " spent" : ""}`}
             />
           )
         })}

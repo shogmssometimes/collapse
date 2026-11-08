@@ -1120,6 +1120,21 @@ body::after {
   border-color: #ffd43b;
 }
 
+/* A pip currently Overloaded-and-spent from the full Method pool (shown
+   until a Full Rest or Ganbare! restores it). The full rating always
+   renders a pip, even while some are spent, so the player can see their
+   whole pool rather than watching it silently shrink. */
+.approach-die-pip.spent {
+  background: rgba(255, 90, 90, 0.1);
+  border-color: rgba(255, 90, 90, 0.35);
+  transform: scale(0.85);
+  opacity: 0.55;
+}
+
+.approach-die-pip.spent.wardrobe {
+  border-color: rgba(255, 90, 90, 0.35);
+}
+
 @keyframes approach-die-error {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-4px); }
