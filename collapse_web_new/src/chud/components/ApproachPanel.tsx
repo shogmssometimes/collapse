@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApproachDie, type ApproachDieRollResult } from "./ApproachDie";
-import { ApproachDieSizeControl } from "./ApproachDieSizeControl";
 import type { ApproachStats } from "../../types/chud";
 import type { DieSides } from "../../domain/approachDice";
 import { APPROACH_LABELS } from "../../domain/coreApproachMap";
@@ -53,9 +52,6 @@ function RollModeToggle() {
 // the AAG page's Core Stats section; this panel only reads `approach`.
 export function ApproachPanel({
   approach,
-  approachDieSize,
-  onApproachDieSizeIncrease,
-  onApproachDieSizeReset,
   damageDieSize,
   onRollApproachDie,
   approachOverloadSpent,
@@ -64,9 +60,6 @@ export function ApproachPanel({
   approachWardrobeItems,
 }: {
   approach: ApproachStats;
-  approachDieSize: DieSides;
-  onApproachDieSizeIncrease: () => DieSides;
-  onApproachDieSizeReset: () => DieSides;
   damageDieSize: DieSides;
   onRollApproachDie: (field: keyof ApproachStats, count: number) => ApproachDieRollResult;
   approachOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
@@ -110,7 +103,6 @@ export function ApproachPanel({
                 wardrobeBonus={wardrobeBonus}
                 wardrobeItems={approachWardrobeItems[field] ?? []}
                 available={available}
-                die={approachDieSize}
                 damageDie={damageDieSize}
                 onRoll={(count) => onRollApproachDie(field, count)}
                 onOverload={() => onOverloadApproachDie(field)}
@@ -119,12 +111,6 @@ export function ApproachPanel({
           );
         })}
       </div>
-      <ApproachDieSizeControl
-        die={approachDieSize}
-        onIncrease={onApproachDieSizeIncrease}
-        onReset={onApproachDieSizeReset}
-        compact
-      />
     </div>
   );
 }

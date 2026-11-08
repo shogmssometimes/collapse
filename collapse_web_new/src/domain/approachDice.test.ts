@@ -35,28 +35,28 @@ describe("Approach dice", () => {
     expect(isDieSides("8")).toBe(false)
   })
 
-  it("rolls a number of dice equal to the Approach rating", () => {
-    const result = rollApproachDice(3, 8, sequence(0, 0.25, 0.5))
+  it("rolls a number of d10s equal to the Approach rating and Total is the highest die", () => {
+    const result = rollApproachDice(3, sequence(0, 0.25, 0.5))
 
-    expect(result.dice.map((die) => die.rolls)).toEqual([[1], [3], [5]])
-    expect(result.total).toBe(9)
+    expect(result.dice.map((die) => die.rolls)).toEqual([[1], [3], [6]])
+    expect(result.total).toBe(6)
   })
 
-  it("explodes each Approach die once on its maximum", () => {
-    const result = rollApproachDice(2, 6, sequence(0.999, 0.5, 0.999, 0.999))
+  it("never explodes, even on a maximum roll", () => {
+    const result = rollApproachDice(2, sequence(0.999, 0.5))
 
-    expect(result.dice.map((die) => die.rolls)).toEqual([[6, 4], [6, 6]])
-    expect(result.total).toBe(22)
+    expect(result.dice.map((die) => die.rolls)).toEqual([[10], [6]])
+    expect(result.total).toBe(10)
   })
 
   it("allows an Approach rating of zero and rejects invalid counts", () => {
-    expect(rollApproachDice(0, 8, sequence()).total).toBe(0)
-    expect(() => rollApproachDice(-1, 8)).toThrow(/non-negative integer/)
-    expect(() => rollApproachDice(1.5, 8)).toThrow(/non-negative integer/)
+    expect(rollApproachDice(0, sequence()).total).toBe(0)
+    expect(() => rollApproachDice(-1)).toThrow(/non-negative integer/)
+    expect(() => rollApproachDice(1.5)).toThrow(/non-negative integer/)
   })
 
   it("rejects invalid random samples instead of returning invalid rolls", () => {
-    expect(() => rollApproachDice(1, 8, () => 1)).toThrow(/Random source/)
+    expect(() => rollApproachDice(1, () => 1)).toThrow(/Random source/)
   })
 
   it("tracks an Overload dice pool that depletes down to zero and clamps", () => {

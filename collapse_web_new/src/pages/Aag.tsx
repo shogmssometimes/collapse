@@ -79,10 +79,12 @@ export default function AagPage({
     try {
       const raw = window.localStorage.getItem(chudStateStorageKey);
       const prev = raw ? JSON.parse(raw) : {};
-      // Strip legacy fields no longer part of SaveState (ap, draw) so they
-      // don't keep getting echoed back into storage forever via the spread.
+      // Strip legacy fields no longer part of SaveState (ap, draw,
+      // approachDieSize — Method dice are always d10 now) so they don't
+      // keep getting echoed back into storage forever via the spread.
       delete prev.ap;
       delete prev.draw;
+      delete prev.approachDieSize;
       const merged = { ...prev, core, approach, damageDieSize, wt, inventorySlots };
       delete merged.approachDice;
       window.localStorage.setItem(chudStateStorageKey, JSON.stringify(merged));

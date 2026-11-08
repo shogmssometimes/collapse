@@ -3,6 +3,14 @@ export type DieSides = 4 | 6 | 8 | 10 | 12 | 20
 export const DIE_LADDER: readonly DieSides[] = [4, 6, 8, 10, 12, 20]
 export const DEFAULT_DIE_SIZE: DieSides = 8
 
+/**
+ * Collapse uses one primary dice engine: Xd10. Every Method and every
+ * player uses the same die size — there is no per-Approach die-size
+ * selection anymore. The Weapon Quality / Wound die (see DIE_LADDER above)
+ * is a separate, still-variable die size.
+ */
+export const METHOD_DIE: DieSides = 10
+
 export type ApproachDieResult = {
   rolls: number[]
   total: number
@@ -65,10 +73,10 @@ export function fullRestOverload(): number {
 }
 
 /**
- * Flat, non-exploding dice roll — used for the Damage roll (quantity =
- * Margin) and any other "severity" style roll where the individual die
- * faces matter more than a summed total. Only the initial Resolution
- * (Approach) roll explodes.
+ * Flat, non-exploding dice roll — used for the Wound/Severity roll
+ * (quantity = Margin, die size = Weapon Quality) and any other roll where
+ * the individual die faces matter more than a summed total. No roll in
+ * Collapse explodes.
  */
 export function rollFlatDice(
   count: number,
@@ -81,9 +89,14 @@ export function rollFlatDice(
   return Array.from({ length: count }, () => rollDie(die, random))
 }
 
+/**
+ * Rolls a Method's dice pool: count d10s, nothing Explodes, and the Total is
+ * the single highest die rolled (not a sum). Overload (doubling a die's
+ * value) is applied afterward by the caller/UI layer, since it's a player
+ * choice made after seeing the roll.
+ */
 export function rollApproachDice(
   count: number,
-  die: DieSides,
   random: () => number = Math.random
 ): ApproachRollResult {
   if (!Number.isSafeInteger(count) || count < 0) {
@@ -91,17 +104,16 @@ export function rollApproachDice(
   }
 
   const dice = Array.from({ length: count }, () => {
-    const rolls = [rollDie(die, random)]
-    if (rolls[0] === die) rolls.push(rollDie(die, random))
+    const rolls = [rollDie(METHOD_DIE, random)]
     return {
       rolls,
-      total: rolls.reduce((sum, result) => sum + result, 0),
+      total: rolls[0],
     }
   })
 
   return {
-    die,
+    die: METHOD_DIE,
     dice,
-    total: dice.reduce((sum, result) => sum + result.total, 0),
+    total: dice.reduce((max, result) => Math.max(max, result.total), 0),
   }
 }

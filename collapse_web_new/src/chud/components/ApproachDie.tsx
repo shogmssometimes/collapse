@@ -30,12 +30,13 @@ const dieLabel = (die: DieSides) => `D${die}`
 // Core distribution popout) already implies the extra die is available — no
 // separate "breakout" indicator is needed here.
 //
-// Past the initial Resolution roll, the popup offers two paths: send the sum
-// to the HUD's Set Roll list, or turn it into a Margin against an Opposition
-// roll. A positive Margin can then be spent on a flat (non-exploding) Damage
-// roll — individual dice are checked against a Wound Threshold/Target so the
-// player can read off how many "successes" they have to announce at the
-// table. None of this adjudicates anything; it only surfaces the numbers.
+// Past the initial Resolution roll, the popup offers two paths: send the
+// Total to the HUD's Set Roll list, or turn it into a Margin against an
+// Opposition roll. A positive Margin can then be spent on a flat
+// (non-exploding) Wound roll — individual dice are checked against a Wound
+// Threshold/Target so the player can read off how many "successes" they
+// have to announce at the table. None of this adjudicates anything; it
+// only surfaces the numbers.
 export function ApproachDie({
   label,
   rating,
@@ -43,7 +44,6 @@ export function ApproachDie({
   wardrobeBonus = 0,
   wardrobeItems = [],
   available,
-  die,
   damageDie,
   onRoll,
   onOverload,
@@ -59,8 +59,7 @@ export function ApproachDie({
   wardrobeItems?: string[]
   /** Dice currently available to arm (rating minus any Overloaded-and-spent dice). */
   available: number
-  die: DieSides
-  /** Shared Damage die size, used for the post-Margin damage roll. */
+  /** Weapon Quality die size, used for the post-Margin Wound roll. */
   damageDie: DieSides
   onRoll: (count: number) => ApproachDieRollResult
   /** Doubles one rolled die's value and spends it from the Overload pool. Returns false if the pool is exhausted. */
@@ -270,17 +269,18 @@ export function ApproachDie({
     armOne()
   }
 
-  const hasExplosion = result?.dice.some((dieRoll) => dieRoll.rolls.length > 1) ?? false
   // `available` already reflects every Overload spent so far (this roll and
   // any prior ones) via the parent's approachOverloadSpent tracking — it's
   // not just this roll's local `overloaded` set, so don't subtract that too.
   const overloadPoolRemaining = available
-  // Overload doubles only a die's original face — an explosion's extra
-  // roll(s) are added on top, un-doubled.
-  const overloadedValue = (dieRoll: ApproachDieResult) =>
-    dieRoll.rolls[0] * 2 + dieRoll.rolls.slice(1).reduce((sum, r) => sum + r, 0)
+  // Overload doubles a die's face value. Nothing Explodes, so the Total is
+  // simply the single highest die in the pool after any Overloads.
+  const overloadedValue = (dieRoll: ApproachDieResult) => dieRoll.rolls[0] * 2
   const displayTotal = result
-    ? result.dice.reduce((sum, dieRoll, index) => sum + (overloaded.has(index) ? overloadedValue(dieRoll) : dieRoll.total), 0)
+    ? result.dice.reduce(
+        (max, dieRoll, index) => Math.max(max, overloaded.has(index) ? overloadedValue(dieRoll) : dieRoll.total),
+        0
+      )
     : 0
 
   const handleToggleOverload = (index: number) => {
@@ -396,17 +396,18 @@ export function ApproachDie({
 
           {!rolling && result && view === "result" && (
             <>
-              <div className={`approach-die-popup-value${hasExplosion ? " good" : ""}`}>
+              <div className="approach-die-popup-value">
                 {displayTotal}
               </div>
               <div className="approach-die-popup-die">
                 {result.dice.map((dieRoll, index) => {
-                  const didExplode = dieRoll.rolls.length > 1
+                  const effectiveValue = overloaded.has(index) ? overloadedValue(dieRoll) : dieRoll.total
+                  const isTop = result.dice.length > 0 && effectiveValue === displayTotal
                   return (
                     <button
                       key={index}
                       type="button"
-                      className={`approach-die-chip${overloaded.has(index) ? " overloaded" : ""}${didExplode ? " exploded" : ""}`}
+                      className={`approach-die-chip${overloaded.has(index) ? " overloaded" : ""}${isTop ? " top" : ""}`}
                       disabled={!onOverload || overloaded.has(index) || overloadPoolRemaining <= 0}
                       onClick={(event) => {
                         event.stopPropagation()
@@ -415,15 +416,12 @@ export function ApproachDie({
                       title={
                         overloaded.has(index)
                           ? "Already Overloaded"
-                          : didExplode
-                          ? "Tap to Overload: doubles only the original roll, spend 1 from the Method pool"
                           : onOverload
                           ? "Tap to Overload: double this die, spend 1 from the Method pool"
                           : undefined
                       }
                     >
-                      {dieLabel(result.die)}: {dieRoll.rolls.join(" + ")}
-                      {didExplode && <span className="approach-die-chip-exploded">EXPLODE</span>}
+                      D10: {dieRoll.rolls[0]}
                       {overloaded.has(index) && <span className="approach-die-chip-doubled">DOUBLED</span>}
                     </button>
                   )
