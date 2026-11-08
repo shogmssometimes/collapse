@@ -350,9 +350,10 @@ function createStyles() {
     .status-roll-save-pips { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; min-height: 12px; cursor: pointer; }
     .status-roll-save-pips.error-flash { animation: status-roll-save-pips-error 420ms ease; }
     @keyframes status-roll-save-pips-error { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
-    .status-roll-save-pip { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); }
-    .status-roll-save-pip.armed { background: #0ff6ff; border-color: #0ff6ff; }
+    .status-roll-save-pip { width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); display: inline-flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: rgba(248,250,252,0.65); line-height: 1; }
+    .status-roll-save-pip.armed { background: #0ff6ff; border-color: #0ff6ff; color: #04282b; }
     .status-roll-save-pip.spent { background: rgba(255,159,107,0.18); border-color: rgba(255,159,107,0.35); opacity: 0.6; }
+    .status-roll-save-pip.locked { background: transparent; border-style: dashed; border-color: rgba(255,255,255,0.14); color: rgba(248,250,252,0.3); }
     .status-roll-save-wardrobe-pip { display: inline-flex; align-items: center; gap: 2px; font-size: 9px; font-weight: 700; color: #ffd43b; background: rgba(255,212,59,0.14); border: 1px solid rgba(255,212,59,0.5); border-radius: 999px; padding: 1px 6px; }
     .status-roll-save-armed-hint { text-align: center; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(248,250,252,0.55); }
     .status-roll-save-dice { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
@@ -755,6 +756,10 @@ function buildStatusRollsPanel() {
   const WARDROBE_STORAGE_KEY = 'wardrobe.v1'
   // Method dice are always d10 — see domain/approachDice.ts's METHOD_DIE.
   const METHOD_DIE = 10
+  // "Stats and Methods all max out at 6." — see domain/coreApproachMap.ts's
+  // STAT_AND_METHOD_MAX. Duplicated here since this file isn't bundled by
+  // Vite and can't import from the React domain layer.
+  const STAT_AND_METHOD_MAX = 6
   const readApproachState = () => {
     try {
       const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}')
@@ -926,7 +931,7 @@ function buildStatusRollsPanel() {
       APPROACH_LABELS.forEach(([key, label]) => {
         const base = Number(approach?.[key]) || 0
         const { bonus } = readWardrobeBonus(key)
-        const rating = base + bonus
+        const rating = Math.min(STAT_AND_METHOD_MAX, base + bonus)
         const btn = document.createElement('button')
         btn.className = 'status-roll-save-approach-btn'
         btn.setAttribute('data-touch-blocker-ignore', '')
@@ -946,7 +951,7 @@ function buildStatusRollsPanel() {
       const { approach } = readApproachState()
       const base = Number(approach?.[field]) || 0
       const { bonus: wardrobeBonus, items: wardrobeItems } = readWardrobeBonus(field)
-      const rating = base + wardrobeBonus
+      const rating = Math.min(STAT_AND_METHOD_MAX, base + wardrobeBonus)
       let spent = readOverloadSpent(field)
       let available = Math.max(0, rating - spent)
       let armed = 0
@@ -1015,14 +1020,19 @@ function buildStatusRollsPanel() {
           badge.textContent = `+${wardrobeBonus} 👕`
           pips.appendChild(badge)
         }
-        // Always show the full Method pool (rating), not just what's
-        // currently available — an Overloaded-and-spent die's pip stays
-        // visible (dimmed) instead of vanishing. Mirrors ApproachDie.tsx.
-        for (let i = 0; i < rating; i++) {
-          const isAvailable = i < available
+        // Always show the full 1-6 track from the printed sheet (a Method
+        // can never rate above 6 — handbook's Stat/Method cap), not just
+        // what's currently available: an Overloaded-and-spent die's pip
+        // stays visible (dimmed) instead of vanishing, and circles past the
+        // current rating are locked. Mirrors ApproachDie.tsx.
+        for (let i = 0; i < 6; i++) {
+          const slotNumber = i + 1
+          const isUnlocked = slotNumber <= rating
+          const isAvailable = isUnlocked && i < available
           const isArmed = isAvailable && i < armed
           const pip = document.createElement('span')
-          pip.className = `status-roll-save-pip${isArmed ? ' armed' : ''}${isArmed && armedFading ? ' fading' : ''}${!isAvailable ? ' spent' : ''}`
+          pip.className = `status-roll-save-pip${isUnlocked ? '' : ' locked'}${isArmed ? ' armed' : ''}${isArmed && armedFading ? ' fading' : ''}${isUnlocked && !isAvailable ? ' spent' : ''}`
+          pip.textContent = String(slotNumber)
           pips.appendChild(pip)
         }
         armedHint.textContent = available <= 0

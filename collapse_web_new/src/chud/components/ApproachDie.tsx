@@ -5,6 +5,7 @@ import { rollFlatDice } from "../../domain/approachDice"
 import { addSetRollRow } from "../../utils/chudVanillaBridge"
 import { getRollMode } from "../../domain/rollMode"
 import { hasPendingNotification, pushNotification } from "../../domain/notifications"
+import { STAT_AND_METHOD_MAX } from "../../domain/coreApproachMap"
 
 export type ApproachDieRollResult = ApproachRollResult
 
@@ -350,14 +351,26 @@ export function ApproachDie({
       <span className="approach-die-label">{label}</span>
       <span className="approach-die-rating" aria-hidden="true">{rating}</span>
       <div className="approach-die-pips" aria-hidden="true">
-        {Array.from({ length: rating }, (_, index) => {
-          const isSpent = index >= available
-          const isWardrobePip = index >= rating - wardrobePipCount
+        {/* Always render the full 1-6 track from the printed sheet (a
+            Method can never go above STAT_AND_METHOD_MAX), numbering each
+            circle like the paper version's marker track. Circles past the
+            current rating are locked (this Method doesn't have a die
+            there); within the rating, the "marker" is just where the
+            spent/available boundary falls — spending an Overload die
+            moves it down, a Full Rest/Ganbare! moves it back up. */}
+        {Array.from({ length: STAT_AND_METHOD_MAX }, (_, index) => {
+          const slotNumber = index + 1
+          const isUnlocked = slotNumber <= rating
+          const isSpent = isUnlocked && index >= available
+          const isArmedPip = isUnlocked && index < armed
+          const isWardrobePip = isUnlocked && index >= rating - wardrobePipCount
           return (
             <span
               key={index}
-              className={`approach-die-pip${index < armed ? " armed" : ""}${isWardrobePip ? " wardrobe" : ""}${index < armed && armedFading ? " fading" : ""}${isSpent ? " spent" : ""}`}
-            />
+              className={`approach-die-pip${isUnlocked ? "" : " locked"}${isArmedPip ? " armed" : ""}${isWardrobePip ? " wardrobe" : ""}${isArmedPip && armedFading ? " fading" : ""}${isSpent ? " spent" : ""}`}
+            >
+              {slotNumber}
+            </span>
           )
         })}
       </div>

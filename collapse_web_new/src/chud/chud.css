@@ -1064,8 +1064,9 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 8px;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-height: 12px;
 }
 
 /* The Wardrobe bonus badge: a single pip-styled circle combining the
@@ -1087,18 +1088,37 @@ body::after {
 }
 
 .approach-die-pip {
-  /* +15% over the original 7px pips. */
-  width: 8px;
-  height: 8px;
+  /* Numbered 1-6 track, like the printed sheet's Method circles — a fixed
+     set of 6, not just however many dice the Method currently has. */
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.22);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.4rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(248, 250, 252, 0.65);
   transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, opacity 900ms ease;
+}
+
+/* A circle past the Method's current rating — this Method doesn't have a
+   die here (yet). Shown hollow/dashed instead of just omitted, so the full
+   1-6 track always reads the same way the printed sheet does. */
+.approach-die-pip.locked {
+  background: transparent;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(248, 250, 252, 0.3);
 }
 
 .approach-die-pip.armed {
   background: #0ff6ff;
   border-color: #0ff6ff;
+  color: #04282b;
   transform: scale(1.1);
 }
 
@@ -1118,6 +1138,7 @@ body::after {
 .approach-die-pip.wardrobe.armed {
   background: #ffd43b;
   border-color: #ffd43b;
+  color: #332400;
 }
 
 /* A pip currently Overloaded-and-spent from the full Method pool (shown
