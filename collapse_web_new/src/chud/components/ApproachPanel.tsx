@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ApproachDie, type ApproachDieRollResult } from "./ApproachDie";
 import type { ApproachStats } from "../../types/chud";
 import type { DieSides } from "../../domain/approachDice";
-import { APPROACH_LABELS } from "../../domain/coreApproachMap";
+import { APPROACH_LABELS, STAT_AND_METHOD_MAX } from "../../domain/coreApproachMap";
 import { ROLL_MODE_STORAGE_KEY, getRollMode, setRollMode, type RollMode } from "../../domain/rollMode";
 
 // Combat/Roleplay toggle — gates whether a margin of 0 on an Approach Roll
@@ -91,7 +91,10 @@ export function ApproachPanel({
         {approachStats.map(([field, label]) => {
           const baseRating = approach[field];
           const wardrobeBonus = approachWardrobeBonus[field] ?? 0;
-          const rating = baseRating + wardrobeBonus;
+          // "Stats and Methods all max out at 6." Wardrobe bonus can push a
+          // Method's displayed rating above 6 only up to that cap — see
+          // STAT_AND_METHOD_MAX.
+          const rating = Math.min(STAT_AND_METHOD_MAX, baseRating + wardrobeBonus);
           const spent = approachOverloadSpent[field] ?? 0;
           const available = Math.max(0, rating - Math.min(Math.max(spent, 0), rating));
           return (

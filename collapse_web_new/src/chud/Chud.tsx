@@ -14,7 +14,7 @@ import {
   type DieSides,
 } from "../domain/approachDice";
 import type { ApproachDieRollResult } from "./components/ApproachDie";
-import { clampApproachToCore } from "../domain/coreApproachMap";
+import { clampApproachToCore, clampCore } from "../domain/coreApproachMap";
 import { computeWardrobeBonuses } from "../domain/wardrobeBonus";
 import { loadState, readGearData, readWardrobeData } from "../utils/chudPersistence";
 import { wardrobeKey, deckBuilderKey } from "../utils/slotKeys";
@@ -58,8 +58,8 @@ const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 4;
 export default function Chud() {
   const saved = loadState(STORAGE_KEY);
 
-  const [core, setCore] = useState<CoreStats>(saved?.core ?? { vigor: 0, inference: 0, personality: 0 });
-  const [approach, setApproach] = useState<ApproachStats>(() => clampApproachToCore(saved?.approach ?? DEFAULT_APPROACH, saved?.core ?? { vigor: 0, inference: 0, personality: 0 }));
+  const [core, setCore] = useState<CoreStats>(clampCore(saved?.core ?? { vigor: 0, inference: 0, personality: 0 }));
+  const [approach, setApproach] = useState<ApproachStats>(() => clampApproachToCore(saved?.approach ?? DEFAULT_APPROACH, clampCore(saved?.core ?? { vigor: 0, inference: 0, personality: 0 })));
   const [damageDieSize, setDamageDieSize] = useState<DieSides>(
     isDieSides(saved?.damageDieSize) ? saved.damageDieSize : DEFAULT_DAMAGE_DIE_SIZE
   );
@@ -202,8 +202,8 @@ export default function Chud() {
       if (e.key !== STORAGE_KEY || !e.newValue) return;
       try {
         const s = JSON.parse(e.newValue) as Partial<SaveState>;
-        if (s.core) setCore(s.core);
-        if (s.approach) setApproach(clampApproachToCore(s.approach, s.core ?? core));
+        if (s.core) setCore(clampCore(s.core));
+        if (s.approach) setApproach(clampApproachToCore(s.approach, clampCore(s.core ?? core)));
         if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
         if (s.approachOverloadSpent) setApproachOverloadSpent(s.approachOverloadSpent);
         if (typeof s.hpCounter === "number") setHpCounterRaw(s.hpCounter);
