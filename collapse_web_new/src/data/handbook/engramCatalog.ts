@@ -1,9 +1,8 @@
-// Engram catalog — the handbook's Engram table (LVL, Name, Note, Effect).
-// Sourced from the same raw data the old card-game deck builder used
-// (`raw/modcards.json`): those "mod cards" are the handbook's Engrams, just
-// reframed here as equippable, spell-slot-style abilities instead of drawn
-// cards.
-import rawEngrams from './raw/modcards.json'
+// Engram catalog — the handbook's actual Engram table (Phase 8_Engrams),
+// LVL/NAME/NOTE/EFFECT, transcribed from the v10 rulebook. Engram names,
+// status effects, and costs here are the source of truth for the Engram
+// Manager; they are not the old card-game "mod cards" dataset.
+import rawEngrams from './raw/engrams.json'
 
 export type EngramCatalogEntry = {
   id: string
@@ -12,10 +11,8 @@ export type EngramCatalogEntry = {
   level: number
   /** Handbook "Effect" column. */
   effect: string
-  /** Handbook "Note" column (may be empty). */
+  /** Handbook "Note" column (may be empty — some Engrams apply automatically, with no roll notation). */
   note: string
-  target?: string
-  extraActions?: string
 }
 
 const normalize = (value?: string) => (value ? value.trim() : '')
@@ -23,11 +20,9 @@ const normalize = (value?: string) => (value ? value.trim() : '')
 export const engramCatalog: EngramCatalogEntry[] = rawEngrams.map((entry) => ({
   id: entry.id,
   name: entry.name,
-  level: entry.cost,
+  level: entry.level,
   effect: normalize(entry.effect),
-  note: normalize(entry.notes),
-  target: normalize(entry.target) || undefined,
-  extraActions: normalize(entry.extraActions) || undefined,
+  note: normalize(entry.note),
 }))
 
 export const engramCatalogById: Record<string, EngramCatalogEntry> = Object.fromEntries(
