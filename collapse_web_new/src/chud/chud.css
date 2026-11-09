@@ -1228,12 +1228,13 @@ body::after {
   pointer-events: none;
 }
 
-/* The Wardrobe bonus, folded directly into the track as squares right
-   after the Method's own circles — distinguishable by shape (square vs.
-   circle), never a separate number elsewhere. Always rolled, never
-   trackable/Overload-spendable, so no current/ghost state and not
-   clickable — "Wardrobe adds dice to that Method's roll only." */
-.method-die-square {
+/* The Wardrobe bonus, folded directly into the track right after the
+   Method's own circles — a shirt icon so it's instantly distinguishable
+   by shape (clothing vs. a numbered stat circle), never a separate
+   number elsewhere. Always rolled, never trackable/Overload-spendable,
+   so no current/ghost state and not clickable — "Wardrobe adds dice to
+   that Method's roll only." */
+.method-die-shirt {
   width: 28px;
   height: 28px;
   border-radius: 4px;
@@ -1242,8 +1243,7 @@ body::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  color: #ffd43b;
+  font-size: 0.95rem;
   line-height: 1;
   flex: 0 0 auto;
 }
