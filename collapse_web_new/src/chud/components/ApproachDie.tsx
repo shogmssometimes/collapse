@@ -32,11 +32,11 @@ const dieLabel = (die: DieSides) => `D${die}`
 // many dice are in the current pool right now (base-available + Wardrobe).
 //
 // Wardrobe dice are folded directly into the same track as a non-depleting
-// square (numbered, continuing the circle sequence) right after the
-// Method's own circles ("Wardrobe adds dice to that Method's roll only")
-// — they're always rolled, but are never part of the Overload-spendable
-// pool, so they never appear as track circles and can't be Overloaded
-// away.
+// gold-tinted pip (same round shape, just colored, continuing the circle
+// sequence) right after the Method's own circles ("Wardrobe adds dice to
+// that Method's roll only") — they're always rolled, but are never part
+// of the Overload-spendable pool, so they never get a current/ghost
+// marker and can't be Overloaded away.
 //
 // Past the roll, the popup offers Overload (tap a die to preview doubling
 // it), which only actually spends from the base pool once the player
@@ -389,19 +389,20 @@ export function ApproachDie({
             </div>
           )}
         </div>
-        {/* Wardrobe dice are folded directly into the track as squares
-            (vs. the Method's own round circles), immediately after the
-            Method's own circles — "Wardrobe adds dice to that Method's
-            roll only." They're always rolled but never trackable/
-            Overload-spendable, so they never get a current/ghost marker
-            and tapping them does nothing. Numbered the same way the
-            circles are, continuing the slot sequence. */}
+        {/* Wardrobe dice are folded directly into the track as the same
+            round pip as the Method's own circles, just tinted gold —
+            "Wardrobe adds dice to that Method's roll only." They're
+            always rolled but never trackable/Overload-spendable, so
+            they never get a current/ghost marker and tapping them does
+            nothing. Numbered the same way the circles are, continuing
+            the slot sequence; the gold tint is just a visual cue for
+            where the dice come from, not a different track mechanic. */}
         {Array.from({ length: wardrobeBonus }, (_, index) => {
           const slot = trackMax + index + 1
           return (
             <span
               key={`wardrobe-${index}`}
-              className="method-die-square"
+              className="method-die-pip wardrobe"
               title={`Wardrobe bonus die${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; not part of the Overload pool.`}
             >
               {slot}

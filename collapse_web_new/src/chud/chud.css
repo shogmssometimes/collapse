@@ -1229,25 +1229,17 @@ body::after {
 }
 
 /* The Wardrobe bonus, folded directly into the track right after the
-   Method's own circles — a square (vs. the circle Method pips) with the
-   slot number inside, continuing the same numbering sequence. Always
-   rolled, never trackable/Overload-spendable, so no current/ghost state
-   and not clickable — "Wardrobe adds dice to that Method's roll only." */
-.method-die-square {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  background: rgba(255, 212, 59, 0.14);
-  border: 1px solid rgba(255, 212, 59, 0.5);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1;
-  color: #ffd43b;
-  flex: 0 0 auto;
+   Method's own circles — the same round pip, just with a teal-to-gold
+   gradient fill so it reads as "part of the same track" while still
+   showing at a glance that these dice came from gear, not the Core
+   stat. Always rolled, never trackable/Overload-spendable, so no
+   current/ghost state and not clickable — "Wardrobe adds dice to that
+   Method's roll only." */
+.method-die-pip.wardrobe {
+  background: linear-gradient(135deg, rgba(15, 246, 255, 0.35), #ffd43b);
+  border-color: #ffd43b;
+  color: #2b2206;
+  box-shadow: 0 0 0 2px rgba(255, 212, 59, 0.12) inset;
 }
 
 @keyframes approach-die-error {
