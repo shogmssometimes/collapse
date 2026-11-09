@@ -332,6 +332,11 @@ export function ApproachDie({
   const trackMax = Math.min(STAT_AND_METHOD_MAX, baseRating)
   const trackCurrent = Math.max(0, Math.min(available, trackMax))
   const isDepleted = trackMax > 0 && trackCurrent === 0
+  // Normally exactly 6 grid columns, but Wardrobe can push the track past
+  // the sheet's 1-6 ceiling — grow the column count to fit when it does,
+  // so overflow slots still get their own equal-width column instead of
+  // cramming into the last one.
+  const totalSlots = Math.max(STAT_AND_METHOD_MAX, trackMax + wardrobeBonus)
 
   const handleCircleClick = (slot: number) => {
     if (!onSetAvailable) return
@@ -366,37 +371,55 @@ export function ApproachDie({
         <span className="method-row-name">{label}</span>
       </button>
 
-      <div className="method-row-track" role="group" aria-label={`${label} dice track`}>
-        <div className="method-row-track-circles">
-          {Array.from({ length: trackMax }, (_, index) => {
-            const slot = index + 1
-            const isCurrent = slot === trackCurrent
-            const isGhost = slot === trackMax && trackMax !== trackCurrent
-            return (
-              <button
-                key={slot}
-                type="button"
-                className={`method-die-pip${isCurrent ? " current" : ""}${isGhost ? " ghost" : ""}`}
-                disabled={!onSetAvailable}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  handleCircleClick(slot)
-                }}
-                title={`Set ${label} pool to ${slot}`}
-              >
-                {slot}
-              </button>
-            )
-          })}
-          {/* When the pool is fully depleted (every die Overloaded away),
-              cover the numbers with a plain banner instead of a "0" marker —
-              the ghost at the full count already shows where "full" is. */}
-          {isDepleted && (
-            <div className="method-row-track-overlay" aria-hidden="true">
-              Charges Spent
-            </div>
-          )}
-        </div>
+      {/* The track is a CSS Grid with one equal-width (1fr) column per
+          slot, rather than a flex row — every pip gets an explicit
+          gridColumn (its slot number), so the 6 columns always line up
+          at the exact same x-position across every Method row (Force's
+          circle in slot 3 sits directly above Guts's locked pip in slot
+          3), while still stretching to fill the row's full width. The
+          "Charges Spent" overlay also gets an explicit column span
+          (1 to trackMax) so it only covers the Method's own circles,
+          painting over them (same grid area, later in DOM order) rather
+          than needing position:absolute. */}
+      <div
+        className="method-row-track"
+        role="group"
+        aria-label={`${label} dice track`}
+        style={{ ["--method-track-columns" as string]: totalSlots }}
+      >
+        {Array.from({ length: trackMax }, (_, index) => {
+          const slot = index + 1
+          const isCurrent = slot === trackCurrent
+          const isGhost = slot === trackMax && trackMax !== trackCurrent
+          return (
+            <button
+              key={slot}
+              type="button"
+              className={`method-die-pip${isCurrent ? " current" : ""}${isGhost ? " ghost" : ""}`}
+              style={{ gridColumn: slot }}
+              disabled={!onSetAvailable}
+              onClick={(event) => {
+                event.stopPropagation()
+                handleCircleClick(slot)
+              }}
+              title={`Set ${label} pool to ${slot}`}
+            >
+              {slot}
+            </button>
+          )
+        })}
+        {/* When the pool is fully depleted (every die Overloaded away),
+            cover the numbers with a plain banner instead of a "0" marker —
+            the ghost at the full count already shows where "full" is. */}
+        {isDepleted && (
+          <div
+            className="method-row-track-overlay"
+            style={{ gridColumn: `1 / span ${trackMax}` }}
+            aria-hidden="true"
+          >
+            Charges Spent
+          </div>
+        )}
         {/* Wardrobe dice are folded directly into the track as the same
             round pip as the Method's own circles, just tinted gold —
             "Wardrobe adds dice to that Method's roll only." They're
@@ -411,6 +434,7 @@ export function ApproachDie({
             <span
               key={`wardrobe-${index}`}
               className="method-die-pip wardrobe"
+              style={{ gridColumn: slot }}
               title={`Wardrobe bonus die${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; not part of the Overload pool.`}
             >
               {slot}
@@ -421,7 +445,12 @@ export function ApproachDie({
             Method's own rating nor Wardrobe have reached yet — hollow,
             dashed potential the Method hasn't grown into. */}
         {Array.from({ length: Math.max(0, STAT_AND_METHOD_MAX - trackMax - wardrobeBonus) }, (_, index) => (
-          <span key={`locked-${index}`} className="method-die-pip locked" aria-hidden="true">
+          <span
+            key={`locked-${index}`}
+            className="method-die-pip locked"
+            style={{ gridColumn: trackMax + wardrobeBonus + index + 1 }}
+            aria-hidden="true"
+          >
             {trackMax + wardrobeBonus + index + 1}
           </span>
         ))}

@@ -1128,27 +1128,31 @@ body::after {
    after the Method's own circles (never a separate number elsewhere).
    A solid "current" marker sits on the base pool's available count; a
    faint "ghost" marker sits on the full base rating when the pool has
-   been depleted, so the full count is never erased. Fixed (not
-   stretched/space-between) so every row's 6 slots land at the exact
-   same x-position regardless of how many are circles vs Wardrobe vs
-   locked — columns stay aligned across Force/Finesse/Guts/etc. */
+   been depleted, so the full count is never erased.
+   CSS Grid with one equal-width (1fr) column per slot — every pip gets
+   an explicit gridColumn (its slot number) in ApproachDie.tsx, so the
+   columns always land at the exact same x-position across every Method
+   row *and* the track still stretches to fill the row's full width
+   (unlike flex, which would need the item count to match for
+   space-between to align rows consistently). --method-track-columns
+   is normally 6, but grows if Wardrobe pushes a Method past the
+   sheet's 1-6 ceiling. */
 .method-row-track {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(var(--method-track-columns, 6), 1fr);
   align-items: center;
-  gap: 10px;
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
+  justify-items: center;
+  column-gap: 6px;
+  flex: 1 1 auto;
 }
 
-/* Wraps only the Method's own circles so the "Charges Spent" overlay
-   covers just this portion of the track, never the Wardrobe squares
-   (which are never depleted). Same gap as the outer track so the whole
-   1-6 row reads as one evenly spaced line, not two different rhythms. */
-.method-row-track-circles {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  position: relative;
+/* Every pip/overlay only sets an explicit gridColumn, not gridRow — pin
+   them all to row 1 so auto-placement doesn't push the "Charges Spent"
+   overlay (which intentionally shares a column with the circle pips it
+   covers) onto a second row to avoid the overlap. Without this, the
+   track silently grows to two 34px-tall rows instead of one. */
+.method-row-track > * {
+  grid-row: 1;
 }
 
 .method-die-pip {
@@ -1206,10 +1210,16 @@ body::after {
 
 /* A fully-depleted pool (every die Overloaded away) covers the track's
    numbers with a plain banner instead of a "0" marker circle. The ghost
-   marker at the full count still peeks through underneath/around it. */
+   marker at the full count still peeks through underneath/around it.
+   Placed via an explicit gridColumn span over the same cells as the
+   circle pips (not position:absolute) — both are explicitly placed
+   grid items, so they're allowed to overlap, and this one paints on
+   top because it comes later in the DOM. Stretches to fill its
+   spanned cells (grid's default item sizing) rather than needing a
+   sized ancestor. */
 .method-row-track-overlay {
-  position: absolute;
-  inset: 0;
+  align-self: stretch;
+  justify-self: stretch;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1223,6 +1233,7 @@ body::after {
   text-transform: uppercase;
   color: rgba(248, 250, 252, 0.7);
   pointer-events: none;
+  white-space: nowrap;
 }
 
 /* The Wardrobe bonus, folded directly into the track right after the
