@@ -409,12 +409,14 @@ export function ApproachDie({
           )
         })}
         {/* When the pool is fully depleted (every die Overloaded away),
-            cover the numbers with a plain banner instead of a "0" marker —
-            the ghost at the full count already shows where "full" is. */}
+            cover the whole track — not just the Method's own circles —
+            with a plain banner instead of a "0" marker. A partial-width
+            banner reads as broken (locked pips dangling past its edge);
+            the full track covered reads as "this Method is spent". */}
         {isDepleted && (
           <div
             className="method-row-track-overlay"
-            style={{ gridColumn: `1 / span ${trackMax}` }}
+            style={{ gridColumn: `1 / span ${totalSlots}` }}
             aria-hidden="true"
           >
             Charges Spent

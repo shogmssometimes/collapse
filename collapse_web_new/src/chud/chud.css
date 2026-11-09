@@ -1232,7 +1232,12 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 12, 16, 0.88);
+  /* Near-opaque (not fully, so the row still reads as "part of this
+     panel" rather than a flat cutout) — now that it spans the whole
+     track rather than just the Method's own circles, it also sits over
+     the bright cyan "current"/gold Wardrobe pips, whose saturated
+     colors bled through visibly at the old 0.88 alpha. */
+  background: #0a0b0f;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 6px;
   font-family: var(--font-display);
