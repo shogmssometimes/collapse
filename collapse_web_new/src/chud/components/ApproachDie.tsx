@@ -22,6 +22,13 @@ const DIE_LONG_PRESS_MS = 420
 const METHOD_ARM_MS = 350
 const METHOD_PRE_ARM_CANCEL_PX = 8
 const METHOD_SWIPE_PX = 10
+// Picking up a rolled die (post-result) reuses the same long-press-then-
+// swipe shape as rolling itself, but with 4 directions instead of 1:
+// once armed, swiping up doubles that die, down sends the Total to the
+// Set list, right starts the Margin flow, and left just cancels the
+// pick-up (back to the plain result — no popup close, no action taken).
+const DIE_PRE_ARM_CANCEL_PX = 8
+const DIE_SWIPE_PX = 18
 
 type PopupView = "result" | "margin-input" | "margin-result" | "damage"
 
@@ -91,6 +98,7 @@ export function ApproachDie({
   const [chargeProgress, setChargeProgress] = useState(0) // 0-100, grows from the instant of press, independent of `armed`
   const [rollingPreview, setRollingPreview] = useState<number[]>([])
   const [pressingDieIndex, setPressingDieIndex] = useState<number | null>(null)
+  const [armedDieIndex, setArmedDieIndex] = useState<number | null>(null)
   const [view, setView] = useState<PopupView>("result")
   const [oppositionInput, setOppositionInput] = useState("")
   const [margin, setMargin] = useState<number | null>(null)
@@ -107,6 +115,8 @@ export function ApproachDie({
   const resolvedRef = useRef(false)
   const diePressTimer = useRef<number | null>(null)
   const dieSuppressClick = useRef(false)
+  const dieGestureStart = useRef<{ x: number; y: number } | null>(null)
+  const dieSwipedThisGesture = useRef(false)
   const boxRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
@@ -297,10 +307,6 @@ export function ApproachDie({
     cancelGesture()
   }
 
-  // Overload pool remaining = the base pool only. Wardrobe dice always
-  // roll but are never Overload-spendable ("Wardrobe adds dice to that
-  // Method's roll only") — see the module doc comment.
-  const overloadPoolRemaining = Math.max(0, available - pendingOverload.size)
   // Overload doubles a die's face value. Nothing Explodes, so the Total is
   // simply the single highest die in the pool after any Overloads.
   const overloadedValue = (dieRoll: ApproachDieResult) => dieRoll.rolls[0] * 2
@@ -311,18 +317,19 @@ export function ApproachDie({
       )
     : 0
 
-  // Tapping a die previews doubling it, but only once confirmed with a
+  // Picking up a die previews doubling it, but only once confirmed with a
   // long-press (a plain tap would be too easy to trigger by accident while
   // reading the result) — it's then auto-resolved (spent from the base
   // pool) the moment the player moves past this screen: Send to Set,
   // Create Margin, or just closing the popup. A quick tap on an
   // already-doubled die un-does it while the popup is still open; there's
-  // no separate Resolve/Undo step.
+  // no separate Resolve/Undo step. Only one die can ever be Overloaded per
+  // roll — the swipe-up gesture rejects (flashError) a second die.
   const addOverload = (index: number) => {
     if (!onOverload || resolvedRef.current) return
     setPendingOverload((prev) => {
       if (prev.has(index)) return prev
-      if (prev.size >= available) {
+      if (prev.size >= 1 || available <= 0) {
         flashError()
         return prev
       }
@@ -348,29 +355,71 @@ export function ApproachDie({
       diePressTimer.current = null
     }
     setPressingDieIndex(null)
+    setArmedDieIndex(null)
+    dieGestureStart.current = null
   }
 
-  const handleDiePointerDown = (index: number) => {
-    if (!onOverload || resolvedRef.current) return
+  // Long-pressing a die "picks it up": once armed (same hold duration as
+  // the old immediate-double long-press), any swipe past DIE_SWIPE_PX in
+  // one of the 4 cardinal directions fires that direction's action —
+  // up doubles *this* die, down sends the Total to the Set list, right
+  // starts the Margin flow, left just cancels the pick-up (no action, no
+  // popup close). Moving too far before arming cancels the whole press,
+  // same guard the Method row's own hold-then-swipe uses.
+  const handleDiePointerDown = (index: number, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (resolvedRef.current) return
     dieSuppressClick.current = false
+    dieSwipedThisGesture.current = false
+    dieGestureStart.current = { x: event.clientX, y: event.clientY }
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // Pointer capture isn't critical — move/up still fire on this
+      // element for mouse, and most touch browsers grant it anyway.
+    }
     setPressingDieIndex(index)
     diePressTimer.current = window.setTimeout(() => {
       diePressTimer.current = null
       dieSuppressClick.current = true
       setPressingDieIndex(null)
-      addOverload(index)
+      setArmedDieIndex(index)
+      vibrate(VIBRATE_PIP_MS)
     }, DIE_LONG_PRESS_MS)
+  }
+
+  const handleDiePointerMove = (index: number, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (dieSwipedThisGesture.current || !dieGestureStart.current) return
+    const dx = event.clientX - dieGestureStart.current.x
+    const dy = event.clientY - dieGestureStart.current.y
+    const dist = Math.hypot(dx, dy)
+    if (armedDieIndex !== index) {
+      // Not armed yet — too much movement before the long-press lands
+      // reads as an accidental drag, not a deliberate pick-up.
+      if (dist > DIE_PRE_ARM_CANCEL_PX) cancelDiePress()
+      return
+    }
+    if (dist <= DIE_SWIPE_PX) return
+    dieSwipedThisGesture.current = true
+    vibrate(VIBRATE_PIP_MS * 2)
+    if (Math.abs(dy) > Math.abs(dx)) {
+      if (dy < 0) addOverload(index) // swipe up: Doubled
+      else handleSendToSet() // swipe down: Send to Set
+    } else if (dx > 0) {
+      setView("margin-input") // swipe right: Create Margin
+    } // swipe left: Cancel — just drop the pick-up, no action
+    setArmedDieIndex(null)
   }
 
   const handleDieClick = (index: number) => {
     if (dieSuppressClick.current) {
-      // This click followed a long-press that already added the Overload
-      // — don't also treat it as the "tap to cancel" gesture.
+      // This click followed a long-press (picked up, whether or not it
+      // then swiped) — don't also treat it as the "tap to cancel" gesture.
       dieSuppressClick.current = false
       return
     }
     removeOverload(index)
   }
+
 
   const handleSendToSet = () => {
     resolveOverloadIfNeeded()
@@ -573,17 +622,19 @@ export function ApproachDie({
                   const effectiveValue = pendingOverload.has(index) ? overloadedValue(dieRoll) : dieRoll.total
                   const isTop = result.dice.length > 0 && effectiveValue === displayTotal
                   const isPressing = pressingDieIndex === index
+                  const isArmed = armedDieIndex === index
                   return (
                     <button
                       key={index}
                       type="button"
-                      className={`approach-die-chip${pendingOverload.has(index) ? " overloaded" : ""}${isTop ? " top" : ""}${isPressing ? " pressing" : ""}`}
-                      disabled={!onOverload || (overloadPoolRemaining <= 0 && !pendingOverload.has(index))}
+                      className={`approach-die-chip${pendingOverload.has(index) ? " overloaded" : ""}${isTop ? " top" : ""}${isPressing ? " pressing" : ""}${isArmed ? " armed" : ""}`}
                       style={{ ["--hold-progress-ms" as string]: `${DIE_LONG_PRESS_MS}ms` } as CSSProperties}
-                      onPointerDown={(event) => { event.stopPropagation(); handleDiePointerDown(index) }}
+                      onPointerDown={(event) => { event.stopPropagation(); handleDiePointerDown(index, event) }}
+                      onPointerMove={(event) => { event.stopPropagation(); handleDiePointerMove(index, event) }}
                       onPointerUp={(event) => { event.stopPropagation(); cancelDiePress() }}
                       onPointerLeave={cancelDiePress}
                       onPointerCancel={cancelDiePress}
+                      onContextMenu={(event) => event.preventDefault()}
                       onClick={(event) => {
                         event.stopPropagation()
                         handleDieClick(index)
@@ -591,9 +642,7 @@ export function ApproachDie({
                       title={
                         pendingOverload.has(index)
                           ? "Tap to undo this Overload"
-                          : onOverload
-                          ? "Hold to Overload: double this die (spends 1 from the base pool)"
-                          : undefined
+                          : "Hold, then swipe: up Doubles, down sends to Set, right starts Margin, left cancels"
                       }
                     >
                       <span className={`hold-progress-fill${isPressing ? " active" : ""}`} aria-hidden="true" />
@@ -603,27 +652,7 @@ export function ApproachDie({
                   )
                 })}
               </div>
-              {onOverload && (
-                <div className="approach-die-popup-pool">
-                  Overload: {overloadPoolRemaining}/{baseRating}
-                </div>
-              )}
-              <div className="approach-roll-path-actions">
-                <button
-                  type="button"
-                  className="approach-roll-path-btn"
-                  onClick={(e) => { e.stopPropagation(); handleSendToSet() }}
-                >
-                  Send to Set
-                </button>
-                <button
-                  type="button"
-                  className="approach-roll-path-btn"
-                  onClick={(e) => { e.stopPropagation(); setView("margin-input") }}
-                >
-                  Create Margin
-                </button>
-              </div>
+              <div className="approach-die-popup-swipe-hint">↑ Double · ↓ Send to Set · → Margin · ← Cancel</div>
             </>
           )}
 

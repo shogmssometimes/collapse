@@ -1408,6 +1408,14 @@ body::after {
   color: #f8fafc;
 }
 
+/* "Picked up" — armed and waiting for a directional swipe. Reuses the
+   Method row's own gold charging-glow animation so the two hold-then-
+   swipe gestures in this component read as the same mechanic. */
+.approach-die-chip.armed {
+  border-color: #ffd43b;
+  animation: approach-die-charging 220ms ease-in-out infinite;
+}
+
 .approach-die-chip-doubled {
   display: inline-block;
   margin-left: 6px;
@@ -1421,19 +1429,12 @@ body::after {
   vertical-align: middle;
 }
 
-.approach-die-popup-pool {
+.approach-die-popup-swipe-hint {
   margin-top: 6px;
-  font-size: 0.95rem;
-  color: rgba(248, 250, 252, 0.55);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: rgba(248, 250, 252, 0.4);
   text-align: center;
-}
-
-/* Set / Margin / Damage roll chain (Portaled to document.body, unscoped). */
-.approach-roll-path-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  width: 100%;
 }
 
 .approach-roll-path-btn {
