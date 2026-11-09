@@ -326,21 +326,21 @@ export default function Chud() {
             gearSlotsUsed={gearSlotsUsed}
             gearSlotsKey={GEAR_SLOTS_KEY}
             inventorySlots={inventorySlots}
+            methods={
+              <ApproachPanel
+                core={core}
+                approach={approach}
+                damageDieSize={damageDieSize}
+                onRollApproachDie={rollApproachDie}
+                approachOverloadSpent={approachOverloadSpent}
+                onOverloadApproachDie={overloadApproachDie}
+                onSetApproachAvailable={setApproachAvailable}
+                onReceiveGanbare={receiveGanbare}
+                approachWardrobeBonus={approachWardrobeBonus}
+                approachWardrobeItems={approachWardrobeItems}
+              />
+            }
           />
-
-          <ApproachPanel
-            core={core}
-            approach={approach}
-            damageDieSize={damageDieSize}
-            onRollApproachDie={rollApproachDie}
-            approachOverloadSpent={approachOverloadSpent}
-            onOverloadApproachDie={overloadApproachDie}
-            onSetApproachAvailable={setApproachAvailable}
-            onReceiveGanbare={receiveGanbare}
-            approachWardrobeBonus={approachWardrobeBonus}
-            approachWardrobeItems={approachWardrobeItems}
-          />
-
         </section>
       </div>
     </div>

@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
 import { useGesture } from "../../hooks/useGesture";
 import { GearPanel } from "./GearPanel";
 import type { GearSlotEntry } from "../../types/chud";
 
-// HP section: HP bar + nested Reaction Tokens/Chip Sync/Queue, Set Rolls,
-// Gear queue, and Grit/Collapse meter. Plain section (no accordion).
+// HP section: HP bar, then Methods, then nested Set Rolls, Gear queue,
+// Grit/Collapse meter, and (last) Chip Sync. Plain section (no accordion).
+// Order on screen: HP, Methods, Sets, Gear Queue, Grit/Collapse, Sync.
 export function HPPanel({
   hpCounter,
   hpMax,
@@ -14,6 +16,7 @@ export function HPPanel({
   gearSlotsUsed,
   gearSlotsKey,
   inventorySlots,
+  methods,
 }: {
   hpCounter: number;
   hpMax: number;
@@ -24,6 +27,8 @@ export function HPPanel({
   gearSlotsUsed: number;
   gearSlotsKey: string;
   inventorySlots: number;
+  /** The Methods (ApproachPanel) section, rendered directly below HP. */
+  methods: ReactNode;
 }) {
   const hpHandlers = useGesture(onHpIncr, onHpDecr);
   const hpFillPct = Math.max(0, Math.min(100, (hpCounter / hpMax) * 100));
@@ -50,11 +55,9 @@ export function HPPanel({
           <div className="bar-fill" style={{ width: `${hpFillPct}%` }} />
         </div>
       </div>
-      {/* Chip Sync (vanilla widget from meter-bridge.js) mounts here,
-          directly below the HP bar. */}
-      <div id="chud-hp-queue-anchor" />
+      {methods}
       {/* Set Rolls (Status Effects, vanilla widget from meter-bridge.js)
-          mounts here, directly below Chip Sync. */}
+          mounts here, directly below Methods. */}
       <div id="chud-setrolls-anchor" />
       <GearPanel
         gearEntries={gearEntries}
@@ -65,6 +68,9 @@ export function HPPanel({
       {/* Grit/Collapse meter vanilla widget from meter-bridge.js mounts here,
           directly below the gear queue. */}
       <div id="chud-gcm-anchor" />
+      {/* Chip Sync (vanilla widget from meter-bridge.js) mounts here, last,
+          directly below the Grit/Collapse meter. */}
+      <div id="chud-hp-queue-anchor" />
     </div>
   );
 }

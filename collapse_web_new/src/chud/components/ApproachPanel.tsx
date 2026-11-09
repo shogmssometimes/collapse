@@ -163,7 +163,6 @@ export function ApproachPanel({
         <h3>Method</h3>
         <RollModeToggle />
       </div>
-      <GanbareControl onReceiveGanbare={onReceiveGanbare} />
       <div className="method-groups">
         {coreGroups.map((coreField) => {
           const [a, b] = CORE_APPROACH_MAP[coreField];
@@ -199,6 +198,7 @@ export function ApproachPanel({
           );
         })}
       </div>
+      <GanbareControl onReceiveGanbare={onReceiveGanbare} />
     </div>
   );
 }

@@ -354,7 +354,7 @@ export function ApproachDie({
       <button
         type="button"
         className="method-row-roll"
-        aria-label={`${label}, ${available} of ${baseRating} base dice available${wardrobeBonus > 0 ? `, plus ${wardrobeBonus} from Wardrobe` : ""}. Hold to roll.`}
+        aria-label={`${label}, ${available} of ${baseRating} base dice available${wardrobeBonus > 0 ? `, plus ${wardrobeBonus} from Wardrobe` : ""}. ${rollHint}.`}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerLeave={cancelPress}
@@ -363,10 +363,7 @@ export function ApproachDie({
         style={{ ["--hold-progress-ms" as string]: `${CHARGE_THRESHOLD_MS}ms` } as React.CSSProperties}
       >
         <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
-        <span className="method-row-name-wrap">
-          <span className="method-row-name">{label}</span>
-          <span className="method-row-hint">{rollHint}</span>
-        </span>
+        <span className="method-row-name">{label}</span>
       </button>
 
       <div className="method-row-track" role="group" aria-label={`${label} dice track`}>
