@@ -357,45 +357,59 @@ export function ApproachDie({
       </button>
 
       <div className="method-row-track" role="group" aria-label={`${label} dice track`}>
-        {Array.from({ length: STAT_AND_METHOD_MAX }, (_, index) => {
-          const slot = index + 1
-          const isLocked = slot > trackMax
-          const isCurrent = !isLocked && slot === trackCurrent
-          const isGhost = !isLocked && slot === trackMax && trackMax !== trackCurrent
-          return (
-            <button
-              key={slot}
-              type="button"
-              className={`method-die-pip${isLocked ? " locked" : ""}${isCurrent ? " current" : ""}${isGhost ? " ghost" : ""}`}
-              disabled={isLocked || !onSetAvailable}
-              onClick={(event) => {
-                event.stopPropagation()
-                handleCircleClick(slot)
-              }}
-              title={isLocked ? undefined : `Set ${label} pool to ${slot}`}
-            >
-              {slot}
-            </button>
-          )
-        })}
-        {/* When the pool is fully depleted (every die Overloaded away),
-            cover the numbers with a plain banner instead of a "0" marker —
-            the ghost at the full count already shows where "full" is. */}
-        {isDepleted && (
-          <div className="method-row-track-overlay" aria-hidden="true">
-            Charges Spent
-          </div>
-        )}
+        <div className="method-row-track-circles">
+          {Array.from({ length: trackMax }, (_, index) => {
+            const slot = index + 1
+            const isCurrent = slot === trackCurrent
+            const isGhost = slot === trackMax && trackMax !== trackCurrent
+            return (
+              <button
+                key={slot}
+                type="button"
+                className={`method-die-pip${isCurrent ? " current" : ""}${isGhost ? " ghost" : ""}`}
+                disabled={!onSetAvailable}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  handleCircleClick(slot)
+                }}
+                title={`Set ${label} pool to ${slot}`}
+              >
+                {slot}
+              </button>
+            )
+          })}
+          {/* When the pool is fully depleted (every die Overloaded away),
+              cover the numbers with a plain banner instead of a "0" marker —
+              the ghost at the full count already shows where "full" is. */}
+          {isDepleted && (
+            <div className="method-row-track-overlay" aria-hidden="true">
+              Charges Spent
+            </div>
+          )}
+        </div>
+        {/* Wardrobe dice are folded directly into the track as squares,
+            immediately after the Method's own circles — "Wardrobe adds
+            dice to that Method's roll only." They're always rolled but
+            never trackable/Overload-spendable, so they never get a
+            current/ghost marker and tapping them does nothing. */}
+        {Array.from({ length: wardrobeBonus }, (_, index) => (
+          <span
+            key={`wardrobe-${index}`}
+            className="method-die-square"
+            title={`Wardrobe bonus die${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; not part of the Overload pool.`}
+          >
+            ▣
+          </span>
+        ))}
+        {/* Remaining slots up to the sheet's 1-6 ceiling that neither the
+            Method's own rating nor Wardrobe have reached yet — hollow,
+            dashed potential the Method hasn't grown into. */}
+        {Array.from({ length: Math.max(0, STAT_AND_METHOD_MAX - trackMax - wardrobeBonus) }, (_, index) => (
+          <span key={`locked-${index}`} className="method-die-pip locked" aria-hidden="true">
+            {trackMax + wardrobeBonus + index + 1}
+          </span>
+        ))}
       </div>
-
-      {wardrobeBonus > 0 && (
-        <span
-          className="method-row-wardrobe-box"
-          title={`+${wardrobeBonus} dice from Wardrobe${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; not part of the Overload pool.`}
-        >
-          +{wardrobeBonus}
-        </span>
-      )}
 
       {(rolling || result) && createPortal(
         <div

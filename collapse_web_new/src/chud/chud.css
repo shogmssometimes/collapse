@@ -1131,14 +1131,26 @@ body::after {
 }
 
 /* The track: a fixed 1-6 numbered-circle row, like the printed sheet's
-   Method marker track. A solid "current" marker sits on the base pool's
-   available count; a faint "ghost" marker sits on the full base rating
-   when the pool has been depleted, so the full count is never erased. */
+   Method marker track, with Wardrobe dice folded in as squares right
+   after the Method's own circles (never a separate number elsewhere).
+   A solid "current" marker sits on the base pool's available count; a
+   faint "ghost" marker sits on the full base rating when the pool has
+   been depleted, so the full count is never erased. */
 .method-row-track {
   display: flex;
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
+/* Wraps only the Method's own circles so the "Charges Spent" overlay
+   covers just this portion of the track, never the Wardrobe squares
+   (which are never depleted). */
+.method-row-track-circles {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   position: relative;
 }
 
@@ -1216,23 +1228,24 @@ body::after {
   pointer-events: none;
 }
 
-/* The Wardrobe bonus box: a separate square, never counted as a track
-   circle — "Wardrobe adds dice to that Method's roll only." */
-.method-row-wardrobe-box {
-  flex: 0 0 auto;
+/* The Wardrobe bonus, folded directly into the track as squares right
+   after the Method's own circles — distinguishable by shape (square vs.
+   circle), never a separate number elsewhere. Always rolled, never
+   trackable/Overload-spendable, so no current/ghost state and not
+   clickable — "Wardrobe adds dice to that Method's roll only." */
+.method-die-square {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: rgba(255, 212, 59, 0.14);
+  border: 1px solid rgba(255, 212, 59, 0.5);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 26px;
-  height: 26px;
-  padding: 0 6px;
-  border-radius: 4px;
-  font-family: var(--font-display);
   font-size: 0.8rem;
-  font-weight: 700;
   color: #ffd43b;
-  background: rgba(255, 212, 59, 0.14);
-  border: 1px solid rgba(255, 212, 59, 0.5);
+  line-height: 1;
+  flex: 0 0 auto;
 }
 
 @keyframes approach-die-error {
