@@ -390,36 +390,6 @@ body::-webkit-scrollbar {
   animation: approach-die-charging 220ms ease-in-out infinite;
 }
 
-.roll-mode-toggle {
-  display: flex;
-  gap: 4px;
-  padding: 2px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.roll-mode-btn {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: rgba(248, 250, 252, 0.5);
-  font-family: var(--font-display);
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 5px 10px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.roll-mode-btn.active {
-  background: var(--accent-red);
-  color: #0a0d12;
-}
-
 /* ── Stat grids ──────────────────────────────────────────────────────────── */
 
 .core-grid {
@@ -1126,9 +1096,10 @@ body::after {
 /* The track: a fixed 1-6 numbered-circle row, like the printed sheet's
    Method marker track, with Wardrobe dice folded in as squares right
    after the Method's own circles (never a separate number elsewhere).
-   A solid "current" marker sits on the base pool's available count; a
-   faint "ghost" marker sits on the full base rating when the pool has
-   been depleted, so the full count is never erased.
+   Every circle up to `available` is blue ("available"); every circle
+   beyond that up to the base rating is dull red ("spent") — no single
+   moving marker, each pip's own color says whether its die is still in
+   the pool.
    CSS Grid with one equal-width (1fr) column per slot — every pip gets
    an explicit gridColumn (its slot number) in ApproachDie.tsx, so the
    columns always land at the exact same x-position across every Method
@@ -1186,22 +1157,22 @@ body::after {
   color: rgba(248, 250, 252, 0.25);
 }
 
-/* Solid marker: the current (available) pool size. */
-.method-die-pip.current {
+/* Solid marker: every circle still in the pool (slots 1..available). */
+.method-die-pip.available {
   background: #0ff6ff;
   border-color: #0ff6ff;
   color: #04282b;
-  transform: scale(1.1);
 }
 
-/* Faint ghost marker: the full base rating, shown only when the pool has
-   been depleted below it — an empty pool shows the ghost here, and the
-   "Charges Spent" overlay below covers the rest of the track. */
-.method-die-pip.ghost {
-  background: transparent;
-  border-color: rgba(15, 246, 255, 0.4);
-  color: rgba(15, 246, 255, 0.55);
-  box-shadow: 0 0 0 2px rgba(15, 246, 255, 0.08) inset;
+/* Every circle beyond `available` up to the base rating — a die that's
+   been Overloaded away. Dull red rather than gray/"locked" so it reads
+   as "spent" (an event that happened) rather than "never grown"
+   (locked's dashed/hollow look, reserved for circles past the base
+   rating entirely). */
+.method-die-pip.spent {
+  background: rgba(190, 40, 40, 0.55);
+  border-color: rgba(220, 70, 70, 0.7);
+  color: rgba(255, 226, 226, 0.85);
 }
 
 /* A fully-depleted pool (every die Overloaded away) covers the track's
@@ -1231,7 +1202,7 @@ body::after {
   /* Near-opaque (not fully, so the row still reads as "part of this
      panel" rather than a flat cutout) — now that it spans the whole
      track rather than just the Method's own circles, it also sits over
-     the bright cyan "current"/gold Wardrobe pips, whose saturated
+     the bright cyan "available"/gold Wardrobe pips, whose saturated
      colors bled through visibly at the old 0.88 alpha. */
   background: #0a0b0f;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -1493,17 +1464,6 @@ body::after {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(248, 250, 252, 0.55);
-}
-
-.approach-desync-banner {
-  margin-top: 4px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(239, 68, 68, 0.14);
-  border: 1px solid rgba(239, 68, 68, 0.55);
-  color: #f87171;
-  font-size: 0.85rem;
-  letter-spacing: 0.14em;
 }
 
 .approach-damage-dice {

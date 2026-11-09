@@ -155,14 +155,31 @@ export default function Chud() {
   // Overload spends from the base (Core-distributed) Method pool only.
   // Wardrobe dice always roll but are never Overload-spendable — "Wardrobe
   // adds dice to that Method's roll only" (see ApproachDie.tsx doc comment).
-  const overloadApproachDie = useCallback((field: keyof ApproachStats): boolean => {
+  //
+  // Takes the full count of doubled dice to spend at once (resolved
+  // together), rather than being called once per die: reading
+  // approachOverloadSpent[field] from the outer closure and calling this
+  // N times in the same tick would read the *same* stale "spent" value on
+  // every call (React doesn't re-render mid-batch), so N calls only ever
+  // advanced the pool by 1 instead of N. Reading prev[field] from inside
+  // the setState updater itself (always fresh, even across repeated
+  // synchronous updates) fixes that.
+  const overloadApproachDie = useCallback((field: keyof ApproachStats, count: number): boolean => {
     const baseRating = approach[field];
-    const spent = approachOverloadSpent[field] ?? 0;
-    const next = spendOverloadDie(baseRating, spent);
-    if (next === spent) return false; // pool already exhausted
-    setApproachOverloadSpent((prev) => ({ ...prev, [field]: next }));
-    return true;
-  }, [approach, approachOverloadSpent]);
+    let fullySpent = true;
+    setApproachOverloadSpent((prev) => {
+      let spent = prev[field] ?? 0;
+      for (let i = 0; i < count; i++) {
+        const next = spendOverloadDie(baseRating, spent);
+        if (next === spent) { fullySpent = false; break; } // pool already exhausted
+        spent = next;
+      }
+      if (spent === (prev[field] ?? 0)) return prev;
+      return { ...prev, [field]: spent };
+    });
+    return fullySpent;
+  }, [approach]);
+
 
   // "Receive Ganbare!" — a friend spends one of *their* Ganbare! Charges to
   // return one of your Overloaded dice to its Method pool (handbook: "or

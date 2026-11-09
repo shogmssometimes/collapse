@@ -3,48 +3,6 @@ import { ApproachDie, type ApproachDieRollResult } from "./ApproachDie";
 import type { ApproachStats, CoreStats } from "../../types/chud";
 import type { DieSides } from "../../domain/approachDice";
 import { APPROACH_LABELS, CORE_APPROACH_MAP, CORE_LABELS } from "../../domain/coreApproachMap";
-import { ROLL_MODE_STORAGE_KEY, getRollMode, setRollMode, type RollMode } from "../../domain/rollMode";
-
-// Combat/Roleplay toggle — gates whether a margin of 0 on an Approach Roll
-// queues the Desync notification (Combat only; the rule doesn't apply to
-// Roleplay rolls). Reads/writes the shared rollMode.ts storage directly so
-// it stays in sync with ApproachDie's own reads without prop drilling.
-function RollModeToggle() {
-  const [mode, setMode] = useState<RollMode>(() => getRollMode());
-
-  useEffect(() => {
-    const handler = (e: StorageEvent) => {
-      if (e.key !== ROLL_MODE_STORAGE_KEY) return;
-      setMode(getRollMode());
-    };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, []);
-
-  const choose = (next: RollMode) => {
-    setRollMode(next);
-    setMode(next);
-  };
-
-  return (
-    <div className="roll-mode-toggle" role="group" aria-label="Rolling mode">
-      <button
-        type="button"
-        className={`roll-mode-btn${mode === "roleplay" ? " active" : ""}`}
-        onClick={() => choose("roleplay")}
-      >
-        Roleplay
-      </button>
-      <button
-        type="button"
-        className={`roll-mode-btn${mode === "combat" ? " active" : ""}`}
-        onClick={() => choose("combat")}
-      >
-        Combat
-      </button>
-    </div>
-  );
-}
 
 
 const GANBARE_METHOD_SYMBOLS: Record<keyof ApproachStats, string> = {
@@ -144,7 +102,7 @@ export function ApproachPanel({
   damageDieSize: DieSides;
   onRollApproachDie: (field: keyof ApproachStats, count: number) => ApproachDieRollResult;
   approachOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
-  onOverloadApproachDie: (field: keyof ApproachStats) => boolean;
+  onOverloadApproachDie: (field: keyof ApproachStats, count: number) => boolean;
   /** Restores 1 die to the chosen Method's pool (a friend's Ganbare!, long-press to confirm). */
   onReceiveGanbare: (field: keyof ApproachStats) => void;
   /** Extra dice granted by Wardrobe items assigned to each Method (on top of the Core-distributed rating). Always rolled; never Overload-spendable. */
@@ -158,7 +116,6 @@ export function ApproachPanel({
     <div className="mods">
       <div className="approach-panel-header">
         <h3>Method</h3>
-        <RollModeToggle />
       </div>
       <div className="method-groups">
         {coreGroups.map((coreField) => {
@@ -186,7 +143,7 @@ export function ApproachPanel({
                     available={available}
                     damageDie={damageDieSize}
                     onRoll={(count) => onRollApproachDie(field, count)}
-                    onOverload={() => onOverloadApproachDie(field)}
+                    onOverload={(count) => onOverloadApproachDie(field, count)}
                   />
                 );
               })}

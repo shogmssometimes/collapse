@@ -26,9 +26,11 @@ function notify(key: string, json: string) {
 }
 
 /**
- * Prepends a new Set Roll row (HUD "Set Rolls" widget) with the given value,
- * leaving its Name blank for the player to label at the HUD. Placed at the
- * front of the list so it survives the widget's 10-row display cap.
+ * Prepends a new Set Roll row (HUD "Set Rolls" widget) with the given value.
+ * Defaults the Name to "New Effect" (edit at the HUD) rather than leaving it
+ * blank, since a roll sent this way is nearly always meant to back a new
+ * status/effect entry. Placed at the front of the list so it survives the
+ * widget's 10-row display cap.
  */
 export function addSetRollRow(value: number): void {
   try {
@@ -37,7 +39,7 @@ export function addSetRollRow(value: number): void {
     const rows = Array.isArray(parsed.rows) ? parsed.rows : [];
     const row: StatusRollRow = {
       id: `sr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      name: "",
+      name: "New Effect",
       effect: "",
       roll: value,
     };

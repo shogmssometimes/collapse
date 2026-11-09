@@ -1,25 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import type { CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import type { ApproachDieResult, ApproachRollResult, DieSides } from "../../domain/approachDice"
 import { rollFlatDice } from "../../domain/approachDice"
 import { addSetRollRow } from "../../utils/chudVanillaBridge"
-import { getRollMode } from "../../domain/rollMode"
-import { hasPendingNotification, pushNotification } from "../../domain/notifications"
 import { STAT_AND_METHOD_MAX } from "../../domain/coreApproachMap"
 
 export type ApproachDieRollResult = ApproachRollResult
 
 const ROLL_ANIM_TICKS = 8
 const ROLL_ANIM_INTERVAL_MS = 60
-// Brief hold before drag-tracking engages — long enough that an incidental
-// touch-scroll starting on the name box isn't hijacked as a roll gesture,
-// short enough that it doesn't feel like a delay once the player commits.
-const DRAG_ARM_MS = 150
-// If the pointer moves more than this many px before DRAG_ARM_MS elapses,
-// treat it as a scroll/pan attempt rather than a hold, and release it.
-const PRE_ARM_CANCEL_PX = 8
 const ERROR_FLASH_MS = 420
 const VIBRATE_PIP_MS = 14
+// Long-press (not a tap) to double a die — a plain tap on a die that's
+// already doubled cancels it instead (see handleDieClick).
+const DIE_LONG_PRESS_MS = 420
 
 type PopupView = "result" | "margin-input" | "margin-result" | "damage"
 
@@ -28,13 +23,13 @@ const dieLabel = (die: DieSides) => `D${die}`
 // Method row — printed-sheet style: the track is a fixed 1-6 numbered
 // circle row (never a glowing number). A solid marker sits on the current
 // (base) pool size; a faint ghost marker sits on the full (base) rating so
-// a depleted pool still shows where "full" is. Rolling is a press-hold-drag
-// gesture: pressing and holding the name box briefly "arms" the gesture,
-// then dragging right across the track live-selects how many dice to roll
-// (capped at the current pool — base-available + Wardrobe), pulsing a
-// haptic each pip crossed and highlighting the selected pips; releasing
-// fires the roll for whatever count was last selected, and dragging back
-// to (or past) the start before releasing cancels it.
+// a depleted pool still shows where "full" is. Rolling is a press-drag
+// gesture: pressing the name box and dragging right across the track
+// instantly live-selects how many dice to roll (capped at the current
+// pool — base-available + Wardrobe), pulsing a haptic each pip crossed
+// and highlighting the selected pips; releasing fires the roll for
+// whatever count was last selected, and dragging back to (or past) the
+// start before releasing cancels it.
 //
 // Wardrobe dice are folded directly into the same track as a non-depleting
 // gold-tinted pip (same round shape, just colored, continuing the circle
@@ -43,13 +38,14 @@ const dieLabel = (die: DieSides) => `D${die}`
 // of the Overload-spendable pool, so they never get a current/ghost
 // marker and can't be Overloaded away.
 //
-// Past the roll, the popup offers Overload (tap a die to preview doubling
-// it), which only actually spends from the base pool once the player
-// presses Resolve — until then they can freely undo by tapping again, or
-// via the Undo button. From there, two paths continue: send the Total to
-// the HUD's Set Roll list, or turn it into a Margin against an Opposition
-// roll. A positive Margin can then be spent on a flat (non-exploding)
-// Wound roll — individual dice are checked against a Wound
+// Past the roll, the popup offers Overload: long-press a die to double it
+// (spending 1 from the base pool, resolved together with any other
+// pending doubles the moment the player leaves this screen — Send to Set,
+// Create Margin, or closing the popup). A quick tap on an already-doubled
+// die undoes it while the popup is still open. From there, two paths
+// continue: send the Total to the HUD's Set Roll list, or turn it into a
+// Margin against an Opposition roll. A positive Margin can then be spent
+// on a flat (non-exploding) Wound roll — individual dice are checked against a Wound
 // Threshold/Target so the player can read off how many "successes" they
 // have to announce at the table. None of this adjudicates anything; it
 // only surfaces the numbers.
@@ -75,17 +71,17 @@ export function ApproachDie({
   /** Weapon Quality die size, used for the post-Margin Wound roll. */
   damageDie: DieSides
   onRoll: (count: number) => ApproachDieRollResult
-  /** Doubles one rolled die's value and spends it from the Overload pool. Returns false if the pool is exhausted. */
-  onOverload?: (dieIndex: number) => boolean
+  /** Spends `count` dice from the Overload pool at once (one per doubled die, resolved together). Returns false if the pool couldn't cover the full count. */
+  onOverload?: (count: number) => boolean
 }) {
   const [errorFlash, setErrorFlash] = useState(false)
   const [result, setResult] = useState<ApproachDieRollResult | null>(null)
   const [pendingOverload, setPendingOverload] = useState<Set<number>>(new Set())
   const [resolved, setResolved] = useState(false)
   const [rolling, setRolling] = useState(false)
-  const [armed, setArmed] = useState(false)
-  const [pressing, setPressing] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const [dragCount, setDragCount] = useState<number | null>(null)
+  const [pressingDieIndex, setPressingDieIndex] = useState<number | null>(null)
   const [view, setView] = useState<PopupView>("result")
   const [oppositionInput, setOppositionInput] = useState("")
   const [margin, setMargin] = useState<number | null>(null)
@@ -94,15 +90,35 @@ export function ApproachDie({
   const [woundMode, setWoundMode] = useState<"threshold" | "target">("threshold")
   const rollAnimTimer = useRef<number | null>(null)
   const errorFlashTimer = useRef<number | null>(null)
-  const armTimer = useRef<number | null>(null)
-  const startPos = useRef({ x: 0, y: 0 })
   const dragCountRef = useRef<number | null>(null)
   const suppressClick = useRef(false)
+  const resolvedRef = useRef(false)
+  const diePressTimer = useRef<number | null>(null)
+  const dieSuppressClick = useRef(false)
   const boxRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
+  // Spends the pending Overloads from the base pool (one die each, resolved
+  // together in a single call so the parent's state update can't miss any —
+  // see the module doc comment on why resolving dice one-at-a-time in a
+  // loop used to under-spend). Idempotent via resolvedRef: once resolved,
+  // repeat calls (e.g. both a button press and the popup's own close) are
+  // no-ops rather than double-spending.
+  const resolveOverloadIfNeeded = useCallback(() => {
+    if (resolvedRef.current) return
+    resolvedRef.current = true
+    if (onOverload && pendingOverload.size > 0) onOverload(pendingOverload.size)
+    setResolved(true)
+  }, [onOverload, pendingOverload])
+
   const closePopup = useCallback(() => {
+    // Closing the popup (via the X button or tapping outside) with
+    // Overloads still pending commits them — there's no separate
+    // Resolve/Undo step; un-doing a die happens by tapping it again while
+    // the popup is still open (see handleDieClick).
+    resolveOverloadIfNeeded()
+    resolvedRef.current = false
     setResult(null)
     setRolling(false)
     setPendingOverload(new Set())
@@ -117,7 +133,7 @@ export function ApproachDie({
       window.clearInterval(rollAnimTimer.current)
       rollAnimTimer.current = null
     }
-  }, [])
+  }, [resolveOverloadIfNeeded])
 
   // The result popup stays open until the player dismisses it (tap outside
   // or the close button) — it never times out on its own. The popup is
@@ -147,7 +163,7 @@ export function ApproachDie({
   useEffect(() => () => {
     if (rollAnimTimer.current !== null) window.clearInterval(rollAnimTimer.current)
     if (errorFlashTimer.current !== null) window.clearTimeout(errorFlashTimer.current)
-    if (armTimer.current !== null) window.clearTimeout(armTimer.current)
+    if (diePressTimer.current !== null) window.clearTimeout(diePressTimer.current)
   }, [])
 
   const flashError = () => {
@@ -162,6 +178,7 @@ export function ApproachDie({
       return
     }
     const rolled = onRoll(count)
+    resolvedRef.current = false
     setResult(null)
     setPendingOverload(new Set())
     setResolved(false)
@@ -207,73 +224,41 @@ export function ApproachDie({
   }
 
   const resetGesture = () => {
-    if (armTimer.current !== null) {
-      window.clearTimeout(armTimer.current)
-      armTimer.current = null
-    }
-    setPressing(false)
-    setArmed(false)
+    setDragging(false)
     setDragCount(null)
     dragCountRef.current = null
   }
 
+  // Press-and-drag, instantly — no hold delay. Pointer capture is taken
+  // immediately so the drag keeps tracking even once the finger/cursor
+  // moves off the name box and across the track.
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (poolMax <= 0) return
     suppressClick.current = false
-    startPos.current = { x: event.clientX, y: event.clientY }
-    setPressing(true)
-    const pointerId = event.pointerId
-    const target = event.currentTarget
-    armTimer.current = window.setTimeout(() => {
-      armTimer.current = null
-      setPressing(false)
-      setArmed(true)
-      dragCountRef.current = 0
-      setDragCount(0)
-      try {
-        target.setPointerCapture(pointerId)
-      } catch {
-        // Pointer capture isn't critical — move/up still fire on this
-        // element for mouse, and most touch browsers grant it anyway.
-      }
-    }, DRAG_ARM_MS)
+    setDragging(true)
+    dragCountRef.current = 0
+    setDragCount(0)
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // Pointer capture isn't critical — move/up still fire on this
+      // element for mouse, and most touch browsers grant it anyway.
+    }
+    updateDragCount(event.clientX)
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (armed) {
-      updateDragCount(event.clientX)
-      return
-    }
-    if (armTimer.current === null) return
-    const dx = event.clientX - startPos.current.x
-    const dy = event.clientY - startPos.current.y
-    if (Math.abs(dx) > PRE_ARM_CANCEL_PX || Math.abs(dy) > PRE_ARM_CANCEL_PX) {
-      // Moved before the hold threshold elapsed — this reads as a scroll
-      // or pan, not a hold-to-roll; let go so native scrolling can take
-      // over instead of hijacking the gesture.
-      window.clearTimeout(armTimer.current)
-      armTimer.current = null
-      setPressing(false)
-    }
+    if (!dragging) return
+    updateDragCount(event.clientX)
   }
 
   const handlePointerUp = () => {
-    if (armTimer.current !== null) {
-      // Released before the hold threshold — a quick tap, not a roll.
-      window.clearTimeout(armTimer.current)
-      armTimer.current = null
-      setPressing(false)
-      return
-    }
-    if (armed) {
-      const finalCount = dragCountRef.current ?? 0
-      setArmed(false)
-      setDragCount(null)
-      dragCountRef.current = null
-      if (finalCount > 0) {
-        suppressClick.current = true
-        rollPool(finalCount)
-      }
+    if (!dragging) return
+    const finalCount = dragCountRef.current ?? 0
+    resetGesture()
+    if (finalCount > 0) {
+      suppressClick.current = true
+      rollPool(finalCount)
     }
   }
 
@@ -297,64 +282,79 @@ export function ApproachDie({
       )
     : 0
 
-  // Tapping a die previews doubling it (and reserves a charge from the
-  // base pool) but doesn't actually spend anything until Resolve — the
-  // player can keep toggling freely up to the pool size.
-  const handleToggleOverload = (index: number) => {
-    if (!onOverload || resolved) return
+  // Tapping a die previews doubling it, but only once confirmed with a
+  // long-press (a plain tap would be too easy to trigger by accident while
+  // reading the result) — it's then auto-resolved (spent from the base
+  // pool) the moment the player moves past this screen: Send to Set,
+  // Create Margin, or just closing the popup. A quick tap on an
+  // already-doubled die un-does it while the popup is still open; there's
+  // no separate Resolve/Undo step.
+  const addOverload = (index: number) => {
+    if (!onOverload || resolvedRef.current) return
     setPendingOverload((prev) => {
-      const next = new Set(prev)
-      if (next.has(index)) {
-        next.delete(index)
-        return next
-      }
-      if (next.size >= available) {
+      if (prev.has(index)) return prev
+      if (prev.size >= available) {
         flashError()
         return prev
       }
+      const next = new Set(prev)
       next.add(index)
       return next
     })
   }
 
-  const handleUndoOverload = () => {
-    if (resolved) return
-    setPendingOverload(new Set())
+  const removeOverload = (index: number) => {
+    if (resolvedRef.current) return
+    setPendingOverload((prev) => {
+      if (!prev.has(index)) return prev
+      const next = new Set(prev)
+      next.delete(index)
+      return next
+    })
   }
 
-  const handleResolveOverload = () => {
-    if (!onOverload || resolved || pendingOverload.size === 0) {
-      setResolved(true)
+  const cancelDiePress = () => {
+    if (diePressTimer.current !== null) {
+      window.clearTimeout(diePressTimer.current)
+      diePressTimer.current = null
+    }
+    setPressingDieIndex(null)
+  }
+
+  const handleDiePointerDown = (index: number) => {
+    if (!onOverload || resolvedRef.current) return
+    dieSuppressClick.current = false
+    setPressingDieIndex(index)
+    diePressTimer.current = window.setTimeout(() => {
+      diePressTimer.current = null
+      dieSuppressClick.current = true
+      setPressingDieIndex(null)
+      addOverload(index)
+    }, DIE_LONG_PRESS_MS)
+  }
+
+  const handleDieClick = (index: number) => {
+    if (dieSuppressClick.current) {
+      // This click followed a long-press that already added the Overload
+      // — don't also treat it as the "tap to cancel" gesture.
+      dieSuppressClick.current = false
       return
     }
-    for (let i = 0; i < pendingOverload.size; i++) {
-      if (!onOverload(i)) break
-    }
-    setResolved(true)
+    removeOverload(index)
   }
 
-  const canProceedPastOverload = resolved || pendingOverload.size === 0
-
   const handleSendToSet = () => {
-    if (!canProceedPastOverload) return
+    resolveOverloadIfNeeded()
     addSetRollRow(displayTotal)
     closePopup()
   }
 
   const handleConfirmMargin = () => {
-    if (!canProceedPastOverload) return
+    resolveOverloadIfNeeded()
     const opposition = Number(oppositionInput)
     if (!Number.isFinite(opposition)) return
     const computed = displayTotal - opposition
     setMargin(computed)
-    if (computed === 0 && getRollMode() === "combat" && !hasPendingNotification("desync")) {
-      pushNotification(
-        "desync",
-        "Desynced",
-        "Margin of 0 in Combat. Accept to desync, or cancel to ignore it.",
-        { desync: true }
-      )
-    }
     setView("margin-result")
   }
 
@@ -373,9 +373,10 @@ export function ApproachDie({
   // Track geometry: a fixed 1-6 numbered circle row, like the printed
   // sheet (a Method's base rating can never exceed STAT_AND_METHOD_MAX).
   // Circles past baseRating are locked (this Method hasn't grown a die
-  // there yet). The solid marker sits on `available` (current pool); a
-  // faint ghost marker sits on `baseRating` (full pool) whenever the two
-  // differ, so a depleted pool still shows where full used to be.
+  // there yet). Within baseRating, every circle up to `available` is a
+  // solid "available" pip (blue); the rest, up to baseRating, are "spent"
+  // (dull red) — no single moving marker, every pip's own color says
+  // whether its die is still in the pool.
   const trackMax = Math.min(STAT_AND_METHOD_MAX, baseRating)
   const trackCurrent = Math.max(0, Math.min(available, trackMax))
   const isDepleted = trackMax > 0 && trackCurrent === 0
@@ -393,12 +394,12 @@ export function ApproachDie({
     ? dragCount > 0
       ? `Release to roll ${dragCount}`
       : "Drag right to choose dice"
-    : "Hold and drag to roll"
+    : "Drag to roll"
 
   return (
     <div
       ref={boxRef}
-      className={`method-row${armed ? " armed" : ""}${errorFlash ? " error" : ""}`}
+      className={`method-row${dragging ? " armed" : ""}${errorFlash ? " error" : ""}`}
     >
       <button
         type="button"
@@ -409,9 +410,7 @@ export function ApproachDie({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
         onContextMenu={(event) => event.preventDefault()}
-        style={{ ["--hold-progress-ms" as string]: `${DRAG_ARM_MS}ms` } as React.CSSProperties}
       >
-        <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
         <span className="method-row-name">{label}</span>
       </button>
 
@@ -436,13 +435,13 @@ export function ApproachDie({
       >
         {Array.from({ length: trackMax }, (_, index) => {
           const slot = index + 1
-          const isCurrent = slot === trackCurrent
-          const isGhost = slot === trackMax && trackMax !== trackCurrent
+          const isAvailable = slot <= trackCurrent
+          const isSpent = !isAvailable
           const isPreview = dragCount !== null && slot <= dragCount
           return (
             <span
               key={slot}
-              className={`method-die-pip${isCurrent ? " current" : ""}${isGhost ? " ghost" : ""}${isPreview ? " drag-preview" : ""}`}
+              className={`method-die-pip${isAvailable ? " available" : ""}${isSpent ? " spent" : ""}${isPreview ? " drag-preview" : ""}`}
               style={{ gridColumn: slot }}
               aria-hidden="true"
             >
@@ -532,26 +531,31 @@ export function ApproachDie({
                 {result.dice.map((dieRoll, index) => {
                   const effectiveValue = pendingOverload.has(index) ? overloadedValue(dieRoll) : dieRoll.total
                   const isTop = result.dice.length > 0 && effectiveValue === displayTotal
+                  const isPressing = pressingDieIndex === index
                   return (
                     <button
                       key={index}
                       type="button"
-                      className={`approach-die-chip${pendingOverload.has(index) ? " overloaded" : ""}${isTop ? " top" : ""}`}
-                      disabled={!onOverload || resolved || (overloadPoolRemaining <= 0 && !pendingOverload.has(index))}
+                      className={`approach-die-chip${pendingOverload.has(index) ? " overloaded" : ""}${isTop ? " top" : ""}${isPressing ? " pressing" : ""}`}
+                      disabled={!onOverload || (overloadPoolRemaining <= 0 && !pendingOverload.has(index))}
+                      style={{ ["--hold-progress-ms" as string]: `${DIE_LONG_PRESS_MS}ms` } as CSSProperties}
+                      onPointerDown={(event) => { event.stopPropagation(); handleDiePointerDown(index) }}
+                      onPointerUp={(event) => { event.stopPropagation(); cancelDiePress() }}
+                      onPointerLeave={cancelDiePress}
+                      onPointerCancel={cancelDiePress}
                       onClick={(event) => {
                         event.stopPropagation()
-                        handleToggleOverload(index)
+                        handleDieClick(index)
                       }}
                       title={
-                        resolved
-                          ? undefined
-                          : pendingOverload.has(index)
+                        pendingOverload.has(index)
                           ? "Tap to undo this Overload"
                           : onOverload
-                          ? "Tap to Overload: double this die (spends 1 from the base pool on Resolve)"
+                          ? "Hold to Overload: double this die (spends 1 from the base pool)"
                           : undefined
                       }
                     >
+                      <span className={`hold-progress-fill${isPressing ? " active" : ""}`} aria-hidden="true" />
                       D10: {dieRoll.rolls[0]}
                       {pendingOverload.has(index) && <span className="approach-die-chip-doubled">DOUBLED</span>}
                     </button>
@@ -561,24 +565,12 @@ export function ApproachDie({
               {onOverload && (
                 <div className="approach-die-popup-pool">
                   Overload pool: {overloadPoolRemaining}/{baseRating}
-                  {pendingOverload.size > 0 && !resolved && (
-                    <div className="approach-overload-resolve-actions">
-                      <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); handleResolveOverload() }}>
-                        Resolve
-                      </button>
-                      <button type="button" className="approach-roll-path-btn secondary" onClick={(e) => { e.stopPropagation(); handleUndoOverload() }}>
-                        Undo
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
               <div className="approach-roll-path-actions">
                 <button
                   type="button"
                   className="approach-roll-path-btn"
-                  disabled={!canProceedPastOverload}
-                  title={!canProceedPastOverload ? "Resolve or undo your Overload selection first" : undefined}
                   onClick={(e) => { e.stopPropagation(); handleSendToSet() }}
                 >
                   Send to Set
@@ -586,8 +578,6 @@ export function ApproachDie({
                 <button
                   type="button"
                   className="approach-roll-path-btn"
-                  disabled={!canProceedPastOverload}
-                  title={!canProceedPastOverload ? "Resolve or undo your Overload selection first" : undefined}
                   onClick={(e) => { e.stopPropagation(); setView("margin-input") }}
                 >
                   Create Margin
@@ -595,6 +585,7 @@ export function ApproachDie({
               </div>
             </>
           )}
+
 
           {view === "margin-input" && (
             <div className="approach-margin-input">
@@ -625,9 +616,6 @@ export function ApproachDie({
             <div className="approach-margin-result">
               <div className="approach-margin-value">{margin > 0 ? `+${margin}` : margin}</div>
               <div className="approach-margin-sub">Margin</div>
-              {margin === 0 && (
-                <div className="approach-desync-banner">DESYNCED</div>
-              )}
               {margin > 0 && (
                 <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); handleRollDamage() }}>
                   Roll Wounds ({margin}{dieLabel(damageDie)})
