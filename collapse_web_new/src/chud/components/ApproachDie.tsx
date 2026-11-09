@@ -32,10 +32,11 @@ const dieLabel = (die: DieSides) => `D${die}`
 // many dice are in the current pool right now (base-available + Wardrobe).
 //
 // Wardrobe dice are folded directly into the same track as a non-depleting
-// shirt icon right after the Method's own circles ("Wardrobe adds dice to
-// that Method's roll only") — they're always rolled, but are never part of
-// the Overload-spendable pool, so they never appear as track circles and
-// can't be Overloaded away.
+// square (numbered, continuing the circle sequence) right after the
+// Method's own circles ("Wardrobe adds dice to that Method's roll only")
+// — they're always rolled, but are never part of the Overload-spendable
+// pool, so they never appear as track circles and can't be Overloaded
+// away.
 //
 // Past the roll, the popup offers Overload (tap a die to preview doubling
 // it), which only actually spends from the base pool once the player
@@ -388,21 +389,25 @@ export function ApproachDie({
             </div>
           )}
         </div>
-        {/* Wardrobe dice are folded directly into the track as shirt
-            icons, immediately after the Method's own circles —
-            "Wardrobe adds dice to that Method's roll only." They're
-            always rolled but never trackable/Overload-spendable, so
-            they never get a current/ghost marker and tapping them does
-            nothing. */}
-        {Array.from({ length: wardrobeBonus }, (_, index) => (
-          <span
-            key={`wardrobe-${index}`}
-            className="method-die-shirt"
-            title={`Wardrobe bonus die${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; not part of the Overload pool.`}
-          >
-            👕
-          </span>
-        ))}
+        {/* Wardrobe dice are folded directly into the track as squares
+            (vs. the Method's own round circles), immediately after the
+            Method's own circles — "Wardrobe adds dice to that Method's
+            roll only." They're always rolled but never trackable/
+            Overload-spendable, so they never get a current/ghost marker
+            and tapping them does nothing. Numbered the same way the
+            circles are, continuing the slot sequence. */}
+        {Array.from({ length: wardrobeBonus }, (_, index) => {
+          const slot = trackMax + index + 1
+          return (
+            <span
+              key={`wardrobe-${index}`}
+              className="method-die-square"
+              title={`Wardrobe bonus die${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; not part of the Overload pool.`}
+            >
+              {slot}
+            </span>
+          )
+        })}
         {/* Remaining slots up to the sheet's 1-6 ceiling that neither the
             Method's own rating nor Wardrobe have reached yet — hollow,
             dashed potential the Method hasn't grown into. */}
