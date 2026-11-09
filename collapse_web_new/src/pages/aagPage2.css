@@ -389,6 +389,47 @@
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04));
 }
 
+/* Tap-sequence feedback (mirrors chud.css's .core-card rules — this page
+   duplicates the cHUD design system's class names rather than sharing the
+   stylesheet, see the file header comment). */
+.aag-page2 .core-card.tap-pending-add {
+  animation: core-card-tap-pending 480ms ease-in-out infinite;
+  border-color: #0ff6ff;
+}
+
+.aag-page2 .core-card.tap-pending-remove {
+  animation: core-card-tap-pending-remove 480ms ease-in-out infinite;
+  border-color: #ff5c5c;
+}
+
+@keyframes core-card-tap-pending {
+  0%, 100% { box-shadow: 0 0 0 rgba(15, 246, 255, 0); }
+  50% { box-shadow: 0 0 14px 2px rgba(15, 246, 255, 0.45); }
+}
+
+@keyframes core-card-tap-pending-remove {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 92, 92, 0); }
+  50% { box-shadow: 0 0 14px 2px rgba(255, 92, 92, 0.5); }
+}
+
+.aag-page2 .core-card.tap-flash-add {
+  animation: core-card-tap-flash-add 320ms ease;
+}
+
+.aag-page2 .core-card.tap-flash-remove {
+  animation: core-card-tap-flash-remove 320ms ease;
+}
+
+@keyframes core-card-tap-flash-add {
+  0% { box-shadow: 0 0 20px 4px rgba(15, 246, 255, 0.7); border-color: #0ff6ff; }
+  100% { box-shadow: 0 0 0 rgba(15, 246, 255, 0); }
+}
+
+@keyframes core-card-tap-flash-remove {
+  0% { box-shadow: 0 0 20px 4px rgba(255, 92, 92, 0.75); border-color: #ff5c5c; }
+  100% { box-shadow: 0 0 0 rgba(255, 92, 92, 0); }
+}
+
 .aag-page2 .core-label {
   font-size: 0.7rem;
   font-family: var(--font-display);
