@@ -21,7 +21,7 @@ export function EngramBriefWidget({
   const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const isHolding = useRef(false);
   const holdFired = useRef(false);
-  const HOLD_MS = 2000;
+  const HOLD_MS = 1000;
 
   // only show equipped Engrams with charges remaining
   const activeEntries = Object.entries(state.equipped)

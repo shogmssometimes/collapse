@@ -22,7 +22,7 @@ export function GearBriefWidget({
   const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const isHolding = useRef(false);
   const holdFired = useRef(false);
-  const HOLD_MS = 2000;
+  const HOLD_MS = 1000;
 
   // only show entries with QTY > 0
   const activeEntries = entries.slice(0, count).filter(e => {
