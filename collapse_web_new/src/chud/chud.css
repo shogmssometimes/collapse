@@ -1128,15 +1128,16 @@ body::after {
    after the Method's own circles (never a separate number elsewhere).
    A solid "current" marker sits on the base pool's available count; a
    faint "ghost" marker sits on the full base rating when the pool has
-   been depleted, so the full count is never erased. Spread out evenly
-   to use the width freed up by the smaller, fixed-size roll button. */
+   been depleted, so the full count is never erased. Fixed (not
+   stretched/space-between) so every row's 6 slots land at the exact
+   same x-position regardless of how many are circles vs Wardrobe vs
+   locked — columns stay aligned across Force/Finesse/Guts/etc. */
 .method-row-track {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   flex-wrap: nowrap;
-  justify-content: space-between;
 }
 
 /* Wraps only the Method's own circles so the "Charges Spent" overlay
