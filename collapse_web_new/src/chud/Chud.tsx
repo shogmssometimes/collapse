@@ -19,7 +19,7 @@ import { computeWardrobeBonuses } from "../domain/wardrobeBonus";
 import { loadState, readGearData, readWardrobeData } from "../utils/chudPersistence";
 import { wardrobeKey, deckBuilderKey } from "../utils/slotKeys";
 import { adjustGlobalMeters, setChipDesynced, resetApproachOverload } from "../utils/chudVanillaBridge";
-import { fullRestEngrams, grantEngramRestoreBudget } from "../utils/engramState";
+import { fullRestEngrams, grantEngramRestoreBudget, readEngramState, type EngramManagerState } from "../utils/engramState";
 import {
   NOTIFICATIONS_STORAGE_KEY,
   hasPendingNotification,
@@ -74,6 +74,9 @@ export default function Chud() {
   );
   const [gearSlotsUsed, setGearSlotsUsed] = useState<number>(() =>
     typeof window !== "undefined" ? (readGearData(GEAR_SLOTS_KEY)?.slotsUsed ?? 0) : 0
+  );
+  const [engramState, setEngramState] = useState<EngramManagerState>(() =>
+    typeof window !== "undefined" ? readEngramState(DECK_BUILDER_KEY) : { equipped: {}, pendingEngramRestoreBudget: 0 }
   );
   const [wardrobeEntries, setWardrobeEntries] = useState(() =>
     typeof window !== "undefined" ? readWardrobeData(WARDROBE_KEY) : []
@@ -264,6 +267,15 @@ export default function Chud() {
   }, []);
 
   useEffect(() => {
+    const engramHandler = (e: StorageEvent) => {
+      if (e.key !== DECK_BUILDER_KEY) return;
+      setEngramState(readEngramState(DECK_BUILDER_KEY));
+    };
+    window.addEventListener("storage", engramHandler);
+    return () => window.removeEventListener("storage", engramHandler);
+  }, []);
+
+  useEffect(() => {
     const wardrobeHandler = (e: StorageEvent) => {
       if (e.key !== WARDROBE_KEY) return;
       setWardrobeEntries(readWardrobeData(WARDROBE_KEY));
@@ -334,6 +346,8 @@ export default function Chud() {
             gearSlotsUsed={gearSlotsUsed}
             gearSlotsKey={GEAR_SLOTS_KEY}
             inventorySlots={inventorySlots}
+            engramState={engramState}
+            engramStorageKey={DECK_BUILDER_KEY}
             methods={
               <ApproachPanel
                 core={core}

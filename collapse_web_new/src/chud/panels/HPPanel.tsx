@@ -1,11 +1,14 @@
 import type { ReactNode } from "react";
 import { useGesture } from "../../hooks/useGesture";
 import { GearPanel } from "./GearPanel";
+import { EngramPanel } from "./EngramPanel";
 import type { GearSlotEntry } from "../../types/chud";
+import type { EngramManagerState } from "../../utils/engramState";
 
 // HP section: HP bar, then Methods, then nested Set Rolls, Gear queue,
-// Grit/Collapse meter, and (last) Chip Sync. Plain section (no accordion).
-// Order on screen: HP, Methods, Sets, Gear Queue, Grit/Collapse, Sync.
+// Engram queue, Grit/Collapse meter, and (last) Chip Sync. Plain section
+// (no accordion).
+// Order on screen: HP, Methods, Sets, Gear Queue, Engram Queue, Grit/Collapse, Sync.
 export function HPPanel({
   hpCounter,
   hpMax,
@@ -16,6 +19,8 @@ export function HPPanel({
   gearSlotsUsed,
   gearSlotsKey,
   inventorySlots,
+  engramState,
+  engramStorageKey,
   methods,
 }: {
   hpCounter: number;
@@ -27,6 +32,8 @@ export function HPPanel({
   gearSlotsUsed: number;
   gearSlotsKey: string;
   inventorySlots: number;
+  engramState: EngramManagerState;
+  engramStorageKey: string;
   /** The Methods (ApproachPanel) section, rendered directly below HP. */
   methods: ReactNode;
 }) {
@@ -64,6 +71,10 @@ export function HPPanel({
         gearSlotsUsed={gearSlotsUsed}
         gearSlotsKey={gearSlotsKey}
         inventorySlots={inventorySlots}
+      />
+      <EngramPanel
+        engramState={engramState}
+        engramStorageKey={engramStorageKey}
       />
       {/* Grit/Collapse meter vanilla widget from meter-bridge.js mounts here,
           directly below the gear queue. */}
