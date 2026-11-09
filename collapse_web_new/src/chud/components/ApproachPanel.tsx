@@ -169,7 +169,12 @@ export function ApproachPanel({
           const [a, b] = CORE_APPROACH_MAP[coreField];
           return (
             <div className="method-group" key={coreField}>
-              <div className="method-group-header">{CORE_LABELS[coreField]}</div>
+              <div className="method-group-header">
+                <span>{CORE_LABELS[coreField]}</span>
+                <span className="method-group-stat-box" aria-label={`${CORE_LABELS[coreField]} Stat: ${core[coreField]}, shared across ${APPROACH_LABELS[a]} and ${APPROACH_LABELS[b]}`}>
+                  {core[coreField]}
+                </span>
+              </div>
               {[a, b].map((field) => {
                 const baseRating = approach[field];
                 const wardrobeBonus = approachWardrobeBonus[field] ?? 0;
@@ -179,7 +184,6 @@ export function ApproachPanel({
                   <ApproachDie
                     key={field}
                     label={APPROACH_LABELS[field]}
-                    statValue={core[coreField]}
                     baseRating={baseRating}
                     wardrobeBonus={wardrobeBonus}
                     wardrobeItems={approachWardrobeItems[field] ?? []}

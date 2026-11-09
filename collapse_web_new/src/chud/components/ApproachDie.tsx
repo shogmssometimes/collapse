@@ -48,7 +48,6 @@ const dieLabel = (die: DieSides) => `D${die}`
 // only surfaces the numbers.
 export function ApproachDie({
   label,
-  statValue,
   baseRating,
   wardrobeBonus = 0,
   wardrobeItems = [],
@@ -59,8 +58,6 @@ export function ApproachDie({
   onSetAvailable,
 }: {
   label: string
-  /** The linked Core stat's current pool value, shown in the row's Stat box. */
-  statValue?: number
   /** Core-distributed rating alone (before Wardrobe) — the track's full/ghost count and the Overload-spendable pool size. */
   baseRating: number
   /** Extra dice granted by Wardrobe items assigned to this Method. Always rolled; never part of the track or the Overload pool. */
@@ -353,9 +350,6 @@ export function ApproachDie({
         style={{ ["--hold-progress-ms" as string]: `${CHARGE_THRESHOLD_MS}ms` } as React.CSSProperties}
       >
         <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
-        {typeof statValue === "number" && (
-          <span className="method-row-stat-box" aria-hidden="true">{statValue}</span>
-        )}
         <span className="method-row-name-wrap">
           <span className="method-row-name">{label}</span>
           <span className="method-row-hint">{rollHint}</span>

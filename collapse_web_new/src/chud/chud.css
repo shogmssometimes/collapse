@@ -885,6 +885,9 @@ body::after {
 }
 
 .method-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-display);
   font-size: 0.65rem;
   font-weight: 400;
@@ -893,6 +896,28 @@ body::after {
   color: rgba(248, 250, 252, 0.45);
   border-left: 2px solid var(--accent-red);
   padding-left: 6px;
+}
+
+/* The Core stat's own Stat box — shown once per group, not per Method row.
+   A Core stat is a single shared pool split across its two Methods (e.g.
+   Vigor 3 = Force 1 + Finesse 2, never 3 on each row), so it belongs here,
+   not duplicated on every Method beneath it. */
+.method-group-stat-box {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: rgba(248, 250, 252, 0.75);
 }
 
 .approach-die-size-control {
@@ -1080,23 +1105,8 @@ body::after {
   75% { transform: translateX(2px) scale(1.02); }
 }
 
-/* The Stat box: a square, not a circle — holds a plain number (the linked
-   Core stat's pool), distinct from the Method's own numbered-circle track. */
-.method-row-stat-box {
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1rem;
-  color: rgba(248, 250, 252, 0.75);
-}
+/* (no stat box here anymore — the Core stat's box moved to the group
+   header above; see .method-group-stat-box) */
 
 .method-row-name-wrap {
   display: flex;
