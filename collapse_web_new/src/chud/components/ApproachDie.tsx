@@ -88,6 +88,7 @@ export function ApproachDie({
   const [resolved, setResolved] = useState(false)
   const [rolling, setRolling] = useState(false)
   const [armed, setArmed] = useState(false)
+  const [chargeProgress, setChargeProgress] = useState(0) // 0-100, grows from the instant of press, independent of `armed`
   const [rollingPreview, setRollingPreview] = useState<number[]>([])
   const [pressingDieIndex, setPressingDieIndex] = useState<number | null>(null)
   const [view, setView] = useState<PopupView>("result")
@@ -99,6 +100,7 @@ export function ApproachDie({
   const rollAnimTimer = useRef<number | null>(null)
   const errorFlashTimer = useRef<number | null>(null)
   const armTimer = useRef<number | null>(null)
+  const chargeInterval = useRef<number | null>(null)
   const armedRef = useRef(false)
   const gestureStart = useRef<{ x: number; y: number } | null>(null)
   const rolledThisGesture = useRef(false)
@@ -174,6 +176,7 @@ export function ApproachDie({
     if (errorFlashTimer.current !== null) window.clearTimeout(errorFlashTimer.current)
     if (diePressTimer.current !== null) window.clearTimeout(diePressTimer.current)
     if (armTimer.current !== null) window.clearTimeout(armTimer.current)
+    if (chargeInterval.current !== null) window.clearInterval(chargeInterval.current)
   }, [])
 
   const flashError = () => {
@@ -223,8 +226,13 @@ export function ApproachDie({
       window.clearTimeout(armTimer.current)
       armTimer.current = null
     }
+    if (chargeInterval.current !== null) {
+      window.clearInterval(chargeInterval.current)
+      chargeInterval.current = null
+    }
     armedRef.current = false
     setArmed(false)
+    setChargeProgress(0)
     gestureStart.current = null
   }
 
@@ -233,6 +241,11 @@ export function ApproachDie({
   // METHOD_SWIPE_PX — while armed actually fires the roll, and it always
   // rolls the whole pool. Moving too far *before* arming cancels instead,
   // so an accidental drag (e.g. scrolling past the row) doesn't arm it.
+  // The charge-up glow itself starts growing the instant the pointer goes
+  // down (see chargeProgress below) rather than waiting for the full
+  // METHOD_ARM_MS to elapse before showing anything — a press that
+  // doesn't visibly react right away reads as broken and players let go
+  // before it ever arms.
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (poolMax <= 0) return
     rolledThisGesture.current = false
@@ -243,10 +256,16 @@ export function ApproachDie({
       // Pointer capture isn't critical — move/up still fire on this
       // element for mouse, and most touch browsers grant it anyway.
     }
+    const pressStart = Date.now()
+    setChargeProgress(1) // immediate, visible reaction on the very first paint after press
+    chargeInterval.current = window.setInterval(() => {
+      setChargeProgress(Math.min(100, ((Date.now() - pressStart) / METHOD_ARM_MS) * 100))
+    }, 30)
     armTimer.current = window.setTimeout(() => {
       armTimer.current = null
       armedRef.current = true
       setArmed(true)
+      setChargeProgress(100)
       vibrate(VIBRATE_PIP_MS)
     }, METHOD_ARM_MS)
   }
@@ -413,6 +432,14 @@ export function ApproachDie({
         type="button"
         className="method-row-roll"
         aria-label={`${label}, ${available} of ${baseRating} base dice available${wardrobeBonus > 0 ? `, plus ${wardrobeBonus} from Wardrobe` : ""}. ${rollHint}.`}
+        style={
+          !armed && chargeProgress > 0
+            ? {
+                borderColor: `rgba(255,212,59,${0.18 + 0.5 * (chargeProgress / 100)})`,
+                boxShadow: `0 0 ${4 + 14 * (chargeProgress / 100)}px rgba(255,212,59,${0.1 + 0.35 * (chargeProgress / 100)})`,
+              }
+            : undefined
+        }
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -526,25 +553,21 @@ export function ApproachDie({
           <div className="approach-die-popup-label">{label}</div>
 
           {rolling && (
-            <>
-              <div className="approach-die-popup-value rolling" aria-label="Rolling dice">
-                {rollingPreview.length > 0 ? Math.max(...rollingPreview) : "…"}
-              </div>
-              <div className="approach-die-popup-die">
-                {rollingPreview.map((face, index) => (
-                  <span key={index} className="approach-die-chip rolling" aria-hidden="true">
+            <div className="approach-die-popup-die">
+              {rollingPreview.map((face, index) => {
+                const previewTop = rollingPreview.length > 0 ? Math.max(...rollingPreview) : null
+                const isTop = previewTop !== null && face === previewTop
+                return (
+                  <span key={index} className={`approach-die-chip rolling${isTop ? " top" : ""}`} aria-hidden="true">
                     D10: {face}
                   </span>
-                ))}
-              </div>
-            </>
+                )
+              })}
+            </div>
           )}
 
           {!rolling && result && view === "result" && (
             <>
-              <div className="approach-die-popup-value">
-                {displayTotal}
-              </div>
               <div className="approach-die-popup-die">
                 {result.dice.map((dieRoll, index) => {
                   const effectiveValue = pendingOverload.has(index) ? overloadedValue(dieRoll) : dieRoll.total
@@ -582,7 +605,7 @@ export function ApproachDie({
               </div>
               {onOverload && (
                 <div className="approach-die-popup-pool">
-                  Overload pool: {overloadPoolRemaining}/{baseRating}
+                  Overload: {overloadPoolRemaining}/{baseRating}
                 </div>
               )}
               <div className="approach-roll-path-actions">

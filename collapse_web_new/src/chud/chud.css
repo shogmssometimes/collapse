@@ -1340,27 +1340,6 @@ body::after {
   color: rgba(248, 250, 252, 0.65);
 }
 
-.approach-die-popup-value {
-  font-size: 6.5rem;
-  color: #f8fafc;
-  line-height: 1;
-}
-
-.approach-die-popup-value.bad {
-  color: #ff5c5c;
-  text-shadow: 0 0 24px rgba(255, 92, 92, 0.5);
-}
-
-.approach-die-popup-value.good {
-  color: #ffd43b;
-  text-shadow: 0 0 24px rgba(255, 212, 59, 0.5);
-}
-
-.approach-die-popup-value.rolling {
-  color: rgba(248, 250, 252, 0.5);
-  animation: approach-die-rolling-tick 60ms linear infinite;
-}
-
 @keyframes approach-die-rolling-tick {
   from { transform: scale(0.92); }
   to { transform: scale(1); }
