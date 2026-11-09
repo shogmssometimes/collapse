@@ -95,6 +95,7 @@ export function ApproachDie({
   const vibrateTimer = useRef<number | null>(null)
   const suppressClick = useRef(false)
   const boxRef = useRef<HTMLDivElement>(null)
+  const popupRef = useRef<HTMLDivElement>(null)
 
   const closePopup = useCallback(() => {
     setResult(null)
@@ -114,11 +115,21 @@ export function ApproachDie({
   }, [])
 
   // The result popup stays open until the player dismisses it (tap outside
-  // or the close button) — it never times out on its own.
+  // or the close button) — it never times out on its own. The popup is
+  // rendered via createPortal into document.body, physically outside
+  // boxRef's own subtree, so "outside" must explicitly also check
+  // popupRef — relying solely on the popup's own stopPropagation calls
+  // bubbling correctly across the portal boundary (interacting with
+  // touch-blocker.js's overlay spans on real touch devices) was fragile
+  // and could let a tap on a die/button inside the popup be misread as
+  // "outside" and close it before the player's intended action landed.
   useEffect(() => {
     if (!result) return
     const handleOutside = (event: PointerEvent) => {
-      if (boxRef.current && event.target instanceof Node && !boxRef.current.contains(event.target)) closePopup()
+      if (!(event.target instanceof Node)) return
+      if (boxRef.current?.contains(event.target)) return
+      if (popupRef.current?.contains(event.target)) return
+      closePopup()
     }
     document.addEventListener("pointerdown", handleOutside)
     return () => document.removeEventListener("pointerdown", handleOutside)
@@ -421,6 +432,7 @@ export function ApproachDie({
 
       {(rolling || result) && createPortal(
         <div
+          ref={popupRef}
           className="approach-die-popup"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
