@@ -321,6 +321,7 @@ export function ApproachDie({
   // differ, so a depleted pool still shows where full used to be.
   const trackMax = Math.min(STAT_AND_METHOD_MAX, baseRating)
   const trackCurrent = Math.max(0, Math.min(available, trackMax))
+  const isDepleted = trackMax > 0 && trackCurrent === 0
 
   const handleCircleClick = (slot: number) => {
     if (!onSetAvailable) return
@@ -362,23 +363,6 @@ export function ApproachDie({
       </button>
 
       <div className="method-row-track" role="group" aria-label={`${label} dice track`}>
-        {/* A "0" position before circle 1 — a depleted pool still needs a
-            solid marker somewhere; this is where it goes when the current
-            count is 0 (the ghost at the full count still shows separately). */}
-        {trackMax > 0 && (
-          <button
-            type="button"
-            className={`method-die-pip zero${trackCurrent === 0 ? " current" : ""}`}
-            disabled={!onSetAvailable}
-            onClick={(event) => {
-              event.stopPropagation()
-              handleCircleClick(0)
-            }}
-            title={onSetAvailable ? `Set ${label} pool to 0` : undefined}
-          >
-            0
-          </button>
-        )}
         {Array.from({ length: STAT_AND_METHOD_MAX }, (_, index) => {
           const slot = index + 1
           const isLocked = slot > trackMax
@@ -400,6 +384,14 @@ export function ApproachDie({
             </button>
           )
         })}
+        {/* When the pool is fully depleted (every die Overloaded away),
+            cover the numbers with a plain banner instead of a "0" marker —
+            the ghost at the full count already shows where "full" is. */}
+        {isDepleted && (
+          <div className="method-row-track-overlay" aria-hidden="true">
+            Charges Spent
+          </div>
+        )}
       </div>
 
       {wardrobeBonus > 0 && (

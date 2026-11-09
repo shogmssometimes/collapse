@@ -331,6 +331,65 @@ body::-webkit-scrollbar {
   flex-shrink: 0;
 }
 
+/* Receive Ganbare!: a method-symbol box (tap cycles through the 6 Methods)
+   next to a Ganbare! box (long-press restores 1 die to the selected
+   Method's pool, capped at its base rating). A separate, free-standing
+   control — it isn't tied to this sheet's own Ganbare! Charges, which are
+   only spent when *giving* Ganbare! to someone else. */
+.ganbare-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.ganbare-method-box {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: rgba(248, 250, 252, 0.75);
+  cursor: pointer;
+  -webkit-appearance: none;
+  font: inherit;
+  padding: 0;
+}
+
+.ganbare-receive-box {
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 auto;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 212, 59, 0.35);
+  background: linear-gradient(135deg, rgba(255, 212, 59, 0.08), rgba(255, 212, 59, 0.02));
+  padding: 6px 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 212, 59, 0.85);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-appearance: none;
+  font: inherit;
+}
+
+.ganbare-receive-box.charging {
+  border-color: #ffd43b;
+  animation: approach-die-charging 220ms ease-in-out infinite;
+}
+
 .roll-mode-toggle {
   display: flex;
   gap: 4px;
@@ -1070,6 +1129,7 @@ body::after {
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
+  position: relative;
 }
 
 .method-die-pip {
@@ -1116,9 +1176,8 @@ body::after {
 }
 
 /* Faint ghost marker: the full base rating, shown only when the pool has
-   been depleted below it (an empty pool still shows a ghost at its full
-   count, and a solid marker on the "0" position implied by no circle
-   being current). */
+   been depleted below it — an empty pool shows the ghost here, and the
+   "Charges Spent" overlay below covers the rest of the track. */
 .method-die-pip.ghost {
   background: transparent;
   border-color: rgba(15, 246, 255, 0.4);
@@ -1126,20 +1185,25 @@ body::after {
   box-shadow: 0 0 0 2px rgba(15, 246, 255, 0.08) inset;
 }
 
-/* The "0" position marker before circle 1 — slightly smaller/dimmer by
-   default since it's a track endpoint, not one of the printed sheet's
-   numbered circles. Goes solid like any other "current" marker at 0. */
-.method-die-pip.zero {
-  width: 20px;
-  height: 20px;
-  font-size: 0.6rem;
-  opacity: 0.6;
-  border-style: dotted;
-}
-
-.method-die-pip.zero.current {
-  opacity: 1;
-  border-style: solid;
+/* A fully-depleted pool (every die Overloaded away) covers the track's
+   numbers with a plain banner instead of a "0" marker circle. The ghost
+   marker at the full count still peeks through underneath/around it. */
+.method-row-track-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 12, 16, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.7);
+  pointer-events: none;
 }
 
 /* The Wardrobe bonus box: a separate square, never counted as a track

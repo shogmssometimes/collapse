@@ -173,6 +173,20 @@ export default function Chud() {
     setApproachOverloadSpent((prev) => ({ ...prev, [field]: baseRating - clamped }));
   }, [approach]);
 
+  // "Receive Ganbare!" — a friend spends one of *their* Ganbare! Charges to
+  // return one of your Overloaded dice to its Method pool (handbook: "or
+  // until a friend gives you Ganbare! for it"). This doesn't touch this
+  // character's own Ganbare! Charges (ganbareSpent) — that pool is only for
+  // *giving* Ganbare! to someone else. Restores at most 1 die, capped so
+  // the pool never exceeds its base rating.
+  const receiveGanbare = useCallback((field: keyof ApproachStats): void => {
+    setApproachOverloadSpent((prev) => {
+      const spent = prev[field] ?? 0;
+      if (spent <= 0) return prev;
+      return { ...prev, [field]: spent - 1 };
+    });
+  }, []);
+
   // Persist to localStorage. Merge with whatever is currently saved so
   // fields owned by the AAG/MGR pages (wt, secondary) aren't clobbered.
   // `approach` itself (the distributed ratings) is owned by the
@@ -322,6 +336,7 @@ export default function Chud() {
             approachOverloadSpent={approachOverloadSpent}
             onOverloadApproachDie={overloadApproachDie}
             onSetApproachAvailable={setApproachAvailable}
+            onReceiveGanbare={receiveGanbare}
             approachWardrobeBonus={approachWardrobeBonus}
             approachWardrobeItems={approachWardrobeItems}
           />

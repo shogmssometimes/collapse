@@ -931,11 +931,15 @@ function buildStatusRollsPanel() {
       APPROACH_LABELS.forEach(([key, label]) => {
         const base = Number(approach?.[key]) || 0
         const { bonus } = readWardrobeBonus(key)
-        const rating = Math.min(STAT_AND_METHOD_MAX, base + bonus)
+        // Picker shows the base (Core-distributed) rating only — the
+        // Overload-spendable pool size. Wardrobe is a separate add-on that
+        // always rolls but never appears as part of this number, mirroring
+        // ApproachDie.tsx/ApproachPanel.tsx's base-only pool.
+        const rating = Math.min(STAT_AND_METHOD_MAX, base)
         const btn = document.createElement('button')
         btn.className = 'status-roll-save-approach-btn'
         btn.setAttribute('data-touch-blocker-ignore', '')
-        btn.innerHTML = `<span class="label">${label}</span><span class="rating">${rating}</span>`
+        btn.innerHTML = `<span class="label">${label}</span><span class="rating">${rating}</span>${bonus > 0 ? `<span class="status-roll-save-wardrobe-pip">+${bonus} 👕</span>` : ''}`
         btn.addEventListener('click', () => renderDiceStep(key))
         grid.appendChild(btn)
       })
@@ -951,7 +955,10 @@ function buildStatusRollsPanel() {
       const { approach } = readApproachState()
       const base = Number(approach?.[field]) || 0
       const { bonus: wardrobeBonus, items: wardrobeItems } = readWardrobeBonus(field)
-      const rating = Math.min(STAT_AND_METHOD_MAX, base + wardrobeBonus)
+      // Base rating alone is the track/Overload-spendable pool — matches
+      // ApproachDie.tsx's base-only pool. Wardrobe dice always roll in
+      // addition (see rollBtn handler below) but are never armed/tracked.
+      const rating = Math.min(STAT_AND_METHOD_MAX, base)
       let spent = readOverloadSpent(field)
       let available = Math.max(0, rating - spent)
       let armed = 0
@@ -1057,7 +1064,11 @@ function buildStatusRollsPanel() {
       rollBtn.addEventListener('click', () => {
         if (armed <= 0) return
         clearArmedTimers()
-        dice = rollMethodDice(armed)
+        // Wardrobe dice always roll alongside the armed base-pool dice —
+        // "Wardrobe adds dice to that Method's roll only" — but aren't
+        // armed/tracked themselves, so they're added here rather than to
+        // `armed`.
+        dice = rollMethodDice(armed + wardrobeBonus)
         overloadedSet.clear()
         pips.style.display = 'none'
         armedHint.style.display = 'none'

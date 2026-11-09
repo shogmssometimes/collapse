@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ApproachDie, type ApproachDieRollResult } from "./ApproachDie";
 import type { ApproachStats, CoreStats } from "../../types/chud";
 import type { DieSides } from "../../domain/approachDice";
@@ -47,6 +47,82 @@ function RollModeToggle() {
 }
 
 
+const GANBARE_METHOD_SYMBOLS: Record<keyof ApproachStats, string> = {
+  force: "FRC",
+  finesse: "FIN",
+  guts: "GUT",
+  logic: "LOG",
+  show: "SHO",
+  tell: "TEL",
+};
+
+const GANBARE_METHOD_ORDER: Array<keyof ApproachStats> = ["force", "finesse", "guts", "logic", "show", "tell"];
+
+const GANBARE_HOLD_MS = 500;
+
+// "Receive Ganbare!" — handbook: a friend can spend one of *their* own
+// Ganbare! Charges to return one of your Overloaded dice to its Method
+// pool ("or until a friend gives you Ganbare! for it"). This control
+// models receiving that gift on your own sheet: cycle the method-symbol
+// box to the Method that should get its die back, then long-press the
+// Ganbare! box to restore it (capped at that Method's base rating).
+function GanbareControl({
+  onReceiveGanbare,
+}: {
+  onReceiveGanbare: (field: keyof ApproachStats) => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [charging, setCharging] = useState(false);
+  const holdTimer = useRef<number | null>(null);
+
+  const field = GANBARE_METHOD_ORDER[index];
+
+  const cycle = () => setIndex((i) => (i + 1) % GANBARE_METHOD_ORDER.length);
+
+  const cancelHold = () => {
+    if (holdTimer.current !== null) {
+      window.clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+    setCharging(false);
+  };
+
+  const startHold = () => {
+    setCharging(true);
+    holdTimer.current = window.setTimeout(() => {
+      onReceiveGanbare(field);
+      cancelHold();
+    }, GANBARE_HOLD_MS);
+  };
+
+  return (
+    <div className="ganbare-control">
+      <button
+        type="button"
+        className="ganbare-method-box"
+        onClick={cycle}
+        aria-label={`Ganbare! target Method: ${APPROACH_LABELS[field]}. Tap to cycle.`}
+      >
+        {GANBARE_METHOD_SYMBOLS[field]}
+      </button>
+      <button
+        type="button"
+        className={`ganbare-receive-box${charging ? " charging" : ""}`}
+        onPointerDown={startHold}
+        onPointerUp={cancelHold}
+        onPointerLeave={cancelHold}
+        onPointerCancel={cancelHold}
+        onContextMenu={(event) => event.preventDefault()}
+        style={{ ["--hold-progress-ms" as string]: `${GANBARE_HOLD_MS}ms` } as React.CSSProperties}
+        aria-label={`Receive Ganbare! on ${APPROACH_LABELS[field]}. Long-press to add 1 die to its pool.`}
+      >
+        <span className={`hold-progress-fill${charging ? " active" : ""}`} aria-hidden="true" />
+        Ganbare!
+      </button>
+    </div>
+  );
+}
+
 // Method rows — printed-sheet style, grouped under their linked Core stat
 // (VIGOR / INFER / PERSO), two Methods each, lives in the HUD so the player
 // can roll directly off the compact view. Ratings/distribution still live
@@ -60,6 +136,7 @@ export function ApproachPanel({
   approachOverloadSpent,
   onOverloadApproachDie,
   onSetApproachAvailable,
+  onReceiveGanbare,
   approachWardrobeBonus,
   approachWardrobeItems,
 }: {
@@ -71,6 +148,8 @@ export function ApproachPanel({
   onOverloadApproachDie: (field: keyof ApproachStats) => boolean;
   /** Directly sets a Method's base-pool available count (tapping a track circle). */
   onSetApproachAvailable: (field: keyof ApproachStats, next: number) => void;
+  /** Restores 1 die to the chosen Method's pool (a friend's Ganbare!, long-press to confirm). */
+  onReceiveGanbare: (field: keyof ApproachStats) => void;
   /** Extra dice granted by Wardrobe items assigned to each Method (on top of the Core-distributed rating). Always rolled; never Overload-spendable. */
   approachWardrobeBonus: Partial<Record<keyof ApproachStats, number>>;
   /** Wardrobe item names/bonuses contributing to each Method's bonus, for a tooltip. */
@@ -84,6 +163,7 @@ export function ApproachPanel({
         <h3>Method</h3>
         <RollModeToggle />
       </div>
+      <GanbareControl onReceiveGanbare={onReceiveGanbare} />
       <div className="method-groups">
         {coreGroups.map((coreField) => {
           const [a, b] = CORE_APPROACH_MAP[coreField];
