@@ -1218,6 +1218,15 @@ body::after {
    spanned cells (grid's default item sizing) rather than needing a
    sized ancestor. */
 .method-row-track-overlay {
+  /* Needs its own stacking context with an explicit z-index: the
+     runtime's touch-blocker script (public/chud/touch-blocker.js) sets
+     position:relative on every button it instruments, including the
+     circle pips — a positioned element with z-index:auto paints above
+     static siblings regardless of DOM order, which silently put every
+     pip on top of this (DOM-later, but static) overlay. Giving the
+     overlay a higher explicit z-index makes it win regardless. */
+  position: relative;
+  z-index: 2;
   align-self: stretch;
   justify-self: stretch;
   display: flex;
