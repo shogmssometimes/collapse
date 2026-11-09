@@ -1398,6 +1398,12 @@ body::after {
   font-weight: 700;
 }
 
+.approach-die-chip.rolling {
+  cursor: default;
+  color: rgba(248, 250, 252, 0.5);
+  animation: approach-die-rolling-tick 60ms linear infinite;
+}
+
 .approach-die-chip.top {
   background: rgba(15, 246, 255, 0.12);
   border-color: #0ff6ff;

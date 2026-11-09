@@ -15,6 +15,13 @@ const VIBRATE_PIP_MS = 14
 // Long-press (not a tap) to double a die — a plain tap on a die that's
 // already doubled cancels it instead (see handleDieClick).
 const DIE_LONG_PRESS_MS = 420
+// How long the Method's name box must be held before it's "armed" and
+// ready to roll. Once armed, moving the pointer past METHOD_SWIPE_PX in
+// any direction fires the roll; moving that far *before* arming instead
+// cancels the hold (reads as an accidental drag, not a deliberate press).
+const METHOD_ARM_MS = 350
+const METHOD_PRE_ARM_CANCEL_PX = 8
+const METHOD_SWIPE_PX = 10
 
 type PopupView = "result" | "margin-input" | "margin-result" | "damage"
 
@@ -23,13 +30,14 @@ const dieLabel = (die: DieSides) => `D${die}`
 // Method row — printed-sheet style: the track is a fixed 1-6 numbered
 // circle row (never a glowing number). A solid marker sits on the current
 // (base) pool size; a faint ghost marker sits on the full (base) rating so
-// a depleted pool still shows where "full" is. Rolling is a press-drag
-// gesture: pressing the name box and dragging right across the track
-// instantly live-selects how many dice to roll (capped at the current
-// pool — base-available + Wardrobe), pulsing a haptic each pip crossed
-// and highlighting the selected pips; releasing fires the roll for
-// whatever count was last selected, and dragging back to (or past) the
-// start before releasing cancels it.
+// a depleted pool still shows where "full" is. There's no reason to ever
+// roll fewer than every die in the pool, so there's nothing left to
+// "select" — rolling is a long-press-then-swipe gesture instead: holding
+// the name box briefly arms it (the same gold charging glow as before),
+// then any swipe in any direction while armed instantly rolls the whole
+// pool (base-available + Wardrobe) and opens the result popup. Releasing
+// before it's armed, or holding without swiping, does nothing — only the
+// swipe fires the roll.
 //
 // Wardrobe dice are folded directly into the same track as a non-depleting
 // gold-tinted pip (same round shape, just colored, continuing the circle
@@ -79,8 +87,8 @@ export function ApproachDie({
   const [pendingOverload, setPendingOverload] = useState<Set<number>>(new Set())
   const [resolved, setResolved] = useState(false)
   const [rolling, setRolling] = useState(false)
-  const [dragging, setDragging] = useState(false)
-  const [dragCount, setDragCount] = useState<number | null>(null)
+  const [armed, setArmed] = useState(false)
+  const [rollingPreview, setRollingPreview] = useState<number[]>([])
   const [pressingDieIndex, setPressingDieIndex] = useState<number | null>(null)
   const [view, setView] = useState<PopupView>("result")
   const [oppositionInput, setOppositionInput] = useState("")
@@ -90,13 +98,14 @@ export function ApproachDie({
   const [woundMode, setWoundMode] = useState<"threshold" | "target">("threshold")
   const rollAnimTimer = useRef<number | null>(null)
   const errorFlashTimer = useRef<number | null>(null)
-  const dragCountRef = useRef<number | null>(null)
-  const suppressClick = useRef(false)
+  const armTimer = useRef<number | null>(null)
+  const armedRef = useRef(false)
+  const gestureStart = useRef<{ x: number; y: number } | null>(null)
+  const rolledThisGesture = useRef(false)
   const resolvedRef = useRef(false)
   const diePressTimer = useRef<number | null>(null)
   const dieSuppressClick = useRef(false)
   const boxRef = useRef<HTMLDivElement>(null)
-  const trackRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
   // Spends the pending Overloads from the base pool (one die each, resolved
@@ -164,6 +173,7 @@ export function ApproachDie({
     if (rollAnimTimer.current !== null) window.clearInterval(rollAnimTimer.current)
     if (errorFlashTimer.current !== null) window.clearTimeout(errorFlashTimer.current)
     if (diePressTimer.current !== null) window.clearTimeout(diePressTimer.current)
+    if (armTimer.current !== null) window.clearTimeout(armTimer.current)
   }, [])
 
   const flashError = () => {
@@ -171,6 +181,10 @@ export function ApproachDie({
     if (errorFlashTimer.current !== null) window.clearTimeout(errorFlashTimer.current)
     errorFlashTimer.current = window.setTimeout(() => setErrorFlash(false), ERROR_FLASH_MS)
   }
+
+  // The current pool this Method can roll right now — always the whole
+  // pool; there's nothing left to pick since a roll always uses every die.
+  const poolMax = Math.max(0, available) + Math.max(0, wardrobeBonus)
 
   const rollPool = (count: number) => {
     if (count <= 0) {
@@ -184,6 +198,10 @@ export function ApproachDie({
     setResolved(false)
     setView("result")
     setRolling(true)
+    // "Numbers rolling" visual: re-roll a throwaway D10 face per die, every
+    // tick, so the popup looks like the dice are actually tumbling before
+    // settling on the real result.
+    setRollingPreview(Array.from({ length: count }, () => Math.floor(Math.random() * 10) + 1))
     let ticks = 0
     rollAnimTimer.current = window.setInterval(() => {
       ticks += 1
@@ -194,78 +212,70 @@ export function ApproachDie({
         }
         setRolling(false)
         setResult(rolled)
+        return
       }
+      setRollingPreview(Array.from({ length: count }, () => Math.floor(Math.random() * 10) + 1))
     }, ROLL_ANIM_INTERVAL_MS)
   }
 
-  // The current pool this Method can roll right now — the drag gesture's
-  // selectable count never exceeds this (can't select more dice than you
-  // actually have).
-  const poolMax = Math.max(0, available) + Math.max(0, wardrobeBonus)
-
-  // Reads the live pointer X against the track's rendered bounds and turns
-  // it into a selected dice count — position at/left of the track's own
-  // left edge (i.e. still back over the name box, where the gesture
-  // started) is 0 dice ("swipe fully to the left ... cancels"); each
-  // pip-width step to the right selects one more, capped at poolMax.
-  const updateDragCount = (clientX: number) => {
-    const trackEl = trackRef.current
-    if (!trackEl) return
-    const rect = trackEl.getBoundingClientRect()
-    const perPip = rect.width / totalSlots
-    if (!(perPip > 0)) return
-    const raw = Math.round((clientX - rect.left) / perPip)
-    const next = Math.max(0, Math.min(poolMax, raw))
-    if (next !== dragCountRef.current) {
-      dragCountRef.current = next
-      setDragCount(next)
-      vibrate(VIBRATE_PIP_MS)
+  const cancelGesture = () => {
+    if (armTimer.current !== null) {
+      window.clearTimeout(armTimer.current)
+      armTimer.current = null
     }
+    armedRef.current = false
+    setArmed(false)
+    gestureStart.current = null
   }
 
-  const resetGesture = () => {
-    setDragging(false)
-    setDragCount(null)
-    dragCountRef.current = null
-  }
-
-  // Press-and-drag, instantly — no hold delay. Pointer capture is taken
-  // immediately so the drag keeps tracking even once the finger/cursor
-  // moves off the name box and across the track.
+  // Holding the name box arms the gesture (same gold "charging" glow the
+  // row already had); only a swipe — in any direction, by any amount past
+  // METHOD_SWIPE_PX — while armed actually fires the roll, and it always
+  // rolls the whole pool. Moving too far *before* arming cancels instead,
+  // so an accidental drag (e.g. scrolling past the row) doesn't arm it.
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (poolMax <= 0) return
-    suppressClick.current = false
-    setDragging(true)
-    dragCountRef.current = 0
-    setDragCount(0)
+    rolledThisGesture.current = false
+    gestureStart.current = { x: event.clientX, y: event.clientY }
     try {
       event.currentTarget.setPointerCapture(event.pointerId)
     } catch {
       // Pointer capture isn't critical — move/up still fire on this
       // element for mouse, and most touch browsers grant it anyway.
     }
-    updateDragCount(event.clientX)
+    armTimer.current = window.setTimeout(() => {
+      armTimer.current = null
+      armedRef.current = true
+      setArmed(true)
+      vibrate(VIBRATE_PIP_MS)
+    }, METHOD_ARM_MS)
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (!dragging) return
-    updateDragCount(event.clientX)
+    if (rolledThisGesture.current || !gestureStart.current) return
+    const dx = event.clientX - gestureStart.current.x
+    const dy = event.clientY - gestureStart.current.y
+    const dist = Math.hypot(dx, dy)
+    if (!armedRef.current) {
+      if (dist > METHOD_PRE_ARM_CANCEL_PX) cancelGesture()
+      return
+    }
+    if (dist > METHOD_SWIPE_PX) {
+      rolledThisGesture.current = true
+      cancelGesture()
+      vibrate(VIBRATE_PIP_MS * 2)
+      rollPool(poolMax)
+    }
   }
 
   const handlePointerUp = () => {
-    if (!dragging) return
-    const finalCount = dragCountRef.current ?? 0
-    resetGesture()
-    if (finalCount > 0) {
-      suppressClick.current = true
-      rollPool(finalCount)
-    }
+    cancelGesture()
   }
 
   const handlePointerCancel = () => {
     // A pointercancel (e.g. the OS took over for a system gesture) always
-    // aborts — never rolls, even mid-drag.
-    resetGesture()
+    // aborts — never rolls, even mid-gesture.
+    cancelGesture()
   }
 
   // Overload pool remaining = the base pool only. Wardrobe dice always
@@ -390,16 +400,14 @@ export function ApproachDie({
     ? "No dice"
     : errorFlash
     ? "No more dice"
-    : dragCount !== null
-    ? dragCount > 0
-      ? `Release to roll ${dragCount}`
-      : "Drag right to choose dice"
-    : "Drag to roll"
+    : armed
+    ? `Swipe to roll ${poolMax}`
+    : "Hold, then swipe to roll"
 
   return (
     <div
       ref={boxRef}
-      className={`method-row${dragging ? " armed" : ""}${errorFlash ? " error" : ""}`}
+      className={`method-row${armed ? " armed" : ""}${errorFlash ? " error" : ""}`}
     >
       <button
         type="button"
@@ -423,21 +431,18 @@ export function ApproachDie({
           "Charges Spent" overlay also gets an explicit column span
           (1 to trackMax) so it only covers the Method's own circles,
           painting over them (same grid area, later in DOM order) rather
-          than needing position:absolute. trackRef lets the drag gesture
-          read the track's live rendered bounds to map pointer X to a pip
-          count. */}
+          than needing position:absolute. */}
       <div
         className="method-row-track"
         role="group"
         aria-label={`${label} dice track`}
-        ref={trackRef}
         style={{ ["--method-track-columns" as string]: totalSlots }}
       >
         {Array.from({ length: trackMax }, (_, index) => {
           const slot = index + 1
           const isAvailable = slot <= trackCurrent
           const isSpent = !isAvailable
-          const isPreview = dragCount !== null && slot <= dragCount
+          const isPreview = armed && isAvailable
           return (
             <span
               key={slot}
@@ -473,7 +478,7 @@ export function ApproachDie({
             where the dice come from, not a different track mechanic. */}
         {Array.from({ length: wardrobeBonus }, (_, index) => {
           const slot = trackMax + index + 1
-          const isPreview = dragCount !== null && slot <= dragCount
+          const isPreview = armed
           return (
             <span
               key={`wardrobe-${index}`}
@@ -520,7 +525,20 @@ export function ApproachDie({
           </button>
           <div className="approach-die-popup-label">{label}</div>
 
-          {rolling && <div className="approach-die-popup-value rolling" aria-label="Rolling dice">…</div>}
+          {rolling && (
+            <>
+              <div className="approach-die-popup-value rolling" aria-label="Rolling dice">
+                {rollingPreview.length > 0 ? Math.max(...rollingPreview) : "…"}
+              </div>
+              <div className="approach-die-popup-die">
+                {rollingPreview.map((face, index) => (
+                  <span key={index} className="approach-die-chip rolling" aria-hidden="true">
+                    D10: {face}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
 
           {!rolling && result && view === "result" && (
             <>
