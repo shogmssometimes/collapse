@@ -501,6 +501,11 @@ function GearCard({ item, onQuickAdd }: { item: GearItem; onQuickAdd?: (item: Ge
           {item.name}
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+          {item.tiedTo && (
+            <span style={{ fontSize: '0.65rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(15,246,255,0.85)', background: 'rgba(15,246,255,0.08)', border: '1px solid rgba(15,246,255,0.3)', borderRadius: 4, padding: '2px 6px' }}>
+              {item.tiedTo}
+            </span>
+          )}
           {item.cost !== undefined && (
             <span style={{ fontSize: '0.7rem', color: 'var(--muted)', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 6px' }}>
               Size {item.cost}
@@ -560,6 +565,11 @@ function GearCard({ item, onQuickAdd }: { item: GearItem; onQuickAdd?: (item: Ge
             <div style={{ fontSize: '0.82rem', color: 'rgba(248,250,252,0.9)', background: 'rgba(255,255,255,0.05)', borderRadius: 4, padding: '4px 8px' }}>
               {item.effect}
             </div>
+          )}
+          {item.notes && (
+            <p style={{ margin: 0, color: 'rgba(249,115,22,0.85)', fontSize: '0.74rem', fontStyle: 'italic', lineHeight: 1.4 }}>
+              {item.notes}
+            </p>
           )}
         </div>
       )}
