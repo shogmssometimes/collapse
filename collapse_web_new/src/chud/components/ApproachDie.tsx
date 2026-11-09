@@ -17,30 +17,38 @@ const VIBRATE_START_MS = 180
 const VIBRATE_MIN_MS = 45
 const VIBRATE_STEP_MS = 18
 const VIBRATE_PULSE_MS = 28
-const ARMED_IDLE_TIMEOUT_MS = 15000
-const ARMED_FADE_MS = 1000
 
 type PopupView = "result" | "margin-input" | "margin-result" | "damage"
 
 const dieLabel = (die: DieSides) => `D${die}`
 
-// Approach dice card: tapping arms one die (up to the Approach's available
-// pool); holding charges a roll (vibrating/stuttering as it "spins up") and
-// releasing fires the roll using however many dice are currently armed, then
-// resets the armed count back to 0. Adding a point to an Approach (via the
-// Core distribution popout) already implies the extra die is available — no
-// separate "breakout" indicator is needed here.
+// Method row — printed-sheet style: the track is a fixed 1-6 numbered
+// circle row (never a glowing number). A solid marker sits on the current
+// (base) pool size; a faint ghost marker sits on the full (base) rating so
+// a depleted pool still shows where "full" is. Tapping a circle sets the
+// current pool directly — this is a player correction/bookkeeping action,
+// not a roll trigger. Holding the row (vibrating/stuttering as it "spins
+// up") is what actually rolls the pool, and releasing fires using however
+// many dice are in the current pool right now (base-available + Wardrobe).
 //
-// Past the initial Resolution roll, the popup offers two paths: send the
-// Total to the HUD's Set Roll list, or turn it into a Margin against an
-// Opposition roll. A positive Margin can then be spent on a flat
-// (non-exploding) Wound roll — individual dice are checked against a Wound
+// Wardrobe dice are a separate, non-depleting square box next to the track
+// ("Wardrobe adds dice to that Method's roll only") — they're always
+// rolled, but are never part of the Overload-spendable pool, so they never
+// appear as track circles and can't be Overloaded away.
+//
+// Past the roll, the popup offers Overload (tap a die to preview doubling
+// it), which only actually spends from the base pool once the player
+// presses Resolve — until then they can freely undo by tapping again, or
+// via the Undo button. From there, two paths continue: send the Total to
+// the HUD's Set Roll list, or turn it into a Margin against an Opposition
+// roll. A positive Margin can then be spent on a flat (non-exploding)
+// Wound roll — individual dice are checked against a Wound
 // Threshold/Target so the player can read off how many "successes" they
 // have to announce at the table. None of this adjudicates anything; it
 // only surfaces the numbers.
 export function ApproachDie({
   label,
-  rating,
+  statValue,
   baseRating,
   wardrobeBonus = 0,
   wardrobeItems = [],
@@ -48,29 +56,31 @@ export function ApproachDie({
   damageDie,
   onRoll,
   onOverload,
+  onSetAvailable,
 }: {
   label: string
-  /** Full Approach rating including any Wardrobe bonus, i.e. the size of the Overload dice pool. */
-  rating: number
-  /** Core-distributed rating alone, before any Wardrobe bonus — used to tell base pips from bonus pips. */
-  baseRating?: number
-  /** Extra dice granted by Wardrobe items assigned to this Approach. */
+  /** The linked Core stat's current pool value, shown in the row's Stat box. */
+  statValue?: number
+  /** Core-distributed rating alone (before Wardrobe) — the track's full/ghost count and the Overload-spendable pool size. */
+  baseRating: number
+  /** Extra dice granted by Wardrobe items assigned to this Method. Always rolled; never part of the track or the Overload pool. */
   wardrobeBonus?: number
   /** Wardrobe item names/bonuses contributing to wardrobeBonus, for a tooltip. */
   wardrobeItems?: string[]
-  /** Dice currently available to arm (rating minus any Overloaded-and-spent dice). */
+  /** Base-pool dice currently available (baseRating minus any Overloaded-and-spent dice). */
   available: number
   /** Weapon Quality die size, used for the post-Margin Wound roll. */
   damageDie: DieSides
   onRoll: (count: number) => ApproachDieRollResult
   /** Doubles one rolled die's value and spends it from the Overload pool. Returns false if the pool is exhausted. */
   onOverload?: (dieIndex: number) => boolean
+  /** Directly sets the base pool's current/available count (tapping a track circle). */
+  onSetAvailable?: (next: number) => void
 }) {
-  const [armed, setArmed] = useState(0)
-  const [armedFading, setArmedFading] = useState(false)
   const [errorFlash, setErrorFlash] = useState(false)
   const [result, setResult] = useState<ApproachDieRollResult | null>(null)
-  const [overloaded, setOverloaded] = useState<Set<number>>(new Set())
+  const [pendingOverload, setPendingOverload] = useState<Set<number>>(new Set())
+  const [resolved, setResolved] = useState(false)
   const [rolling, setRolling] = useState(false)
   const [charging, setCharging] = useState(false)
   const [pressing, setPressing] = useState(false)
@@ -84,55 +94,14 @@ export function ApproachDie({
   const errorFlashTimer = useRef<number | null>(null)
   const chargeStartTimer = useRef<number | null>(null)
   const vibrateTimer = useRef<number | null>(null)
-  const armedFadeTimer = useRef<number | null>(null)
-  const armedIdleTimer = useRef<number | null>(null)
   const suppressClick = useRef(false)
-  const boxRef = useRef<HTMLButtonElement>(null)
-
-  // Clamp armed count down whenever the available pool shrinks (e.g. an
-  // Overload spend) so it never exceeds what's actually rollable.
-  useEffect(() => {
-    setArmed((prev) => Math.min(prev, available))
-  }, [available])
-
-  // An armed-but-unrolled die that just sits there for 30s reverts itself —
-  // it fades out over the last second as a warning, then un-arms. Any change
-  // to `armed` (arming another die, or rolling, which resets it to 0) clears
-  // and restarts this timer.
-  useEffect(() => {
-    if (armedFadeTimer.current !== null) {
-      window.clearTimeout(armedFadeTimer.current)
-      armedFadeTimer.current = null
-    }
-    if (armedIdleTimer.current !== null) {
-      window.clearTimeout(armedIdleTimer.current)
-      armedIdleTimer.current = null
-    }
-    setArmedFading(false)
-    if (armed <= 0) return
-    armedFadeTimer.current = window.setTimeout(() => {
-      setArmedFading(true)
-    }, ARMED_IDLE_TIMEOUT_MS - ARMED_FADE_MS)
-    armedIdleTimer.current = window.setTimeout(() => {
-      setArmed(0)
-      setArmedFading(false)
-    }, ARMED_IDLE_TIMEOUT_MS)
-    return () => {
-      if (armedFadeTimer.current !== null) {
-        window.clearTimeout(armedFadeTimer.current)
-        armedFadeTimer.current = null
-      }
-      if (armedIdleTimer.current !== null) {
-        window.clearTimeout(armedIdleTimer.current)
-        armedIdleTimer.current = null
-      }
-    }
-  }, [armed])
+  const boxRef = useRef<HTMLDivElement>(null)
 
   const closePopup = useCallback(() => {
     setResult(null)
     setRolling(false)
-    setOverloaded(new Set())
+    setPendingOverload(new Set())
+    setResolved(false)
     setView("result")
     setOppositionInput("")
     setMargin(null)
@@ -177,21 +146,16 @@ export function ApproachDie({
     errorFlashTimer.current = window.setTimeout(() => setErrorFlash(false), ERROR_FLASH_MS)
   }
 
-  const armOne = () => {
-    if (armed >= available) {
+  const rollPool = () => {
+    const count = available + wardrobeBonus
+    if (count <= 0) {
       flashError()
       return
     }
-    setArmed((v) => v + 1)
-  }
-
-  const rollArmed = () => {
-    if (armed <= 0) return
-    const count = armed
-    setArmed(0)
     const rolled = onRoll(count)
     setResult(null)
-    setOverloaded(new Set())
+    setPendingOverload(new Set())
+    setResolved(false)
     setView("result")
     setRolling(true)
     let ticks = 0
@@ -249,7 +213,8 @@ export function ApproachDie({
   const handlePointerUp = () => {
     setPressing(false)
     if (chargeStartTimer.current !== null) {
-      // Released before the charge threshold — treat as a tap to arm.
+      // Released before the charge threshold — not a roll, just a tap on
+      // the roll zone. Nothing happens; only a hold rolls the pool.
       window.clearTimeout(chargeStartTimer.current)
       chargeStartTimer.current = null
       return
@@ -257,45 +222,70 @@ export function ApproachDie({
     if (charging) {
       suppressClick.current = true
       stopCharging()
-      rollArmed()
+      rollPool()
     }
   }
 
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault()
-    if (suppressClick.current) {
-      suppressClick.current = false
-      return
-    }
-    armOne()
-  }
-
-  // `available` already reflects every Overload spent so far (this roll and
-  // any prior ones) via the parent's approachOverloadSpent tracking — it's
-  // not just this roll's local `overloaded` set, so don't subtract that too.
-  const overloadPoolRemaining = available
+  // Overload pool remaining = the base pool only. Wardrobe dice always
+  // roll but are never Overload-spendable ("Wardrobe adds dice to that
+  // Method's roll only") — see the module doc comment.
+  const overloadPoolRemaining = Math.max(0, available - pendingOverload.size)
   // Overload doubles a die's face value. Nothing Explodes, so the Total is
   // simply the single highest die in the pool after any Overloads.
   const overloadedValue = (dieRoll: ApproachDieResult) => dieRoll.rolls[0] * 2
   const displayTotal = result
     ? result.dice.reduce(
-        (max, dieRoll, index) => Math.max(max, overloaded.has(index) ? overloadedValue(dieRoll) : dieRoll.total),
+        (max, dieRoll, index) => Math.max(max, pendingOverload.has(index) ? overloadedValue(dieRoll) : dieRoll.total),
         0
       )
     : 0
 
+  // Tapping a die previews doubling it (and reserves a charge from the
+  // base pool) but doesn't actually spend anything until Resolve — the
+  // player can keep toggling freely up to the pool size.
   const handleToggleOverload = (index: number) => {
-    if (!onOverload || overloaded.has(index)) return
-    if (!onOverload(index)) return // pool exhausted
-    setOverloaded((prev) => new Set(prev).add(index))
+    if (!onOverload || resolved) return
+    setPendingOverload((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+        return next
+      }
+      if (next.size >= available) {
+        flashError()
+        return prev
+      }
+      next.add(index)
+      return next
+    })
   }
 
+  const handleUndoOverload = () => {
+    if (resolved) return
+    setPendingOverload(new Set())
+  }
+
+  const handleResolveOverload = () => {
+    if (!onOverload || resolved || pendingOverload.size === 0) {
+      setResolved(true)
+      return
+    }
+    for (let i = 0; i < pendingOverload.size; i++) {
+      if (!onOverload(i)) break
+    }
+    setResolved(true)
+  }
+
+  const canProceedPastOverload = resolved || pendingOverload.size === 0
+
   const handleSendToSet = () => {
+    if (!canProceedPastOverload) return
     addSetRollRow(displayTotal)
     closePopup()
   }
 
   const handleConfirmMargin = () => {
+    if (!canProceedPastOverload) return
     const opposition = Number(oppositionInput)
     if (!Number.isFinite(opposition)) return
     const computed = displayTotal - opposition
@@ -323,73 +313,101 @@ export function ApproachDie({
     hasWoundValue && (woundMode === "threshold" ? value >= woundThresholdNumber : value === woundThresholdNumber)
   const successCount = hasWoundValue ? damageDice.filter(isSuccess).length : 0
 
-  const wardrobePipCount = Math.min(wardrobeBonus, rating)
-  // How many dice from the full pool are currently spent/unavailable
-  // (Overloaded earlier today, or on a prior roll) — the pips render the
-  // full Method rating, with these shown as "spent" instead of just
-  // disappearing, so the player can see their whole pool, not just what's
-  // left of it.
-  const spentPipCount = Math.max(0, rating - available)
+  // Track geometry: a fixed 1-6 numbered circle row, like the printed
+  // sheet (a Method's base rating can never exceed STAT_AND_METHOD_MAX).
+  // Circles past baseRating are locked (this Method hasn't grown a die
+  // there yet). The solid marker sits on `available` (current pool); a
+  // faint ghost marker sits on `baseRating` (full pool) whenever the two
+  // differ, so a depleted pool still shows where full used to be.
+  const trackMax = Math.min(STAT_AND_METHOD_MAX, baseRating)
+  const trackCurrent = Math.max(0, Math.min(available, trackMax))
+
+  const handleCircleClick = (slot: number) => {
+    if (!onSetAvailable) return
+    onSetAvailable(slot)
+  }
+
+  const rollHint = available + wardrobeBonus <= 0
+    ? "No dice"
+    : errorFlash
+    ? "No more dice"
+    : charging
+    ? "Release to roll…"
+    : "Hold to roll"
 
   return (
-    <button
+    <div
       ref={boxRef}
-      type="button"
-      className={`approach-die${charging ? " charging" : ""}${errorFlash ? " error" : ""}`}
-      aria-label={`${label}, rating ${rating}: ${armed} armed of ${available} available${spentPipCount > 0 ? `, ${spentPipCount} spent until Full Rest` : ""}${wardrobeBonus > 0 ? ` (includes +${wardrobeBonus} from Wardrobe)` : ""}. Tap to arm a die, hold to roll.`}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={cancelPress}
-      onPointerCancel={cancelPress}
-      onClick={handleClick}
-      onContextMenu={(event) => event.preventDefault()}
-      style={{ ["--hold-progress-ms" as string]: `${CHARGE_THRESHOLD_MS}ms` } as React.CSSProperties}
+      className={`method-row${charging ? " charging" : ""}${errorFlash ? " error" : ""}`}
     >
-      {/* Fills over the pre-charge window so there's a visible cue for how
-          close a hold is to being recognized as "hold to roll" vs a tap. */}
-      <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
-      <span className="approach-die-label">{label}</span>
-      <span className="approach-die-rating" aria-hidden="true">{rating}</span>
-      <div className="approach-die-pips" aria-hidden="true">
-        {/* Always render the full 1-6 track from the printed sheet (a
-            Method can never go above STAT_AND_METHOD_MAX), numbering each
-            circle like the paper version's marker track. Circles past the
-            current rating are locked (this Method doesn't have a die
-            there); within the rating, the "marker" is just where the
-            spent/available boundary falls — spending an Overload die
-            moves it down, a Full Rest/Ganbare! moves it back up. */}
+      <button
+        type="button"
+        className="method-row-roll"
+        aria-label={`${label}, ${available} of ${baseRating} base dice available${wardrobeBonus > 0 ? `, plus ${wardrobeBonus} from Wardrobe` : ""}. Hold to roll.`}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={cancelPress}
+        onPointerCancel={cancelPress}
+        onContextMenu={(event) => event.preventDefault()}
+        style={{ ["--hold-progress-ms" as string]: `${CHARGE_THRESHOLD_MS}ms` } as React.CSSProperties}
+      >
+        <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
+        {typeof statValue === "number" && (
+          <span className="method-row-stat-box" aria-hidden="true">{statValue}</span>
+        )}
+        <span className="method-row-name-wrap">
+          <span className="method-row-name">{label}</span>
+          <span className="method-row-hint">{rollHint}</span>
+        </span>
+      </button>
+
+      <div className="method-row-track" role="group" aria-label={`${label} dice track`}>
+        {/* A "0" position before circle 1 — a depleted pool still needs a
+            solid marker somewhere; this is where it goes when the current
+            count is 0 (the ghost at the full count still shows separately). */}
+        {trackMax > 0 && (
+          <button
+            type="button"
+            className={`method-die-pip zero${trackCurrent === 0 ? " current" : ""}`}
+            disabled={!onSetAvailable}
+            onClick={(event) => {
+              event.stopPropagation()
+              handleCircleClick(0)
+            }}
+            title={onSetAvailable ? `Set ${label} pool to 0` : undefined}
+          >
+            0
+          </button>
+        )}
         {Array.from({ length: STAT_AND_METHOD_MAX }, (_, index) => {
-          const slotNumber = index + 1
-          const isUnlocked = slotNumber <= rating
-          const isSpent = isUnlocked && index >= available
-          const isArmedPip = isUnlocked && index < armed
-          const isWardrobePip = isUnlocked && index >= rating - wardrobePipCount
+          const slot = index + 1
+          const isLocked = slot > trackMax
+          const isCurrent = !isLocked && slot === trackCurrent
+          const isGhost = !isLocked && slot === trackMax && trackMax !== trackCurrent
           return (
-            <span
-              key={index}
-              className={`approach-die-pip${isUnlocked ? "" : " locked"}${isArmedPip ? " armed" : ""}${isWardrobePip ? " wardrobe" : ""}${isArmedPip && armedFading ? " fading" : ""}${isSpent ? " spent" : ""}`}
+            <button
+              key={slot}
+              type="button"
+              className={`method-die-pip${isLocked ? " locked" : ""}${isCurrent ? " current" : ""}${isGhost ? " ghost" : ""}`}
+              disabled={isLocked || !onSetAvailable}
+              onClick={(event) => {
+                event.stopPropagation()
+                handleCircleClick(slot)
+              }}
+              title={isLocked ? undefined : `Set ${label} pool to ${slot}`}
             >
-              {slotNumber}
-            </span>
+              {slot}
+            </button>
           )
         })}
       </div>
-      <span className="approach-die-sub">
-        {available <= 0
-          ? rating > 0 ? "Exhausted" : "No dice"
-          : errorFlash ? "No more dice" : charging ? "Release to roll…" : (
-            <>
-              <span className="approach-die-sub-line">Tap: arm</span>
-              <span className="approach-die-sub-line">Hold: roll</span>
-            </>
-          )}
-      </span>
+
       {wardrobeBonus > 0 && (
         <span
-          className="approach-die-wardrobe-pip"
-          title={`Includes +${wardrobeBonus} from Wardrobe${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}`}
+          className="method-row-wardrobe-box"
+          title={`+${wardrobeBonus} dice from Wardrobe${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; not part of the Overload pool.`}
         >
-          +{wardrobeBonus} 👕
+          +{wardrobeBonus}
         </span>
       )}
 
@@ -421,42 +439,66 @@ export function ApproachDie({
               </div>
               <div className="approach-die-popup-die">
                 {result.dice.map((dieRoll, index) => {
-                  const effectiveValue = overloaded.has(index) ? overloadedValue(dieRoll) : dieRoll.total
+                  const effectiveValue = pendingOverload.has(index) ? overloadedValue(dieRoll) : dieRoll.total
                   const isTop = result.dice.length > 0 && effectiveValue === displayTotal
                   return (
                     <button
                       key={index}
                       type="button"
-                      className={`approach-die-chip${overloaded.has(index) ? " overloaded" : ""}${isTop ? " top" : ""}`}
-                      disabled={!onOverload || overloaded.has(index) || overloadPoolRemaining <= 0}
+                      className={`approach-die-chip${pendingOverload.has(index) ? " overloaded" : ""}${isTop ? " top" : ""}`}
+                      disabled={!onOverload || resolved || (overloadPoolRemaining <= 0 && !pendingOverload.has(index))}
                       onClick={(event) => {
                         event.stopPropagation()
                         handleToggleOverload(index)
                       }}
                       title={
-                        overloaded.has(index)
-                          ? "Already Overloaded"
+                        resolved
+                          ? undefined
+                          : pendingOverload.has(index)
+                          ? "Tap to undo this Overload"
                           : onOverload
-                          ? "Tap to Overload: double this die, spend 1 from the Method pool"
+                          ? "Tap to Overload: double this die (spends 1 from the base pool on Resolve)"
                           : undefined
                       }
                     >
                       D10: {dieRoll.rolls[0]}
-                      {overloaded.has(index) && <span className="approach-die-chip-doubled">DOUBLED</span>}
+                      {pendingOverload.has(index) && <span className="approach-die-chip-doubled">DOUBLED</span>}
                     </button>
                   )
                 })}
               </div>
               {onOverload && (
                 <div className="approach-die-popup-pool">
-                  Overload pool remaining: {overloadPoolRemaining}/{rating}
+                  Overload pool: {overloadPoolRemaining}/{baseRating}
+                  {pendingOverload.size > 0 && !resolved && (
+                    <div className="approach-overload-resolve-actions">
+                      <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); handleResolveOverload() }}>
+                        Resolve
+                      </button>
+                      <button type="button" className="approach-roll-path-btn secondary" onClick={(e) => { e.stopPropagation(); handleUndoOverload() }}>
+                        Undo
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="approach-roll-path-actions">
-                <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); handleSendToSet() }}>
+                <button
+                  type="button"
+                  className="approach-roll-path-btn"
+                  disabled={!canProceedPastOverload}
+                  title={!canProceedPastOverload ? "Resolve or undo your Overload selection first" : undefined}
+                  onClick={(e) => { e.stopPropagation(); handleSendToSet() }}
+                >
                   Send to Set
                 </button>
-                <button type="button" className="approach-roll-path-btn" onClick={(e) => { e.stopPropagation(); setView("margin-input") }}>
+                <button
+                  type="button"
+                  className="approach-roll-path-btn"
+                  disabled={!canProceedPastOverload}
+                  title={!canProceedPastOverload ? "Resolve or undo your Overload selection first" : undefined}
+                  onClick={(e) => { e.stopPropagation(); setView("margin-input") }}
+                >
                   Create Margin
                 </button>
               </div>
@@ -540,6 +582,6 @@ export function ApproachDie({
         </div>,
         document.body
       )}
-    </button>
+    </div>
   )
 }

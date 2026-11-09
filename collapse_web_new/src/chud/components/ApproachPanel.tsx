@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApproachDie, type ApproachDieRollResult } from "./ApproachDie";
-import type { ApproachStats } from "../../types/chud";
+import type { ApproachStats, CoreStats } from "../../types/chud";
 import type { DieSides } from "../../domain/approachDice";
-import { APPROACH_LABELS, STAT_AND_METHOD_MAX } from "../../domain/coreApproachMap";
+import { APPROACH_LABELS, CORE_APPROACH_MAP, CORE_LABELS } from "../../domain/coreApproachMap";
 import { ROLL_MODE_STORAGE_KEY, getRollMode, setRollMode, type RollMode } from "../../domain/rollMode";
 
 // Combat/Roleplay toggle — gates whether a margin of 0 on an Approach Roll
@@ -47,39 +47,36 @@ function RollModeToggle() {
 }
 
 
-// Approach dice cards (tap-arm / hold-roll) — lives in the HUD so the player
-// can roll directly off the compact view. Ratings/distribution still live on
-// the AAG page's Core Stats section; this panel only reads `approach`.
+// Method rows — printed-sheet style, grouped under their linked Core stat
+// (VIGOR / INFER / PERSO), two Methods each, lives in the HUD so the player
+// can roll directly off the compact view. Ratings/distribution still live
+// on the AAG page's Core Stats section; this panel only reads `approach`
+// and `core`.
 export function ApproachPanel({
+  core,
   approach,
   damageDieSize,
   onRollApproachDie,
   approachOverloadSpent,
   onOverloadApproachDie,
+  onSetApproachAvailable,
   approachWardrobeBonus,
   approachWardrobeItems,
 }: {
+  core: CoreStats;
   approach: ApproachStats;
   damageDieSize: DieSides;
   onRollApproachDie: (field: keyof ApproachStats, count: number) => ApproachDieRollResult;
   approachOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
   onOverloadApproachDie: (field: keyof ApproachStats) => boolean;
-  /** Extra dice granted by Wardrobe items assigned to each Approach (on top of the Core-distributed rating). */
+  /** Directly sets a Method's base-pool available count (tapping a track circle). */
+  onSetApproachAvailable: (field: keyof ApproachStats, next: number) => void;
+  /** Extra dice granted by Wardrobe items assigned to each Method (on top of the Core-distributed rating). Always rolled; never Overload-spendable. */
   approachWardrobeBonus: Partial<Record<keyof ApproachStats, number>>;
-  /** Wardrobe item names/bonuses contributing to each Approach's bonus, for a tooltip. */
+  /** Wardrobe item names/bonuses contributing to each Method's bonus, for a tooltip. */
   approachWardrobeItems: Partial<Record<keyof ApproachStats, string[]>>;
 }) {
-  const approachStats = useMemo<Array<[keyof ApproachStats, string]>>(
-    () => [
-      ["force", APPROACH_LABELS.force],
-      ["guts", APPROACH_LABELS.guts],
-      ["show", APPROACH_LABELS.show],
-      ["finesse", APPROACH_LABELS.finesse],
-      ["logic", APPROACH_LABELS.logic],
-      ["tell", APPROACH_LABELS.tell],
-    ],
-    []
-  );
+  const coreGroups = useMemo<Array<keyof CoreStats>>(() => ["vigor", "inference", "personality"], []);
 
   return (
     <div className="mods">
@@ -87,29 +84,33 @@ export function ApproachPanel({
         <h3>Method</h3>
         <RollModeToggle />
       </div>
-      <div className="core-grid approach-grid">
-        {approachStats.map(([field, label]) => {
-          const baseRating = approach[field];
-          const wardrobeBonus = approachWardrobeBonus[field] ?? 0;
-          // "Stats and Methods all max out at 6." Wardrobe bonus can push a
-          // Method's displayed rating above 6 only up to that cap — see
-          // STAT_AND_METHOD_MAX.
-          const rating = Math.min(STAT_AND_METHOD_MAX, baseRating + wardrobeBonus);
-          const spent = approachOverloadSpent[field] ?? 0;
-          const available = Math.max(0, rating - Math.min(Math.max(spent, 0), rating));
+      <div className="method-groups">
+        {coreGroups.map((coreField) => {
+          const [a, b] = CORE_APPROACH_MAP[coreField];
           return (
-            <div className="approach-unit" key={field}>
-              <ApproachDie
-                label={label}
-                rating={rating}
-                baseRating={baseRating}
-                wardrobeBonus={wardrobeBonus}
-                wardrobeItems={approachWardrobeItems[field] ?? []}
-                available={available}
-                damageDie={damageDieSize}
-                onRoll={(count) => onRollApproachDie(field, count)}
-                onOverload={() => onOverloadApproachDie(field)}
-              />
+            <div className="method-group" key={coreField}>
+              <div className="method-group-header">{CORE_LABELS[coreField]}</div>
+              {[a, b].map((field) => {
+                const baseRating = approach[field];
+                const wardrobeBonus = approachWardrobeBonus[field] ?? 0;
+                const spent = approachOverloadSpent[field] ?? 0;
+                const available = Math.max(0, baseRating - Math.min(Math.max(spent, 0), baseRating));
+                return (
+                  <ApproachDie
+                    key={field}
+                    label={APPROACH_LABELS[field]}
+                    statValue={core[coreField]}
+                    baseRating={baseRating}
+                    wardrobeBonus={wardrobeBonus}
+                    wardrobeItems={approachWardrobeItems[field] ?? []}
+                    available={available}
+                    damageDie={damageDieSize}
+                    onRoll={(count) => onRollApproachDie(field, count)}
+                    onOverload={() => onOverloadApproachDie(field)}
+                    onSetAvailable={(next) => onSetApproachAvailable(field, next)}
+                  />
+                );
+              })}
             </div>
           );
         })}

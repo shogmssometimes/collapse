@@ -369,10 +369,6 @@ body::-webkit-scrollbar {
   gap: 8px;
 }
 
-.approach-grid {
-  grid-template-columns: repeat(3, 1fr);
-}
-
 /* ── Secondary Stats accordion ───────────────────────────────────────────── */
 
 .secondary-accordion {
@@ -811,17 +807,33 @@ body::after {
   background-size: 300px 300px;
 }
 
-/* ── Approach dice (moved here from the AAG page) ─────────────────────────── */
+/* ── Method rows (printed-sheet style, grouped under VIGOR/INFER/PERSO) ──── */
 
-.approach-grid {
-  grid-template-columns: repeat(3, 1fr);
+.method-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.approach-unit {
+.method-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+}
+
+.method-group-header {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.45);
+  border-left: 2px solid var(--accent-red);
+  padding-left: 6px;
 }
 
 .approach-die-size-control {
@@ -953,20 +965,32 @@ body::after {
   100% { opacity: 0; transform: scale(1.04); }
 }
 
-.approach-die {
+.method-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.method-row.error .method-row-roll {
+  animation: approach-die-error 420ms ease;
+  border-color: #ff5c5c;
+}
+
+.method-row-roll {
   position: relative;
   overflow: hidden;
   isolation: isolate;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  text-align: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 108px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
-  padding: 6px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  padding: 6px 8px;
   cursor: pointer;
   transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
   touch-action: manipulation;
@@ -974,41 +998,20 @@ body::after {
   -webkit-appearance: none;
   color: inherit;
   font: inherit;
-  aspect-ratio: 1.1 / 1;
-  width: 100%;
+  text-align: left;
 }
-.approach-die > *:not(.hold-progress-fill) {
+.method-row-roll > *:not(.hold-progress-fill) {
   position: relative;
   z-index: 1;
 }
 
-.approach-die:active {
+.method-row-roll:active {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
 }
 
-.approach-die.pressing {
-  border-color: var(--accent-red);
-  transform: scale(0.96);
-}
-
-.approach-die.charging {
+.method-row.charging .method-row-roll {
   border-color: #ffd43b;
   animation: approach-die-charging 220ms ease-in-out infinite;
-}
-
-.approach-die.locked {
-  cursor: default;
-  opacity: 0.55;
-  border-style: dashed;
-}
-
-.approach-die:disabled {
-  cursor: default;
-}
-
-.approach-die.error {
-  animation: approach-die-error 420ms ease;
-  border-color: #ff5c5c;
 }
 
 @keyframes approach-die-charging {
@@ -1018,142 +1021,144 @@ body::after {
   75% { transform: translateX(2px) scale(1.02); }
 }
 
-.approach-die-label {
-  /* +25% over the original 0.55rem. */
-  font-size: 0.6875rem;
-  font-family: var(--font-display);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.6);
+/* The Stat box: a square, not a circle — holds a plain number (the linked
+   Core stat's pool), distinct from the Method's own numbered-circle track. */
+.method-row-stat-box {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-}
-
-/* The Approach's numeric rating (e.g. "Force 3" = 3 rollable dice) is the
-   single most important thing on this card — it's shown bigger and bolder
-   than everything else, including the Approach name. */
-.approach-die-rating {
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 2rem;
-  line-height: 1;
-  color: #f5fbff;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
+  font-weight: 700;
+  font-size: 1rem;
+  color: rgba(248, 250, 252, 0.75);
 }
 
-.approach-die-sub {
-  font-size: 0.55rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(248, 250, 252, 0.55);
-  /* Reserve space for the two-line "Tap: arm" / "Hold: roll" instructions so
-     the card doesn't resize when its text changes length. */
-  min-height: calc(0.55rem * 1.3 * 2);
+.method-row-name-wrap {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  gap: 1px;
+  min-width: 0;
 }
 
-.approach-die-sub-line {
-  display: block;
+.method-row-name {
+  font-size: 0.7rem;
+  font-family: var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.85);
 }
 
-.approach-die-pips {
+.method-row-hint {
+  font-size: 0.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.45);
+}
+
+/* The track: a fixed 1-6 numbered-circle row, like the printed sheet's
+   Method marker track. A solid "current" marker sits on the base pool's
+   available count; a faint "ghost" marker sits on the full base rating
+   when the pool has been depleted, so the full count is never erased. */
+.method-row-track {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 3px;
-  min-height: 12px;
+  gap: 4px;
+  flex: 0 0 auto;
 }
 
-/* The Wardrobe bonus badge: a single pip-styled circle combining the
-   shirt icon and the bonus amount, placed below the Tap/Hold instructions
-   so it doesn't compete with the roll pips. */
-.approach-die-wardrobe-pip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  font-size: 0.5rem;
-  font-weight: 700;
-  color: #ffd43b;
-  background: rgba(255, 212, 59, 0.14);
-  border: 1px solid rgba(255, 212, 59, 0.5);
-  border-radius: 999px;
-  padding: 1px 6px;
-  line-height: 1.4;
-}
-
-.approach-die-pip {
-  /* Numbered 1-6 track, like the printed sheet's Method circles — a fixed
-     set of 6, not just however many dice the Method currently has. */
-  width: 11px;
-  height: 11px;
+.method-die-pip {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
-  color: rgba(248, 250, 252, 0.65);
-  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, opacity 900ms ease;
+  color: rgba(248, 250, 252, 0.55);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  -webkit-appearance: none;
+  font: inherit;
+  padding: 0;
 }
 
-/* A circle past the Method's current rating — this Method doesn't have a
-   die here (yet). Shown hollow/dashed instead of just omitted, so the full
-   1-6 track always reads the same way the printed sheet does. */
-.approach-die-pip.locked {
+.method-die-pip:disabled {
+  cursor: default;
+}
+
+/* A circle past the Method's base rating — this Method hasn't grown a die
+   here yet. Shown hollow/dashed so the full 1-6 track always reads the
+   same way the printed sheet does. */
+.method-die-pip.locked {
   background: transparent;
   border-style: dashed;
   border-color: rgba(255, 255, 255, 0.14);
-  color: rgba(248, 250, 252, 0.3);
+  color: rgba(248, 250, 252, 0.25);
 }
 
-.approach-die-pip.armed {
+/* Solid marker: the current (available) pool size. */
+.method-die-pip.current {
   background: #0ff6ff;
   border-color: #0ff6ff;
   color: #04282b;
   transform: scale(1.1);
 }
 
-/* An armed die left untouched for 30s reverts itself; it fades out over the
-   last second as a warning before un-arming. */
-.approach-die-pip.armed.fading {
-  opacity: 0.2;
+/* Faint ghost marker: the full base rating, shown only when the pool has
+   been depleted below it (an empty pool still shows a ghost at its full
+   count, and a solid marker on the "0" position implied by no circle
+   being current). */
+.method-die-pip.ghost {
+  background: transparent;
+  border-color: rgba(15, 246, 255, 0.4);
+  color: rgba(15, 246, 255, 0.55);
+  box-shadow: 0 0 0 2px rgba(15, 246, 255, 0.08) inset;
 }
 
-/* Pips sourced from a Wardrobe bonus rather than the Core-distributed
-   rating — same armed/unarmed states, distinguished by a gold border so
-   players can see at a glance where the extra dice come from. */
-.approach-die-pip.wardrobe {
-  border-color: rgba(255, 212, 59, 0.6);
+/* The "0" position marker before circle 1 — slightly smaller/dimmer by
+   default since it's a track endpoint, not one of the printed sheet's
+   numbered circles. Goes solid like any other "current" marker at 0. */
+.method-die-pip.zero {
+  width: 20px;
+  height: 20px;
+  font-size: 0.6rem;
+  opacity: 0.6;
+  border-style: dotted;
 }
 
-.approach-die-pip.wardrobe.armed {
-  background: #ffd43b;
-  border-color: #ffd43b;
-  color: #332400;
+.method-die-pip.zero.current {
+  opacity: 1;
+  border-style: solid;
 }
 
-/* A pip currently Overloaded-and-spent from the full Method pool (shown
-   until a Full Rest or Ganbare! restores it). The full rating always
-   renders a pip, even while some are spent, so the player can see their
-   whole pool rather than watching it silently shrink. */
-.approach-die-pip.spent {
-  background: rgba(255, 90, 90, 0.1);
-  border-color: rgba(255, 90, 90, 0.35);
-  transform: scale(0.85);
-  opacity: 0.55;
-}
-
-.approach-die-pip.spent.wardrobe {
-  border-color: rgba(255, 90, 90, 0.35);
+/* The Wardrobe bonus box: a separate square, never counted as a track
+   circle — "Wardrobe adds dice to that Method's roll only." */
+.method-row-wardrobe-box {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffd43b;
+  background: rgba(255, 212, 59, 0.14);
+  border: 1px solid rgba(255, 212, 59, 0.5);
 }
 
 @keyframes approach-die-error {
@@ -1319,6 +1324,23 @@ body::after {
   cursor: default;
 }
 
+.approach-roll-path-btn.secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(248, 250, 252, 0.65);
+}
+
+.approach-overload-resolve-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.approach-overload-resolve-actions .approach-roll-path-btn {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}
+
 .approach-margin-input,
 .approach-margin-result,
 .approach-damage-roll {
@@ -1383,14 +1405,17 @@ body::after {
   justify-content: center;
 }
 
+/* Wound dice use a different shape and color from Method dice so the two
+   can never be confused: sharp (near-square) corners and a crimson accent
+   instead of Method dice's rounded cyan-accented squares. */
 .approach-damage-chip {
   min-width: 2.2em;
   text-align: center;
   padding: 6px 8px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: rgba(248, 250, 252, 0.75);
+  border-radius: 2px;
+  background: rgba(255, 90, 90, 0.08);
+  border: 1px solid rgba(255, 90, 90, 0.4);
+  color: rgba(248, 250, 252, 0.8);
   font-size: 1rem;
 }
 

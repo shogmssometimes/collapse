@@ -76,7 +76,7 @@ export function Page2Panel({
       {/* Row 1: Readyness | MGR button */}
       <div className="row-rdy-mgr">
         <div className="chip">
-          <span>RDY</span>
+          <span>READINESS</span>
           <strong style={isOverEncumbered ? { color: 'rgba(255,100,100,0.95)', fontStyle: 'italic' } : undefined}>
             {isOverEncumbered ? 'Last' : readyness}
           </strong>
@@ -93,7 +93,7 @@ export function Page2Panel({
           die={damageDieSize}
           onIncrease={onDamageDieSizeIncrease}
           onReset={onDamageDieSizeReset}
-          label="DAMAGE DIE"
+          label="QUALITY"
         />
       </div>
 
@@ -105,7 +105,7 @@ export function Page2Panel({
           <strong>{capacity}</strong>
         </div>
         <div className="chip">
-          <span>Inventory Slots</span>
+          <span>Inv Slots</span>
           <strong>{inventorySlots}</strong>
         </div>
       </div>
@@ -122,15 +122,15 @@ export function Page2Panel({
           className="chip chip-spendable"
           onClick={onSpendGanbare}
           disabled={ganbareRemaining <= 0}
-          aria-label={`Ganbare! Charges ${ganbareRemaining} of ${ganbareMax} remaining. Tap to spend a Charge.`}
+          aria-label={`Ganbare! ${ganbareRemaining} of ${ganbareMax} remaining. Tap to spend a Charge.`}
         >
-          <span>Ganbare! Charges</span>
+          <span>Ganbare!</span>
           <strong>
             {ganbareRemaining}/{ganbareMax}
           </strong>
         </button>
         <div className="chip">
-          <span>Fumble No.</span>
+          <span>Fumble</span>
           <strong>{fumbleNumber}</strong>
         </div>
       </div>

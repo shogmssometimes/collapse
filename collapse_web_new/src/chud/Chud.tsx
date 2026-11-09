@@ -152,14 +152,26 @@ export default function Chud() {
     return rollApproachDice(count);
   }, []);
 
+  // Overload spends from the base (Core-distributed) Method pool only.
+  // Wardrobe dice always roll but are never Overload-spendable — "Wardrobe
+  // adds dice to that Method's roll only" (see ApproachDie.tsx doc comment).
   const overloadApproachDie = useCallback((field: keyof ApproachStats): boolean => {
-    const rating = approach[field] + (approachWardrobeBonus[field] ?? 0);
+    const baseRating = approach[field];
     const spent = approachOverloadSpent[field] ?? 0;
-    const next = spendOverloadDie(rating, spent);
+    const next = spendOverloadDie(baseRating, spent);
     if (next === spent) return false; // pool already exhausted
     setApproachOverloadSpent((prev) => ({ ...prev, [field]: next }));
     return true;
-  }, [approach, approachOverloadSpent, approachWardrobeBonus]);
+  }, [approach, approachOverloadSpent]);
+
+  // Tapping a Method's track circle sets its base pool directly (a player
+  // bookkeeping action, not a roll) — translates the target "available"
+  // count back into the stored spent count.
+  const setApproachAvailable = useCallback((field: keyof ApproachStats, nextAvailable: number): void => {
+    const baseRating = approach[field];
+    const clamped = Math.max(0, Math.min(baseRating, nextAvailable));
+    setApproachOverloadSpent((prev) => ({ ...prev, [field]: baseRating - clamped }));
+  }, [approach]);
 
   // Persist to localStorage. Merge with whatever is currently saved so
   // fields owned by the AAG/MGR pages (wt, secondary) aren't clobbered.
@@ -303,11 +315,13 @@ export default function Chud() {
           />
 
           <ApproachPanel
+            core={core}
             approach={approach}
             damageDieSize={damageDieSize}
             onRollApproachDie={rollApproachDie}
             approachOverloadSpent={approachOverloadSpent}
             onOverloadApproachDie={overloadApproachDie}
+            onSetApproachAvailable={setApproachAvailable}
             approachWardrobeBonus={approachWardrobeBonus}
             approachWardrobeItems={approachWardrobeItems}
           />

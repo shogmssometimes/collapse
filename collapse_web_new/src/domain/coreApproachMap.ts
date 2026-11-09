@@ -19,7 +19,7 @@ export const APPROACH_LABELS: Record<keyof ApproachStats, string> = {
 };
 
 export const CORE_LABELS: Record<keyof CoreStats, string> = {
-  vigor: "VIG",
+  vigor: "VIGOR",
   inference: "INFER",
   personality: "PERSO",
 };
