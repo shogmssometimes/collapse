@@ -1096,7 +1096,7 @@ body::after {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
 }
 
-.method-row.charging .method-row-roll {
+.method-row.armed .method-row-roll {
   border-color: #ffd43b;
   animation: approach-die-charging 220ms ease-in-out infinite;
 }
@@ -1169,15 +1169,11 @@ body::after {
   font-weight: 700;
   line-height: 1;
   color: rgba(248, 250, 252, 0.55);
-  cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
   -webkit-appearance: none;
   font: inherit;
   padding: 0;
-}
-
-.method-die-pip:disabled {
-  cursor: default;
+  pointer-events: none;
 }
 
 /* A circle past the Method's base rating — this Method hasn't grown a die
@@ -1262,6 +1258,15 @@ body::after {
   border-color: #ffd43b;
   color: #2b2206;
   box-shadow: 0 0 0 2px rgba(255, 212, 59, 0.12) inset;
+}
+
+/* Live preview while dragging to choose a roll count — a bright ring and
+   slight pop layered on top of whatever the pip's own state already is
+   (locked/current/ghost/wardrobe), so "this many will be rolled" reads
+   clearly without hiding where each die actually comes from. */
+.method-die-pip.drag-preview {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 10px 2px rgba(15, 246, 255, 0.65);
+  transform: scale(1.12);
 }
 
 @keyframes approach-die-error {

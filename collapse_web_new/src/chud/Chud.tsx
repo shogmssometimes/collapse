@@ -164,15 +164,6 @@ export default function Chud() {
     return true;
   }, [approach, approachOverloadSpent]);
 
-  // Tapping a Method's track circle sets its base pool directly (a player
-  // bookkeeping action, not a roll) — translates the target "available"
-  // count back into the stored spent count.
-  const setApproachAvailable = useCallback((field: keyof ApproachStats, nextAvailable: number): void => {
-    const baseRating = approach[field];
-    const clamped = Math.max(0, Math.min(baseRating, nextAvailable));
-    setApproachOverloadSpent((prev) => ({ ...prev, [field]: baseRating - clamped }));
-  }, [approach]);
-
   // "Receive Ganbare!" — a friend spends one of *their* Ganbare! Charges to
   // return one of your Overloaded dice to its Method pool (handbook: "or
   // until a friend gives you Ganbare! for it"). This doesn't touch this
@@ -334,7 +325,6 @@ export default function Chud() {
                 onRollApproachDie={rollApproachDie}
                 approachOverloadSpent={approachOverloadSpent}
                 onOverloadApproachDie={overloadApproachDie}
-                onSetApproachAvailable={setApproachAvailable}
                 onReceiveGanbare={receiveGanbare}
                 approachWardrobeBonus={approachWardrobeBonus}
                 approachWardrobeItems={approachWardrobeItems}

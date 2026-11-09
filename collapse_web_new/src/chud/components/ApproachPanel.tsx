@@ -135,7 +135,6 @@ export function ApproachPanel({
   onRollApproachDie,
   approachOverloadSpent,
   onOverloadApproachDie,
-  onSetApproachAvailable,
   onReceiveGanbare,
   approachWardrobeBonus,
   approachWardrobeItems,
@@ -146,8 +145,6 @@ export function ApproachPanel({
   onRollApproachDie: (field: keyof ApproachStats, count: number) => ApproachDieRollResult;
   approachOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
   onOverloadApproachDie: (field: keyof ApproachStats) => boolean;
-  /** Directly sets a Method's base-pool available count (tapping a track circle). */
-  onSetApproachAvailable: (field: keyof ApproachStats, next: number) => void;
   /** Restores 1 die to the chosen Method's pool (a friend's Ganbare!, long-press to confirm). */
   onReceiveGanbare: (field: keyof ApproachStats) => void;
   /** Extra dice granted by Wardrobe items assigned to each Method (on top of the Core-distributed rating). Always rolled; never Overload-spendable. */
@@ -190,7 +187,6 @@ export function ApproachPanel({
                     damageDie={damageDieSize}
                     onRoll={(count) => onRollApproachDie(field, count)}
                     onOverload={() => onOverloadApproachDie(field)}
-                    onSetAvailable={(next) => onSetApproachAvailable(field, next)}
                   />
                 );
               })}
