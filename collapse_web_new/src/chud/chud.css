@@ -1347,14 +1347,14 @@ body::after {
 
 .approach-die-popup-die {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
   font-size: 1.1rem;
   color: rgba(248, 250, 252, 0.65);
   text-align: center;
   max-width: 100%;
-  overflow-x: auto;
+  min-width: 236px; /* room for 3 chips (72px each) per row before wrapping */
 }
 
 /* Fixed width/height (not sized to fit the text) so a chip's box never
@@ -1371,13 +1371,13 @@ body::after {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 10px;
-  width: 108px;
+  width: 72px;
   height: 72px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
+  font-size: 2rem;
   font-weight: 700;
   cursor: pointer;
 }

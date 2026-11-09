@@ -559,7 +559,7 @@ export function ApproachDie({
                 const isTop = previewTop !== null && face === previewTop
                 return (
                   <span key={index} className={`approach-die-chip rolling${isTop ? " top" : ""}`} aria-hidden="true">
-                    D10: {face}
+                    {face}
                   </span>
                 )
               })}
@@ -597,7 +597,7 @@ export function ApproachDie({
                       }
                     >
                       <span className={`hold-progress-fill${isPressing ? " active" : ""}`} aria-hidden="true" />
-                      D10: {dieRoll.rolls[0]}
+                      {dieRoll.rolls[0]}
                       {pendingOverload.has(index) && <span className="approach-die-chip-doubled">DOUBLED</span>}
                     </button>
                   )
