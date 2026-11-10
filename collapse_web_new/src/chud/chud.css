@@ -391,8 +391,12 @@ body::-webkit-scrollbar {
 }
 
 .ganbare-method-box {
-  flex: 0 0 auto;
-  width: 40px;
+  /* Sized to its own label text (the full Method name, e.g. "Finesse")
+     rather than a fixed tiny square — the box used to be a cramped
+     3-letter acronym box next to a wide Ganbare! box; now both share the
+     row's width proportionally to what they actually need. */
+  flex: 0 1 auto;
+  min-width: 64px;
   height: 30px;
   display: inline-flex;
   align-items: center;
@@ -404,11 +408,12 @@ body::-webkit-scrollbar {
   font-weight: 700;
   font-size: 0.7rem;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: rgba(248, 250, 252, 0.75);
   cursor: pointer;
   -webkit-appearance: none;
   font: inherit;
-  padding: 0;
+  padding: 0 10px;
 }
 
 .ganbare-receive-box {

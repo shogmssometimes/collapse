@@ -5,15 +5,6 @@ import type { DieSides } from "../../domain/approachDice";
 import { APPROACH_LABELS, CORE_APPROACH_MAP, CORE_LABELS } from "../../domain/coreApproachMap";
 
 
-const GANBARE_METHOD_SYMBOLS: Record<keyof ApproachStats, string> = {
-  force: "FRC",
-  finesse: "FIN",
-  guts: "GUT",
-  logic: "LOG",
-  show: "SHO",
-  tell: "TEL",
-};
-
 const GANBARE_METHOD_ORDER: Array<keyof ApproachStats> = ["force", "finesse", "guts", "logic", "show", "tell"];
 
 const GANBARE_HOLD_MS = 500;
@@ -61,7 +52,7 @@ function GanbareControl({
         onClick={cycle}
         aria-label={`Ganbare! target Method: ${APPROACH_LABELS[field]}. Tap to cycle.`}
       >
-        {GANBARE_METHOD_SYMBOLS[field]}
+        {APPROACH_LABELS[field]}
       </button>
       <button
         type="button"
