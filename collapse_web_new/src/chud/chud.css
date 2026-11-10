@@ -1416,6 +1416,21 @@ body::after {
   animation: approach-die-charging 220ms ease-in-out infinite;
 }
 
+/* The Summed value — derived from 2+ Overloaded dice added together, not
+   a rolled die itself — gets its own tint (violet, distinct from the
+   gold Overload/doubled color) so it reads as a different kind of total. */
+.approach-die-chip.summed {
+  background: rgba(186, 104, 255, 0.14);
+  border-color: #ba68ff;
+  color: #f8fafc;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.approach-die-chip.summed .approach-die-chip-doubled {
+  background: #ba68ff;
+}
+
 .approach-die-chip-doubled {
   display: inline-block;
   margin-left: 6px;

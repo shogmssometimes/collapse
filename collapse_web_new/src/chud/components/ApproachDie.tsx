@@ -99,6 +99,9 @@ export function ApproachDie({
   const [rollingPreview, setRollingPreview] = useState<number[]>([])
   const [pressingDieIndex, setPressingDieIndex] = useState<number | null>(null)
   const [armedDieIndex, setArmedDieIndex] = useState<number | null>(null)
+  const [sumPressing, setSumPressing] = useState(false)
+  const [sumArmed, setSumArmed] = useState(false)
+  const [marginBase, setMarginBase] = useState<number | null>(null)
   const [view, setView] = useState<PopupView>("result")
   const [oppositionInput, setOppositionInput] = useState("")
   const [margin, setMargin] = useState<number | null>(null)
@@ -117,6 +120,9 @@ export function ApproachDie({
   const dieSuppressClick = useRef(false)
   const dieGestureStart = useRef<{ x: number; y: number } | null>(null)
   const dieSwipedThisGesture = useRef(false)
+  const sumPressTimer = useRef<number | null>(null)
+  const sumGestureStart = useRef<{ x: number; y: number } | null>(null)
+  const sumSwipedThisGesture = useRef(false)
   const boxRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
@@ -147,9 +153,13 @@ export function ApproachDie({
     setView("result")
     setOppositionInput("")
     setMargin(null)
+    setMarginBase(null)
     setDamageDice([])
     setWoundValue("")
     setWoundMode("threshold")
+    setArmedDieIndex(null)
+    setSumArmed(false)
+    setSumPressing(false)
     if (rollAnimTimer.current !== null) {
       window.clearInterval(rollAnimTimer.current)
       rollAnimTimer.current = null
@@ -185,6 +195,7 @@ export function ApproachDie({
     if (rollAnimTimer.current !== null) window.clearInterval(rollAnimTimer.current)
     if (errorFlashTimer.current !== null) window.clearTimeout(errorFlashTimer.current)
     if (diePressTimer.current !== null) window.clearTimeout(diePressTimer.current)
+    if (sumPressTimer.current !== null) window.clearTimeout(sumPressTimer.current)
     if (armTimer.current !== null) window.clearTimeout(armTimer.current)
     if (chargeInterval.current !== null) window.clearInterval(chargeInterval.current)
   }, [])
@@ -316,6 +327,14 @@ export function ApproachDie({
         0
       )
     : 0
+  // Once a 2nd die is Overloaded, a separate Summed value — the doubled
+  // dice added together, not just the pool's highest — becomes available
+  // as its own pick-up-able total (no further Doubling from it, since it's
+  // already a derived value, not a rolled die).
+  const summedValue =
+    result && pendingOverload.size >= 2
+      ? Array.from(pendingOverload).reduce((sum, index) => sum + overloadedValue(result.dice[index]), 0)
+      : null
 
   // Picking up a die previews doubling it, but only once confirmed with a
   // long-press (a plain tap would be too easy to trigger by accident while
@@ -323,13 +342,13 @@ export function ApproachDie({
   // pool) the moment the player moves past this screen: Send to Set,
   // Create Margin, or just closing the popup. A quick tap on an
   // already-doubled die un-does it while the popup is still open; there's
-  // no separate Resolve/Undo step. Only one die can ever be Overloaded per
-  // roll — the swipe-up gesture rejects (flashError) a second die.
+  // no separate Resolve/Undo step. Any number of dice can be Overloaded,
+  // as long as the base pool still has one available to spend.
   const addOverload = (index: number) => {
     if (!onOverload || resolvedRef.current) return
     setPendingOverload((prev) => {
       if (prev.has(index)) return prev
-      if (prev.size >= 1 || available <= 0) {
+      if (prev.size >= available) {
         flashError()
         return prev
       }
@@ -357,6 +376,17 @@ export function ApproachDie({
     setPressingDieIndex(null)
     setArmedDieIndex(null)
     dieGestureStart.current = null
+  }
+
+  const sendToSet = (total: number) => {
+    resolveOverloadIfNeeded()
+    addSetRollRow(total)
+    closePopup()
+  }
+
+  const startMargin = (total: number) => {
+    setMarginBase(total)
+    setView("margin-input")
   }
 
   // Long-pressing a die "picks it up": once armed (same hold duration as
@@ -403,9 +433,9 @@ export function ApproachDie({
     vibrate(VIBRATE_PIP_MS * 2)
     if (Math.abs(dy) > Math.abs(dx)) {
       if (dy < 0) addOverload(index) // swipe up: Doubled
-      else handleSendToSet() // swipe down: Send to Set
+      else sendToSet(displayTotal) // swipe down: Send to Set
     } else if (dx > 0) {
-      setView("margin-input") // swipe right: Create Margin
+      startMargin(displayTotal) // swipe right: Create Margin
     } // swipe left: Cancel — just drop the pick-up, no action
     setArmedDieIndex(null)
   }
@@ -420,18 +450,68 @@ export function ApproachDie({
     removeOverload(index)
   }
 
+  const cancelSumPress = () => {
+    if (sumPressTimer.current !== null) {
+      window.clearTimeout(sumPressTimer.current)
+      sumPressTimer.current = null
+    }
+    setSumPressing(false)
+    setSumArmed(false)
+    sumGestureStart.current = null
+  }
 
-  const handleSendToSet = () => {
-    resolveOverloadIfNeeded()
-    addSetRollRow(displayTotal)
-    closePopup()
+  // The Summed chip picks up the same way a die does, but only 3 of the
+  // 4 directions apply — it's a derived value, not a rolled die, so
+  // there's nothing to Double (swipe up just flashes the "can't" error).
+  const handleSumPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (resolvedRef.current) return
+    sumSwipedThisGesture.current = false
+    sumGestureStart.current = { x: event.clientX, y: event.clientY }
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // Pointer capture isn't critical — move/up still fire on this
+      // element for mouse, and most touch browsers grant it anyway.
+    }
+    setSumPressing(true)
+    sumPressTimer.current = window.setTimeout(() => {
+      sumPressTimer.current = null
+      setSumPressing(false)
+      setSumArmed(true)
+      vibrate(VIBRATE_PIP_MS)
+    }, DIE_LONG_PRESS_MS)
+  }
+
+  const handleSumPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (sumSwipedThisGesture.current || !sumGestureStart.current || summedValue === null) return
+    const dx = event.clientX - sumGestureStart.current.x
+    const dy = event.clientY - sumGestureStart.current.y
+    const dist = Math.hypot(dx, dy)
+    if (!sumArmed) {
+      if (dist > DIE_PRE_ARM_CANCEL_PX) cancelSumPress()
+      return
+    }
+    if (dist <= DIE_SWIPE_PX) return
+    sumSwipedThisGesture.current = true
+    if (Math.abs(dy) > Math.abs(dx)) {
+      if (dy < 0) {
+        flashError() // swipe up: not available on the Summed value
+      } else {
+        vibrate(VIBRATE_PIP_MS * 2)
+        sendToSet(summedValue) // swipe down: Send to Set
+      }
+    } else if (dx > 0) {
+      vibrate(VIBRATE_PIP_MS * 2)
+      startMargin(summedValue) // swipe right: Create Margin
+    } // swipe left: Cancel — just drop the pick-up, no action
+    setSumArmed(false)
   }
 
   const handleConfirmMargin = () => {
     resolveOverloadIfNeeded()
     const opposition = Number(oppositionInput)
     if (!Number.isFinite(opposition)) return
-    const computed = displayTotal - opposition
+    const computed = (marginBase ?? displayTotal) - opposition
     setMargin(computed)
     setView("margin-result")
   }
@@ -652,7 +732,29 @@ export function ApproachDie({
                   )
                 })}
               </div>
-              <div className="approach-die-popup-swipe-hint">↑ Double · ↓ Send to Set · → Margin · ← Cancel</div>
+              {summedValue !== null && (
+                <button
+                  type="button"
+                  className={`approach-die-chip summed${sumPressing ? " pressing" : ""}${sumArmed ? " armed" : ""}`}
+                  style={{ ["--hold-progress-ms" as string]: `${DIE_LONG_PRESS_MS}ms` } as CSSProperties}
+                  onPointerDown={(event) => { event.stopPropagation(); handleSumPointerDown(event) }}
+                  onPointerMove={(event) => { event.stopPropagation(); handleSumPointerMove(event) }}
+                  onPointerUp={(event) => { event.stopPropagation(); cancelSumPress() }}
+                  onPointerLeave={cancelSumPress}
+                  onPointerCancel={cancelSumPress}
+                  onContextMenu={(event) => event.preventDefault()}
+                  title="Hold, then swipe: down sends to Set, right starts Margin, left cancels (no Double)"
+                >
+                  <span className={`hold-progress-fill${sumPressing ? " active" : ""}`} aria-hidden="true" />
+                  {summedValue}
+                  <span className="approach-die-chip-doubled">SUM</span>
+                </button>
+              )}
+              <div className="approach-die-popup-swipe-hint">
+                {summedValue !== null
+                  ? "Dice: ↑ Double · ↓ Send to Set · → Margin · ← Cancel  —  Sum: ↓ Set · → Margin · ← Cancel"
+                  : "↑ Double · ↓ Send to Set · → Margin · ← Cancel"}
+              </div>
             </>
           )}
 
