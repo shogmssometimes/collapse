@@ -556,16 +556,20 @@ export function ApproachDie({
 
   // Track geometry: a fixed 1-6 numbered circle row, like the printed
   // sheet (a Method's base rating can never exceed STAT_AND_METHOD_MAX).
-  // Circles past baseRating are locked (this Method hasn't grown a die
-  // there yet). Within baseRating, every circle up to `available` is a
-  // solid "available" pip (blue); the rest, up to baseRating, are "spent"
-  // (dull red) — no single moving marker, every pip's own color says
-  // whether its die is still in the pool. Wardrobe pips follow the exact
-  // same available/spent split, just within their own pool (wardrobeAvail
-  // of wardrobeBonus) — a Wardrobe die that's been Overloaded away is just
-  // as spent as a base one, so it gets the identical dull-red "spent" look
-  // (see .method-die-pip.wardrobe.spent in chud.css), not a different
-  // state.
+  // Circles past baseRating + wardrobeBonus are locked (this Method
+  // hasn't grown a die there, nor does Wardrobe add one). Base and
+  // Wardrobe are two separate pools mechanically (different caps, spent
+  // independently) but are shown as ONE combined countdown: every still-
+  // available pip (base or Wardrobe) is drawn first (left), every spent
+  // pip after (right), so the row always reads as a clean "available →
+  // spent" run with no out-of-order gaps. Color is what still tells them
+  // apart: available base pips are blue, available Wardrobe pips are
+  // gold; once spent, both turn the identical dull red (see
+  // .method-die-pip.wardrobe.spent in chud.css) — a spent die is a spent
+  // die regardless of source. Because this ordering is recomputed from
+  // the available/spent counts, a pip's slot number isn't a stable
+  // per-origin identity like the locked pips are — it shifts as dice are
+  // spent or restored.
   const trackMax = Math.min(STAT_AND_METHOD_MAX, baseRating)
   const trackCurrent = Math.max(0, Math.min(available, trackMax))
   const wardrobeTrackCurrent = Math.max(0, Math.min(wardrobeAvail, wardrobeBonus))
@@ -626,17 +630,42 @@ export function ApproachDie({
         aria-label={`${label} dice track`}
         style={{ ["--method-track-columns" as string]: totalSlots }}
       >
-        {Array.from({ length: trackMax }, (_, index) => {
+        {/* Base and Wardrobe dice are two separate pools mechanically
+            (different caps, spent/tracked independently), but a user
+            rolling doesn't care where a die came from when deciding
+            "do I have any left" — so visually they're one combined
+            countdown: every still-available pip (whichever pool) is
+            pushed to the left, every spent pip (whichever pool) is
+            pushed to the right, in one unbroken run. Color is the only
+            thing that still says "this one's from Wardrobe" (gold vs
+            blue when available; a Wardrobe-origin spent pip keeps the
+            same dull red as a spent base pip, since once it's spent
+            there's nothing left to tell apart). Positions are
+            recomputed from these counts on every render, so a pip's
+            slot number can shift as dice are spent/restored — unlike
+            the locked pips below, these aren't meant to be a stable
+            per-slot identity. */}
+        {[
+          ...Array.from({ length: trackCurrent }, (_, index) => ({ key: `base-avail-${index}`, origin: "base" as const, spent: false })),
+          ...Array.from({ length: wardrobeTrackCurrent }, (_, index) => ({ key: `wardrobe-avail-${index}`, origin: "wardrobe" as const, spent: false })),
+          ...Array.from({ length: trackMax - trackCurrent }, (_, index) => ({ key: `base-spent-${index}`, origin: "base" as const, spent: true })),
+          ...Array.from({ length: wardrobeBonus - wardrobeTrackCurrent }, (_, index) => ({ key: `wardrobe-spent-${index}`, origin: "wardrobe" as const, spent: true })),
+        ].map((pip, index) => {
           const slot = index + 1
-          const isAvailable = slot <= trackCurrent
-          const isSpent = !isAvailable
+          const isWardrobe = pip.origin === "wardrobe"
+          const isAvailable = !pip.spent
           const isPreview = armed && isAvailable
           return (
             <span
-              key={slot}
-              className={`method-die-pip${isAvailable ? " available" : ""}${isSpent ? " spent" : ""}${isPreview ? " drag-preview" : ""}`}
+              key={pip.key}
+              className={`method-die-pip${isWardrobe ? " wardrobe" : ""}${isAvailable ? " available" : " spent"}${isPreview ? " drag-preview" : ""}`}
               style={{ gridColumn: slot }}
-              aria-hidden="true"
+              title={
+                isWardrobe
+                  ? `Wardrobe bonus die${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; ${pip.spent ? "spent (Overloaded away)." : "Overload-spendable, same as a base die."}`
+                  : undefined
+              }
+              aria-hidden={isWardrobe ? undefined : "true"}
             >
               {slot}
             </span>
@@ -659,31 +688,6 @@ export function ApproachDie({
             Charges Spent
           </div>
         )}
-        {/* Wardrobe dice are folded directly into the track as the same
-            round pip as the Method's own circles. They're always rolled
-            alongside the base pool, and are Overload-spendable as their
-            own pool (wardrobeAvail of wardrobeBonus) — available ones
-            keep the gold "Wardrobe" tint, spent ones turn the identical
-            dull red as a spent base pip (the .wardrobe.spent override in
-            chud.css), since a Wardrobe die that's been doubled away is
-            just as spent as a base one, regardless of source. Numbered
-            the same way the circles are, continuing the slot sequence. */}
-        {Array.from({ length: wardrobeBonus }, (_, index) => {
-          const slot = trackMax + index + 1
-          const isWardrobeAvailable = index < wardrobeTrackCurrent
-          const isWardrobeSpent = !isWardrobeAvailable
-          const isPreview = armed && isWardrobeAvailable
-          return (
-            <span
-              key={`wardrobe-${index}`}
-              className={`method-die-pip wardrobe${isWardrobeSpent ? " spent" : ""}${isPreview ? " drag-preview" : ""}`}
-              style={{ gridColumn: slot }}
-              title={`Wardrobe bonus die${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; ${isWardrobeSpent ? "spent (Overloaded away)." : "Overload-spendable, same as a base die."}`}
-            >
-              {slot}
-            </span>
-          )
-        })}
         {/* Remaining slots up to the sheet's 1-6 ceiling that neither the
             Method's own rating nor Wardrobe have reached yet — hollow,
             dashed potential the Method hasn't grown into. */}
