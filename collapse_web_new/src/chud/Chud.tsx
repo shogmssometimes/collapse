@@ -66,6 +66,9 @@ export default function Chud() {
   const [approachOverloadSpent, setApproachOverloadSpent] = useState<Partial<Record<keyof ApproachStats, number>>>(
     saved?.approachOverloadSpent ?? {}
   );
+  const [approachWardrobeOverloadSpent, setApproachWardrobeOverloadSpent] = useState<
+    Partial<Record<keyof ApproachStats, number>>
+  >(saved?.approachWardrobeOverloadSpent ?? {});
   const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? DEFAULT_HP_COUNTER);
   const [hasBeenDownedBefore, setHasBeenDownedBefore] = useState<boolean>(saved?.hasBeenDownedBefore ?? false);
   const [collapsePath, setCollapsePathState] = useState<CollapsePath | undefined>(saved?.collapsePath);
@@ -155,33 +158,52 @@ export default function Chud() {
     return rollApproachDice(count);
   }, []);
 
-  // Overload spends from the base (Core-distributed) Method pool only.
-  // Wardrobe dice always roll but are never Overload-spendable — "Wardrobe
-  // adds dice to that Method's roll only" (see ApproachDie.tsx doc comment).
+  // Overload spends from two independent pools: the base (Core-distributed)
+  // Method pool, and each Method's own Wardrobe-bonus pool — Wardrobe dice
+  // are always rolled alongside the base pool, but doubling one spends its
+  // own charge from its own pool (capped at that Method's current Wardrobe
+  // bonus), the same way doubling a base die spends from the base pool
+  // (capped at the base rating). Neither pool restores until Full Rest (or
+  // a received Ganbare!, base pool only).
   //
-  // Takes the full count of doubled dice to spend at once (resolved
-  // together), rather than being called once per die: reading
-  // approachOverloadSpent[field] from the outer closure and calling this
-  // N times in the same tick would read the *same* stale "spent" value on
-  // every call (React doesn't re-render mid-batch), so N calls only ever
+  // Takes the full count of doubled dice (split by source) to spend at
+  // once (resolved together), rather than being called once per die:
+  // reading approachOverloadSpent[field] from the outer closure and calling
+  // this N times in the same tick would read the *same* stale "spent" value
+  // on every call (React doesn't re-render mid-batch), so N calls only ever
   // advanced the pool by 1 instead of N. Reading prev[field] from inside
   // the setState updater itself (always fresh, even across repeated
   // synchronous updates) fixes that.
-  const overloadApproachDie = useCallback((field: keyof ApproachStats, count: number): boolean => {
+  const overloadApproachDie = useCallback((field: keyof ApproachStats, baseCount: number, wardrobeCount: number): boolean => {
     const baseRating = approach[field];
+    const wardrobeBonus = approachWardrobeBonus[field] ?? 0;
     let fullySpent = true;
-    setApproachOverloadSpent((prev) => {
-      let spent = prev[field] ?? 0;
-      for (let i = 0; i < count; i++) {
-        const next = spendOverloadDie(baseRating, spent);
-        if (next === spent) { fullySpent = false; break; } // pool already exhausted
-        spent = next;
-      }
-      if (spent === (prev[field] ?? 0)) return prev;
-      return { ...prev, [field]: spent };
-    });
+    if (baseCount > 0) {
+      setApproachOverloadSpent((prev) => {
+        let spent = prev[field] ?? 0;
+        for (let i = 0; i < baseCount; i++) {
+          const next = spendOverloadDie(baseRating, spent);
+          if (next === spent) { fullySpent = false; break; } // pool already exhausted
+          spent = next;
+        }
+        if (spent === (prev[field] ?? 0)) return prev;
+        return { ...prev, [field]: spent };
+      });
+    }
+    if (wardrobeCount > 0) {
+      setApproachWardrobeOverloadSpent((prev) => {
+        let spent = prev[field] ?? 0;
+        for (let i = 0; i < wardrobeCount; i++) {
+          const next = spendOverloadDie(wardrobeBonus, spent);
+          if (next === spent) { fullySpent = false; break; } // pool already exhausted
+          spent = next;
+        }
+        if (spent === (prev[field] ?? 0)) return prev;
+        return { ...prev, [field]: spent };
+      });
+    }
     return fullySpent;
-  }, [approach]);
+  }, [approach, approachWardrobeBonus]);
 
 
   // "Receive Ganbare!" — a friend spends one of *their* Ganbare! Charges to
@@ -221,6 +243,7 @@ export default function Chud() {
         approach,
         damageDieSize,
         approachOverloadSpent,
+        approachWardrobeOverloadSpent,
         inventorySlots,
         secondary: prev.secondary,
         shortRest,
@@ -231,7 +254,7 @@ export default function Chud() {
     } catch {
       // storage unavailable — ignore
     }
-  }, [core, hpCounter, approach, damageDieSize, approachOverloadSpent, inventorySlots, shortRest, hasBeenDownedBefore, collapsePath]);
+  }, [core, hpCounter, approach, damageDieSize, approachOverloadSpent, approachWardrobeOverloadSpent, inventorySlots, shortRest, hasBeenDownedBefore, collapsePath]);
 
   // Cross-tab sync
   useEffect(() => {
@@ -243,6 +266,7 @@ export default function Chud() {
         if (s.approach) setApproach(clampApproachToCore(s.approach, clampCore(s.core ?? core)));
         if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
         if (s.approachOverloadSpent) setApproachOverloadSpent(s.approachOverloadSpent);
+        if (s.approachWardrobeOverloadSpent) setApproachWardrobeOverloadSpent(s.approachWardrobeOverloadSpent);
         if (typeof s.hpCounter === "number") setHpCounterRaw(s.hpCounter);
         if (typeof s.shortRest === "boolean") setShortRest(s.shortRest);
         if (typeof s.hasBeenDownedBefore === "boolean") setHasBeenDownedBefore(s.hasBeenDownedBefore);
@@ -355,6 +379,7 @@ export default function Chud() {
                 damageDieSize={damageDieSize}
                 onRollApproachDie={rollApproachDie}
                 approachOverloadSpent={approachOverloadSpent}
+                approachWardrobeOverloadSpent={approachWardrobeOverloadSpent}
                 onOverloadApproachDie={overloadApproachDie}
                 onReceiveGanbare={receiveGanbare}
                 approachWardrobeBonus={approachWardrobeBonus}

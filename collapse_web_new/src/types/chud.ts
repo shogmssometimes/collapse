@@ -29,6 +29,11 @@ export interface SaveState {
   approach: ApproachStats;
   damageDieSize?: import('../domain/approachDice').DieSides;
   approachOverloadSpent?: Partial<Record<keyof ApproachStats, number>>;
+  /** Overload spend tracked separately for each Method's Wardrobe bonus dice
+   * — they're their own depletable pool (same Overload/rest mechanic as the
+   * base pool), capped at that Method's current Wardrobe bonus instead of
+   * its base rating. */
+  approachWardrobeOverloadSpent?: Partial<Record<keyof ApproachStats, number>>;
   wt: number;
   /** Derived as Vigor — persisted as an echo for pages that read it (Gear,
    * GearPanel, HPPanel), never set directly. */

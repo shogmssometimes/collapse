@@ -157,7 +157,13 @@ export function resetApproachOverload(chudStateKey: string): void {
     const parsed: Record<string, unknown> = raw ? JSON.parse(raw) : {};
     const prevSpent = (parsed.approachOverloadSpent as Record<string, number>) ?? {};
     const resetSpent = Object.fromEntries(Object.keys(prevSpent).map((k) => [k, 0]));
-    const json = JSON.stringify({ ...parsed, approachOverloadSpent: resetSpent });
+    const prevWardrobeSpent = (parsed.approachWardrobeOverloadSpent as Record<string, number>) ?? {};
+    const resetWardrobeSpent = Object.fromEntries(Object.keys(prevWardrobeSpent).map((k) => [k, 0]));
+    const json = JSON.stringify({
+      ...parsed,
+      approachOverloadSpent: resetSpent,
+      approachWardrobeOverloadSpent: resetWardrobeSpent,
+    });
     window.localStorage.setItem(chudStateKey, json);
     notify(chudStateKey, json);
   } catch {

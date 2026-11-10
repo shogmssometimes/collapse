@@ -92,6 +92,7 @@ export function ApproachPanel({
   damageDieSize,
   onRollApproachDie,
   approachOverloadSpent,
+  approachWardrobeOverloadSpent,
   onOverloadApproachDie,
   onReceiveGanbare,
   approachWardrobeBonus,
@@ -102,10 +103,12 @@ export function ApproachPanel({
   damageDieSize: DieSides;
   onRollApproachDie: (field: keyof ApproachStats, count: number) => ApproachDieRollResult;
   approachOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
-  onOverloadApproachDie: (field: keyof ApproachStats, count: number) => boolean;
+  /** Overload spend tracked separately for each Method's Wardrobe bonus dice. */
+  approachWardrobeOverloadSpent: Partial<Record<keyof ApproachStats, number>>;
+  onOverloadApproachDie: (field: keyof ApproachStats, baseCount: number, wardrobeCount: number) => boolean;
   /** Restores 1 die to the chosen Method's pool (a friend's Ganbare!, long-press to confirm). */
   onReceiveGanbare: (field: keyof ApproachStats) => void;
-  /** Extra dice granted by Wardrobe items assigned to each Method (on top of the Core-distributed rating). Always rolled; never Overload-spendable. */
+  /** Extra dice granted by Wardrobe items assigned to each Method (on top of the Core-distributed rating). Always rolled; Overload-spendable as its own pool. */
   approachWardrobeBonus: Partial<Record<keyof ApproachStats, number>>;
   /** Wardrobe item names/bonuses contributing to each Method's bonus, for a tooltip. */
   approachWardrobeItems: Partial<Record<keyof ApproachStats, string[]>>;
@@ -133,17 +136,20 @@ export function ApproachPanel({
                 const wardrobeBonus = approachWardrobeBonus[field] ?? 0;
                 const spent = approachOverloadSpent[field] ?? 0;
                 const available = Math.max(0, baseRating - Math.min(Math.max(spent, 0), baseRating));
+                const wardrobeSpent = approachWardrobeOverloadSpent[field] ?? 0;
+                const wardrobeAvailable = Math.max(0, wardrobeBonus - Math.min(Math.max(wardrobeSpent, 0), wardrobeBonus));
                 return (
                   <ApproachDie
                     key={field}
                     label={APPROACH_LABELS[field]}
                     baseRating={baseRating}
                     wardrobeBonus={wardrobeBonus}
+                    wardrobeAvailable={wardrobeAvailable}
                     wardrobeItems={approachWardrobeItems[field] ?? []}
                     available={available}
                     damageDie={damageDieSize}
                     onRoll={(count) => onRollApproachDie(field, count)}
-                    onOverload={(count) => onOverloadApproachDie(field, count)}
+                    onOverload={(baseCount, wardrobeCount) => onOverloadApproachDie(field, baseCount, wardrobeCount)}
                   />
                 );
               })}

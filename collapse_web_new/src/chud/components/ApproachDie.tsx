@@ -46,17 +46,18 @@ const dieLabel = (die: DieSides) => `D${die}`
 // before it's armed, or holding without swiping, does nothing — only the
 // swipe fires the roll.
 //
-// Wardrobe dice are folded directly into the same track as a non-depleting
-// gold-tinted pip (same round shape, just colored, continuing the circle
-// sequence) right after the Method's own circles ("Wardrobe adds dice to
-// that Method's roll only") — they're always rolled, but are never part
-// of the Overload-spendable pool, so they never get a current/ghost
-// marker and can't be Overloaded away.
+// Wardrobe dice are folded directly into the same track as a gold-tinted
+// pip (same round shape, just colored, continuing the circle sequence)
+// right after the Method's own circles ("Wardrobe adds dice to that
+// Method's roll only") — they're always rolled alongside the base pool,
+// and are Overload-spendable as their own pool (same mechanic as the base
+// pool: a doubled Wardrobe die is spent, and only restores on Full Rest),
+// just tracked and capped separately from the base rating.
 //
 // Past the roll, the popup offers Overload: long-press a die to double it
-// (spending 1 from the base pool, resolved together with any other
-// pending doubles the moment the player leaves this screen — Send to Set,
-// Create Margin, or closing the popup). A quick tap on an already-doubled
+// (spending 1 from whichever pool that die came from — base or Wardrobe —
+// resolved together with any other pending doubles the moment the player
+// leaves this screen — Send to Set, Create Margin, or closing the popup). A quick tap on an already-doubled
 // die undoes it while the popup is still open. From there, two paths
 // continue: send the Total to the HUD's Set Roll list, or turn it into a
 // Margin against an Opposition roll. A positive Margin can then be spent
@@ -68,6 +69,7 @@ export function ApproachDie({
   label,
   baseRating,
   wardrobeBonus = 0,
+  wardrobeAvailable,
   wardrobeItems = [],
   available,
   damageDie,
@@ -75,10 +77,12 @@ export function ApproachDie({
   onOverload,
 }: {
   label: string
-  /** Core-distributed rating alone (before Wardrobe) — the track's full/ghost count and the Overload-spendable pool size. */
+  /** Core-distributed rating alone (before Wardrobe) — the track's full/ghost count and the base Overload-spendable pool size. */
   baseRating: number
-  /** Extra dice granted by Wardrobe items assigned to this Method. Always rolled; never part of the track or the Overload pool. */
+  /** Total extra dice granted by Wardrobe items assigned to this Method — the track's Wardrobe slot count (always rolled, regardless of how many are currently spent). */
   wardrobeBonus?: number
+  /** Wardrobe dice currently available (wardrobeBonus minus any Overloaded-and-spent Wardrobe dice) — its own pool, same Overload/rest mechanic as the base pool. Defaults to wardrobeBonus (nothing spent) if omitted. */
+  wardrobeAvailable?: number
   /** Wardrobe item names/bonuses contributing to wardrobeBonus, for a tooltip. */
   wardrobeItems?: string[]
   /** Base-pool dice currently available (baseRating minus any Overloaded-and-spent dice). */
@@ -86,9 +90,10 @@ export function ApproachDie({
   /** Weapon Quality die size, used for the post-Margin Wound roll. */
   damageDie: DieSides
   onRoll: (count: number) => ApproachDieRollResult
-  /** Spends `count` dice from the Overload pool at once (one per doubled die, resolved together). Returns false if the pool couldn't cover the full count. */
-  onOverload?: (count: number) => boolean
+  /** Spends `baseCount` dice from the base pool and `wardrobeCount` from the Wardrobe pool at once (one per doubled die, resolved together). Returns false if either pool couldn't cover its full count. */
+  onOverload?: (baseCount: number, wardrobeCount: number) => boolean
 }) {
+  const wardrobeAvail = wardrobeAvailable ?? wardrobeBonus
   const [errorFlash, setErrorFlash] = useState(false)
   const [result, setResult] = useState<ApproachDieRollResult | null>(null)
   const [pendingOverload, setPendingOverload] = useState<Set<number>>(new Set())
@@ -126,18 +131,29 @@ export function ApproachDie({
   const boxRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
-  // Spends the pending Overloads from the base pool (one die each, resolved
-  // together in a single call so the parent's state update can't miss any —
-  // see the module doc comment on why resolving dice one-at-a-time in a
-  // loop used to under-spend). Idempotent via resolvedRef: once resolved,
-  // repeat calls (e.g. both a button press and the popup's own close) are
-  // no-ops rather than double-spending.
+  // Spends the pending Overloads from their own pools — dice at indices
+  // [0, available) came from the base pool, [available, available +
+  // wardrobeAvail) came from Wardrobe (see `poolMax`/the roll-chip loop
+  // below) — one die each, resolved together in a single call so the
+  // parent's state update can't miss any (see the module doc comment on
+  // why resolving dice one-at-a-time in a loop used to under-spend).
+  // Idempotent via resolvedRef: once resolved, repeat calls (e.g. both a
+  // button press and the popup's own close) are no-ops rather than
+  // double-spending.
   const resolveOverloadIfNeeded = useCallback(() => {
     if (resolvedRef.current) return
     resolvedRef.current = true
-    if (onOverload && pendingOverload.size > 0) onOverload(pendingOverload.size)
+    if (onOverload && pendingOverload.size > 0) {
+      let baseCount = 0
+      let wardrobeCount = 0
+      pendingOverload.forEach((index) => {
+        if (index >= available) wardrobeCount += 1
+        else baseCount += 1
+      })
+      onOverload(baseCount, wardrobeCount)
+    }
     setResolved(true)
-  }, [onOverload, pendingOverload])
+  }, [onOverload, pendingOverload, available])
 
   const closePopup = useCallback(() => {
     // Closing the popup (via the X button or tapping outside) with
@@ -208,7 +224,10 @@ export function ApproachDie({
 
   // The current pool this Method can roll right now — always the whole
   // pool; there's nothing left to pick since a roll always uses every die.
-  const poolMax = Math.max(0, available) + Math.max(0, wardrobeBonus)
+  // Spent Wardrobe dice (Overloaded away) don't get rolled either, same as
+  // spent base dice — so this uses wardrobeAvail (current), not wardrobeBonus
+  // (total capacity, used only for the track's slot count).
+  const poolMax = Math.max(0, available) + Math.max(0, wardrobeAvail)
 
   const rollPool = (count: number) => {
     if (count <= 0) {
@@ -338,17 +357,24 @@ export function ApproachDie({
 
   // Picking up a die previews doubling it, but only once confirmed with a
   // long-press (a plain tap would be too easy to trigger by accident while
-  // reading the result) — it's then auto-resolved (spent from the base
-  // pool) the moment the player moves past this screen: Send to Set,
-  // Create Margin, or just closing the popup. A quick tap on an
-  // already-doubled die un-does it while the popup is still open; there's
-  // no separate Resolve/Undo step. Any number of dice can be Overloaded,
-  // as long as the base pool still has one available to spend.
+  // reading the result) — it's then auto-resolved (spent from its own
+  // pool — base or Wardrobe) the moment the player moves past this screen:
+  // Send to Set, Create Margin, or just closing the popup. A quick tap on
+  // an already-doubled die un-does it while the popup is still open;
+  // there's no separate Resolve/Undo step. Any number of dice can be
+  // Overloaded from either pool, as long as that pool still has one
+  // available to spend — a die's pool is identified by its index: indices
+  // below `available` came from the base pool, the rest from Wardrobe (see
+  // `poolMax`).
   const addOverload = (index: number) => {
     if (!onOverload || resolvedRef.current) return
+    const isWardrobeDie = index >= available
     setPendingOverload((prev) => {
       if (prev.has(index)) return prev
-      if (prev.size >= available) {
+      let baseUsed = 0
+      let wardrobeUsed = 0
+      prev.forEach((i) => { if (i >= available) wardrobeUsed += 1; else baseUsed += 1 })
+      if (isWardrobeDie ? wardrobeUsed >= wardrobeAvail : baseUsed >= available) {
         flashError()
         return prev
       }
@@ -534,10 +560,16 @@ export function ApproachDie({
   // there yet). Within baseRating, every circle up to `available` is a
   // solid "available" pip (blue); the rest, up to baseRating, are "spent"
   // (dull red) — no single moving marker, every pip's own color says
-  // whether its die is still in the pool.
+  // whether its die is still in the pool. Wardrobe pips follow the exact
+  // same available/spent split, just within their own pool (wardrobeAvail
+  // of wardrobeBonus) — a Wardrobe die that's been Overloaded away is just
+  // as spent as a base one, so it gets the identical dull-red "spent" look
+  // (see .method-die-pip.wardrobe.spent in chud.css), not a different
+  // state.
   const trackMax = Math.min(STAT_AND_METHOD_MAX, baseRating)
   const trackCurrent = Math.max(0, Math.min(available, trackMax))
-  const isDepleted = trackMax > 0 && trackCurrent === 0
+  const wardrobeTrackCurrent = Math.max(0, Math.min(wardrobeAvail, wardrobeBonus))
+  const isDepleted = poolMax <= 0 && trackMax + wardrobeBonus > 0
   // Normally exactly 6 grid columns, but Wardrobe can push the track past
   // the sheet's 1-6 ceiling — grow the column count to fit when it does,
   // so overflow slots still get their own equal-width column instead of
@@ -560,7 +592,7 @@ export function ApproachDie({
       <button
         type="button"
         className="method-row-roll"
-        aria-label={`${label}, ${available} of ${baseRating} base dice available${wardrobeBonus > 0 ? `, plus ${wardrobeBonus} from Wardrobe` : ""}. ${rollHint}.`}
+        aria-label={`${label}, ${available} of ${baseRating} base dice available${wardrobeBonus > 0 ? `, plus ${wardrobeAvail} of ${wardrobeBonus} from Wardrobe` : ""}. ${rollHint}.`}
         style={
           !armed && chargeProgress > 0
             ? {
@@ -610,11 +642,14 @@ export function ApproachDie({
             </span>
           )
         })}
-        {/* When the pool is fully depleted (every die Overloaded away),
-            cover the whole track — not just the Method's own circles —
-            with a plain banner instead of a "0" marker. A partial-width
-            banner reads as broken (locked pips dangling past its edge);
-            the full track covered reads as "this Method is spent". */}
+        {/* When both pools are fully depleted (every die — base and
+            Wardrobe — Overloaded away), cover the whole track with a
+            plain banner instead of per-pip "spent" circles. A
+            partial-width banner reads as broken (locked pips dangling
+            past its edge); the full track covered reads as "this Method
+            is spent". If only one pool is depleted, its own pips just
+            turn red individually instead — the other pool's dice are
+            still usable, so the banner would incorrectly hide them. */}
         {isDepleted && (
           <div
             className="method-row-track-overlay"
@@ -625,22 +660,25 @@ export function ApproachDie({
           </div>
         )}
         {/* Wardrobe dice are folded directly into the track as the same
-            round pip as the Method's own circles, just tinted gold —
-            "Wardrobe adds dice to that Method's roll only." They're
-            always rolled but never trackable/Overload-spendable, so
-            they never get a current/ghost marker and tapping them does
-            nothing. Numbered the same way the circles are, continuing
-            the slot sequence; the gold tint is just a visual cue for
-            where the dice come from, not a different track mechanic. */}
+            round pip as the Method's own circles. They're always rolled
+            alongside the base pool, and are Overload-spendable as their
+            own pool (wardrobeAvail of wardrobeBonus) — available ones
+            keep the gold "Wardrobe" tint, spent ones turn the identical
+            dull red as a spent base pip (the .wardrobe.spent override in
+            chud.css), since a Wardrobe die that's been doubled away is
+            just as spent as a base one, regardless of source. Numbered
+            the same way the circles are, continuing the slot sequence. */}
         {Array.from({ length: wardrobeBonus }, (_, index) => {
           const slot = trackMax + index + 1
-          const isPreview = armed
+          const isWardrobeAvailable = index < wardrobeTrackCurrent
+          const isWardrobeSpent = !isWardrobeAvailable
+          const isPreview = armed && isWardrobeAvailable
           return (
             <span
               key={`wardrobe-${index}`}
-              className={`method-die-pip wardrobe${isPreview ? " drag-preview" : ""}`}
+              className={`method-die-pip wardrobe${isWardrobeSpent ? " spent" : ""}${isPreview ? " drag-preview" : ""}`}
               style={{ gridColumn: slot }}
-              title={`Wardrobe bonus die${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; not part of the Overload pool.`}
+              title={`Wardrobe bonus die${wardrobeItems.length ? ` (${wardrobeItems.join(", ")})` : ""}. Always rolled; ${isWardrobeSpent ? "spent (Overloaded away)." : "Overload-spendable, same as a base die."}`}
             >
               {slot}
             </span>

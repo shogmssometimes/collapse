@@ -1266,16 +1266,27 @@ body::after {
 
 /* The Wardrobe bonus, folded directly into the track right after the
    Method's own circles — the same round pip, just with a teal-to-gold
-   gradient fill so it reads as "part of the same track" while still
-   showing at a glance that these dice came from gear, not the Core
-   stat. Always rolled, never trackable/Overload-spendable, so no
-   current/ghost state and not clickable — "Wardrobe adds dice to that
-   Method's roll only." */
+   gradient fill while available, so it reads as "part of the same track"
+   while still showing at a glance that these dice came from gear, not
+   the Core stat. Always rolled, and Overload-spendable as its own pool
+   — "Wardrobe adds dice to that Method's roll only." */
 .method-die-pip.wardrobe {
   background: linear-gradient(135deg, rgba(15, 246, 255, 0.35), #ffd43b);
   border-color: #ffd43b;
   color: #2b2206;
   box-shadow: 0 0 0 2px rgba(255, 212, 59, 0.12) inset;
+}
+
+/* A Wardrobe die that's been Overloaded away is just as spent as a base
+   one, regardless of source — so it drops the gold gradient for the
+   identical dull-red "spent" look as .method-die-pip.spent (two-class
+   selector so it reliably wins over .wardrobe's own background/border
+   regardless of declaration order). */
+.method-die-pip.wardrobe.spent {
+  background: rgba(190, 40, 40, 0.55);
+  border-color: rgba(220, 70, 70, 0.7);
+  color: rgba(255, 226, 226, 0.85);
+  box-shadow: none;
 }
 
 /* Live preview while dragging to choose a roll count — a bright ring and
