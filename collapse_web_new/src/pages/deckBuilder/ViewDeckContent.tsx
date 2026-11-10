@@ -123,7 +123,6 @@ export default function ViewDeckContent({
                   )}
                   <HoldButton
                     label="Discard"
-                    holdMs={500}
                     style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', color: '#fff' }}
                     onHold={() => onDiscardCard(entry.id)}
                     disabled={isOverlayBase || overlayAttachedCount > 0}
@@ -135,7 +134,6 @@ export default function ViewDeckContent({
                   />
                   <HoldButton
                     label="Exile"
-                    holdMs={500}
                     style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', color: '#fff' }}
                     onHold={() => onExileCard(entry.id)}
                     disabled={isOverlayBase || overlayAttachedCount > 0}

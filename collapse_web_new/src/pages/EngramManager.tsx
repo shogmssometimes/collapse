@@ -206,7 +206,7 @@ export default function EngramManager({
               +
             </button>
           </div>
-          <HoldButton label="Spend" onHold={confirmSpend} holdMs={500} />
+          <HoldButton label="Spend" onHold={confirmSpend} />
           <button type="button" className="engram-cancel-btn" onClick={() => setSelectedId(null)}>
             Cancel
           </button>

@@ -1,34 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import type { PendingNotification } from "../../domain/notifications";
-import { recordCancelTap } from "../../domain/notifications";
+import { STANDARD_LONG_PRESS_MS } from "../../utils/gestureConstants";
 
-const HOLD_MS = 600;
-const TAP_RESET_MS = 15000;
+// How far (px) a horizontal drag must travel before it's treated as a
+// cancel-swipe rather than noise under a long-press. Deliberately much
+// larger than any other swipe threshold in the app (the roll-result popup
+// uses 18px) — cancelling a notification is consequential, so it should
+// take an unmistakably long, deliberate drag, not a quick flick.
+const CANCEL_DRAG_DEADZONE_PX = 10;
+const CANCEL_DRAG_COMMIT_PX = 120;
 
 /**
- * One notification's gesture row: long-press to accept, triple-tap (within
- * 15s of the first tap) to cancel. The tap count lives on the shared,
- * persisted notification record (see recordCancelTap) rather than local
- * component state, so a notification rendered in two places at once (the
- * outer header bell's dropdown AND the in-iframe CollapseOverlay row) keeps
- * a single shared cancel progress instead of each copy tracking its own.
+ * One notification's gesture row: long-press to accept, a long swipe left
+ * to cancel. Swiping follows the finger in real time (so the player can see
+ * exactly how close they are to the cancel threshold, and let go to abort)
+ * rather than committing based on a quick flick.
  */
 export function NotificationRow({
   notification,
   onAccept,
   onCancel,
-  onTapRecorded,
   onChoice,
   accentColor,
 }: {
   notification: PendingNotification;
   onAccept: (id: string) => void;
   onCancel: (id: string) => void;
-  /** Called after a non-cancelling tap is recorded, so the owner can
-   * refresh its notifications list and flow the updated tap count back
-   * down as a prop (needed for same-window, same-render-tree updates —
-   * cross-window copies pick it up via the existing storage listener). */
-  onTapRecorded?: () => void;
   /** Called when a choice-style notification's button is tapped (see
    * `notification.choices`). Not used for ordinary accept/cancel rows. */
   onChoice?: (id: string, key: string) => void;
@@ -39,13 +36,12 @@ export function NotificationRow({
   accentColor?: string;
 }) {
   const [pressing, setPressing] = useState(false);
-  const [, forceTick] = useState(0);
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const holdTimer = useRef<number | null>(null);
-  const staleTimer = useRef<number | null>(null);
-
-  const now = Date.now();
-  const tapsStale = typeof notification.cancelTapAt !== "number" || now - notification.cancelTapAt > TAP_RESET_MS;
-  const displayTaps = tapsStale ? 0 : notification.cancelTaps ?? 0;
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const trackingDrag = useRef(false);
 
   const clearHold = () => {
     if (holdTimer.current != null) {
@@ -55,48 +51,55 @@ export function NotificationRow({
     setPressing(false);
   };
 
-  // Force a re-render once the current tap streak goes stale, so the "N/3"
-  // hint reverts to idle even if the user never taps again.
-  useEffect(() => {
-    if (staleTimer.current != null) {
-      window.clearTimeout(staleTimer.current);
-      staleTimer.current = null;
-    }
-    if (!tapsStale && typeof notification.cancelTapAt === "number") {
-      const remaining = TAP_RESET_MS - (Date.now() - notification.cancelTapAt);
-      staleTimer.current = window.setTimeout(() => forceTick((v) => v + 1), Math.max(0, remaining));
-    }
-    return () => {
-      if (staleTimer.current != null) window.clearTimeout(staleTimer.current);
-    };
-  }, [notification.cancelTapAt, tapsStale]);
+  const endGesture = () => {
+    clearHold();
+    trackingDrag.current = false;
+    setDragging(false);
+    setDragX(0);
+  };
 
   useEffect(() => () => clearHold(), []);
 
-  const onPointerDown = () => {
+  const onPointerDown = (event: React.PointerEvent) => {
+    startX.current = event.clientX;
+    startY.current = event.clientY;
+    trackingDrag.current = true;
     setPressing(true);
     holdTimer.current = window.setTimeout(() => {
       clearHold();
+      trackingDrag.current = false;
       onAccept(notification.id);
-    }, HOLD_MS);
+    }, STANDARD_LONG_PRESS_MS);
+  };
+
+  const onPointerMove = (event: React.PointerEvent) => {
+    if (!trackingDrag.current) return;
+    const dx = event.clientX - startX.current;
+    const dy = event.clientY - startY.current;
+    if (!dragging) {
+      if (Math.abs(dx) < CANCEL_DRAG_DEADZONE_PX || Math.abs(dx) < Math.abs(dy)) return;
+      // Horizontal drag past the deadzone — this is a cancel-swipe, not a
+      // long-press anymore.
+      clearHold();
+      setDragging(true);
+    }
+    setDragX(Math.min(0, dx));
   };
 
   const onPointerUp = () => {
-    const held = holdTimer.current != null;
-    clearHold();
-    if (!held) return; // timer already fired (accepted)
-    // Quick release before the hold threshold — count towards triple-tap-cancel.
-    const next = recordCancelTap(notification.id, TAP_RESET_MS);
-    if (next == null) return; // already resolved elsewhere between pointerdown/up
-    if (next >= 3) {
+    const wasDragging = dragging;
+    const finalDragX = dragX;
+    endGesture();
+    if (wasDragging && Math.abs(finalDragX) >= CANCEL_DRAG_COMMIT_PX) {
       onCancel(notification.id);
-      return;
     }
-    onTapRecorded?.();
+    // Anything short of the full drag, or a held-then-released-early tap,
+    // does nothing — same "incomplete gesture = no-op" rule as every other
+    // swipe in the app.
   };
 
   // Choice-style notifications (e.g. "Choose Your Path") skip the
-  // hold/triple-tap gesture entirely in favor of a row of buttons.
+  // hold/swipe gesture entirely in favor of a row of buttons.
   if (notification.choices) {
     return (
       <div
@@ -125,17 +128,20 @@ export function NotificationRow({
 
   return (
     <div
-      className="notification-row"
+      className={`notification-row${dragging ? " dragging" : ""}`}
       style={
         {
-          ["--hold-progress-ms" as string]: `${HOLD_MS}ms`,
+          ["--hold-progress-ms" as string]: `${STANDARD_LONG_PRESS_MS}ms`,
+          transform: dragX ? `translateX(${dragX}px)` : undefined,
+          touchAction: "pan-y",
           ...(accentColor ? { borderLeftColor: accentColor } : {}),
         } as React.CSSProperties
       }
       onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerLeave={clearHold}
-      onPointerCancel={clearHold}
+      onPointerLeave={endGesture}
+      onPointerCancel={endGesture}
     >
       <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
       <div className="notification-row-text">
@@ -147,9 +153,7 @@ export function NotificationRow({
           </span>
         ) : null}
       </div>
-      <span className="notification-row-hint">
-        {displayTaps > 0 ? `${displayTaps}/3 to cancel` : "hold to accept · triple-tap to cancel"}
-      </span>
+      <span className="notification-row-hint">hold to accept · swipe left to cancel</span>
     </div>
   );
 }

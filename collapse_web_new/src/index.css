@@ -410,34 +410,11 @@ button:hover {
   font-weight: 700;
 }
 
-/* Reshuffle button: long-press with a visual fill sweeping across the button
-   to indicate hold progress. Releasing before the hold completes resets the
-   fill instantly with no animation. */
-.reshuffle-btn {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-.reshuffle-btn .reshuffle-label {
-  position: relative;
-  z-index: 1;
-}
-.reshuffle-progress {
-  position: absolute;
-  inset: 0;
-  width: 0%;
-  background: linear-gradient(90deg, rgba(86,141,255,0.6), rgba(86,255,201,0.6));
-  z-index: 0;
-}
-.reshuffle-progress.active {
-  width: 100%;
-  transition: width var(--reshuffle-hold-ms, 900ms) linear;
-}
-
 /* Generic long-press progress fill: reused by any hold-to-trigger control
    (Back button, Core Stat distribute, Approach die roll charge, die-size
-   step, Save modal open). Sweeps left-to-right over the hold duration set
-   via --hold-progress-ms, then snaps back to 0 instantly on release. */
+   step, Save modal open, HoldButton deck-builder controls). Sweeps
+   left-to-right over the hold duration set via --hold-progress-ms, then
+   snaps back to 0 instantly on release. */
 .hold-progress-fill {
   position: absolute;
   inset: 0;
@@ -449,6 +426,19 @@ button:hover {
 .hold-progress-fill.active {
   width: 100%;
   transition: width var(--hold-progress-ms, 550ms) linear;
+}
+
+/* Container for any button rendering a .hold-progress-fill sweep (e.g.
+   HoldButton's deck-builder controls) — clips the fill to the button's
+   bounds and keeps its label above it. */
+.hold-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.hold-btn .hold-btn-label {
+  position: relative;
+  z-index: 1;
 }
 
 /* Long-press card-name target for the details pop-up: must not be cancelled
@@ -988,12 +978,19 @@ main {
 }
 
 .play-overlay {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   margin-top: 12px;
   padding: 16px 14px 14px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(0,0,0,0.6);
   box-shadow: 0 12px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04);
+}
+.play-overlay > *:not(.hold-progress-fill) {
+  position: relative;
+  z-index: 1;
 }
 .play-overlay-header {
   display: flex;
@@ -2247,7 +2244,12 @@ button.hub-card:not(:disabled):active {
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
   user-select: none;
-  touch-action: none;
+  touch-action: pan-y;
+  transition: transform 180ms ease-out;
+}
+
+.notification-row.dragging {
+  transition: none;
 }
 
 .notification-row > *:not(.hold-progress-fill) {
@@ -2292,7 +2294,7 @@ button.hub-card:not(:disabled):active {
 }
 
 /* Choice-style notifications ("Choose Your Path") render buttons instead of
- * the hold/triple-tap gesture, so they don't need the pressable cursor or
+ * the hold/swipe gesture, so they don't need the pressable cursor or
  * touch-action lockout the gesture rows use. */
 .notification-row-choice {
   cursor: default;

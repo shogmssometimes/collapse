@@ -9,6 +9,7 @@ import MgrPage from "./pages/Mgr";
 import { HeaderNotificationsBell } from "./components/HeaderNotificationsBell";
 import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey, profileKey, CHAR_ACTIVE_KEY } from "./utils/slotKeys";
 import { parseHashRoute } from "./utils/routing";
+import { STANDARD_LONG_PRESS_MS } from "./utils/gestureConstants";
 
 function readActiveCharSlot(): number {
   if (typeof window === 'undefined') return 1;
@@ -25,8 +26,6 @@ type HubCard = {
 };
 
 const buildPath = (path: string) => `${import.meta.env.BASE_URL}${path}`;
-
-const BACK_LONG_PRESS_MS = 600;
 
 // Back button: a quick tap fires onBack (go to the previous page in the
 // current flow); a long-press fires onGoHome (jump straight to the hub).
@@ -50,7 +49,7 @@ const BackButton: React.FC<{ onBack: () => void; onGoHome: () => void }> = ({ on
       firedRef.current = true;
       setHolding(false);
       onGoHome();
-    }, BACK_LONG_PRESS_MS);
+    }, STANDARD_LONG_PRESS_MS);
   };
 
   const handlePointerUp = () => {
@@ -74,7 +73,7 @@ const BackButton: React.FC<{ onBack: () => void; onGoHome: () => void }> = ({ on
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      style={{ ["--hold-progress-ms" as string]: `${BACK_LONG_PRESS_MS}ms` } as React.CSSProperties}
+      style={{ ["--hold-progress-ms" as string]: `${STANDARD_LONG_PRESS_MS}ms` } as React.CSSProperties}
       aria-label="Back (hold for main menu)"
     >
       <span className={`hold-progress-fill${holding ? " active" : ""}`} aria-hidden="true" />

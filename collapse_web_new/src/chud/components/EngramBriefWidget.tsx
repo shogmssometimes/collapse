@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { engramCatalogById } from "../../data/handbook/engramCatalog";
 import { readEngramState, spendEngramCharges, type EngramManagerState } from "../../utils/engramState";
+import { STANDARD_LONG_PRESS_MS } from "../../utils/gestureConstants";
 
 // Swipeable Engram summary widget — mirrors GearBriefWidget's layout and
-// gesture (swipe to cycle, long-press 2s to spend one charge of the active
+// gesture (swipe to cycle, long-press to spend one charge of the active
 // Engram), but reads from the Engram Manager's equipped/charges state
 // instead of the Gear inventory.
 export function EngramBriefWidget({
@@ -21,7 +22,6 @@ export function EngramBriefWidget({
   const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const isHolding = useRef(false);
   const holdFired = useRef(false);
-  const HOLD_MS = 1000;
 
   // only show equipped Engrams with charges remaining
   const activeEntries = Object.entries(state.equipped)
@@ -53,7 +53,7 @@ export function EngramBriefWidget({
     isHolding.current = true;
     const start = Date.now();
     holdInterval.current = setInterval(() => {
-      setHoldProgress(Math.min(((Date.now() - start) / HOLD_MS) * 100, 100));
+      setHoldProgress(Math.min(((Date.now() - start) / STANDARD_LONG_PRESS_MS) * 100, 100));
     }, 30);
     holdTimer.current = setTimeout(() => {
       holdFired.current = true;
@@ -61,7 +61,7 @@ export function EngramBriefWidget({
       spendEngramCharges(storageKey, entry.id, 1);
       setFlashOut(true);
       setTimeout(() => setFlashOut(false), 600);
-    }, HOLD_MS);
+    }, STANDARD_LONG_PRESS_MS);
   };
 
   // border/shadow driven by hold progress — same accent as Gear's widget,

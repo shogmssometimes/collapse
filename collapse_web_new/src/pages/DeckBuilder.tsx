@@ -972,14 +972,12 @@ export default function DeckBuilder({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <HoldButton
                 label="Discard"
-                holdMs={500}
                 onHold={() => discardHandCardAtIndex(index, 'discarded')}
                 disabled={isAttachedToQueue}
                 ariaLabel={isAttachedToQueue ? `${card?.name ?? id} is attached to the play queue; clear it before discarding` : undefined}
               />
               <HoldButton
                 label="Exile"
-                holdMs={500}
                 onHold={() => exileHandCardAtIndex(index)}
                 disabled={isAttachedToQueue}
                 ariaLabel={isAttachedToQueue ? `${card?.name ?? id} is attached to the play queue; clear it before exiling` : undefined}

@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react'
+import { STANDARD_LONG_PRESS_MS } from './gestureConstants'
 
 type TimerRef = { current: number | null }
 type FiredRef = { current: boolean }
@@ -14,7 +15,7 @@ export function createLongPressHandlers(
   onLongPress: () => void,
   options?: { delay?: number; disabled?: boolean }
 ) {
-  const delay = options?.delay ?? 600
+  const delay = options?.delay ?? STANDARD_LONG_PRESS_MS
   const disabled = options?.disabled ?? false
 
   const start = () => {

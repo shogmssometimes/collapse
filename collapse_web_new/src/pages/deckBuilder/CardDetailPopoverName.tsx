@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Card } from '../../domain/decks/DeckEngine'
-
-const DETAIL_LONG_PRESS_MS = 500
+import { STANDARD_LONG_PRESS_MS } from '../../utils/gestureConstants'
 
 type CardDetailPopoverNameProps = {
   card: Card | undefined
@@ -16,6 +15,7 @@ type CardDetailPopoverNameProps = {
 // overflow:hidden for text-ellipsis truncation.
 export default function CardDetailPopoverName({ card, name }: CardDetailPopoverNameProps) {
   const [open, setOpen] = useState(false)
+  const [pressing, setPressing] = useState(false)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
   const timerRef = useRef<number | null>(null)
   const anchorRef = useRef<HTMLSpanElement | null>(null)
@@ -26,18 +26,21 @@ export default function CardDetailPopoverName({ card, name }: CardDetailPopoverN
       window.clearTimeout(timerRef.current)
       timerRef.current = null
     }
+    setPressing(false)
   }
 
   const startPress = () => {
     clearTimer()
+    setPressing(true)
     timerRef.current = window.setTimeout(() => {
+      clearTimer()
       const rect = anchorRef.current?.getBoundingClientRect()
       if (rect) {
         const left = Math.min(rect.left, window.innerWidth - 300)
         setCoords({ top: rect.bottom + 6, left: Math.max(8, left) })
       }
       setOpen(true)
-    }, DETAIL_LONG_PRESS_MS)
+    }, STANDARD_LONG_PRESS_MS)
   }
 
   const cancelPress = () => {
@@ -58,14 +61,21 @@ export default function CardDetailPopoverName({ card, name }: CardDetailPopoverN
     <span
       ref={anchorRef}
       className="card-detail-press-target"
-      style={{ position: 'relative', display: 'inline-block' }}
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        overflow: 'hidden',
+        isolation: 'isolate',
+        ['--hold-progress-ms' as string]: `${STANDARD_LONG_PRESS_MS}ms`,
+      } as React.CSSProperties}
       onPointerDown={startPress}
       onPointerUp={cancelPress}
       onPointerLeave={cancelPress}
       onPointerCancel={cancelPress}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {name}
+      <span className={`hold-progress-fill${pressing ? ' active' : ''}`} aria-hidden="true" />
+      <span style={{ position: 'relative', zIndex: 1 }}>{name}</span>
       {open && coords && createPortal(
         <div
           ref={popoverRef}

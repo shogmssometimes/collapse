@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
 import type { GearSlotEntry } from "../../types/chud";
+import { STANDARD_LONG_PRESS_MS } from "../../utils/gestureConstants";
 
-// Swipeable inventory summary widget. Long-press (2s) consumes one unit of
-// the active entry and writes the decrement back to the gear slots storage.
+// Swipeable inventory summary widget. Long-press consumes one unit of the
+// active entry and writes the decrement back to the gear slots storage.
 export function GearBriefWidget({
   entries,
   count,
@@ -22,7 +23,6 @@ export function GearBriefWidget({
   const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const isHolding = useRef(false);
   const holdFired = useRef(false);
-  const HOLD_MS = 1000;
 
   // only show entries with QTY > 0
   const activeEntries = entries.slice(0, count).filter(e => {
@@ -58,7 +58,7 @@ export function GearBriefWidget({
     isHolding.current = true;
     const start = Date.now();
     holdInterval.current = setInterval(() => {
-      setHoldProgress(Math.min(((Date.now() - start) / HOLD_MS) * 100, 100));
+      setHoldProgress(Math.min(((Date.now() - start) / STANDARD_LONG_PRESS_MS) * 100, 100));
     }, 30);
     holdTimer.current = setTimeout(() => {
       holdFired.current = true;
@@ -82,7 +82,7 @@ export function GearBriefWidget({
       } catch {}
       setFlashOut(true);
       setTimeout(() => setFlashOut(false), 600);
-    }, HOLD_MS);
+    }, STANDARD_LONG_PRESS_MS);
   };
 
   // border/shadow driven by hold progress

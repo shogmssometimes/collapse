@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { createLongPressHandlers } from '../../utils/createLongPressHandlers'
+import { STANDARD_LONG_PRESS_MS } from '../../utils/gestureConstants'
 import type { Card } from '../../domain/decks/DeckEngine'
 
 type ModifierCardGridProps = {
@@ -57,6 +59,11 @@ export default function ModifierCardGrid({
   showCardDetails,
   renderDetails,
 }: ModifierCardGridProps) {
+  // Which card (if any) is mid-long-press, so it alone shows the shared
+  // hold-progress-fill sweep (the decrement/context action it's heading
+  // towards isn't committed until the shared delay elapses).
+  const [pressingId, setPressingId] = useState<string | null>(null)
+
   return (
     <section ref={sectionRef} className="compact" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="modifier-header-row">
@@ -111,13 +118,34 @@ export default function ModifierCardGrid({
             () => onContext(card.id),
             { disabled: isLocked || qty <= 0 }
           )
+          const longPressArmed = !isLocked && qty > 0
+          const isPressing = pressingId === card.id && longPressArmed
           return (
             <div
               key={card.id}
               className={`engram-list-item ${isAttached ? 'is-selected' : ''}`}
               data-touch-blocker-ignore
+              style={{
+                position: 'relative',
+                overflow: 'hidden',
+                isolation: 'isolate',
+                ['--hold-progress-ms' as string]: `${STANDARD_LONG_PRESS_MS}ms`,
+              } as React.CSSProperties}
               {...modLongPressHandlers}
+              onPointerDown={() => {
+                if (longPressArmed) setPressingId(card.id)
+                modLongPressHandlers.onPointerDown()
+              }}
+              onPointerUp={() => {
+                setPressingId(null)
+                modLongPressHandlers.onPointerUp()
+              }}
+              onPointerLeave={() => {
+                setPressingId(null)
+                modLongPressHandlers.onPointerLeave()
+              }}
             >
+              <span className={`hold-progress-fill${isPressing ? ' active' : ''}`} aria-hidden="true" />
               <div className="engram-list-title">
                 <div className="card-name">{card.name}</div>
                 <div className="muted text-body">Cost {cost}</div>

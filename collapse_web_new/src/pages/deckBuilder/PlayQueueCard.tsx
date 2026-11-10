@@ -1,6 +1,7 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import type { ActivePlay } from '../../utils/playFlow'
 import type { Card } from '../../domain/decks/DeckEngine'
+import { STANDARD_LONG_PRESS_MS } from '../../utils/gestureConstants'
 
 type PlayQueueCardProps = {
   activePlay: ActivePlay
@@ -10,12 +11,11 @@ type PlayQueueCardProps = {
   onCancelPlay: () => void
 }
 
-const LONG_PRESS_MS = 600
-
 // Universal "play in progress" queue card. Shared by Combat (hand carousel)
 // and Roleplay (deck summary) so a play started in either mode is visible
 // (with an origin badge) no matter which mode is currently active.
 export default function PlayQueueCard({ activePlay, cardLookup, origin, onFinalizePlay, onCancelPlay }: PlayQueueCardProps) {
+  const [pressing, setPressing] = useState(false)
   const timerRef = useRef<number | null>(null)
   const firedRef = useRef(false)
 
@@ -24,15 +24,18 @@ export default function PlayQueueCard({ activePlay, cardLookup, origin, onFinali
       window.clearTimeout(timerRef.current)
       timerRef.current = null
     }
+    setPressing(false)
   }
 
   const handlePointerDown = () => {
     firedRef.current = false
     clearTimer()
+    setPressing(true)
     timerRef.current = window.setTimeout(() => {
       firedRef.current = true
+      clearTimer()
       window.location.hash = '#/combat'
-    }, LONG_PRESS_MS)
+    }, STANDARD_LONG_PRESS_MS)
   }
 
   const handlePointerUp = () => {
@@ -48,8 +51,10 @@ export default function PlayQueueCard({ activePlay, cardLookup, origin, onFinali
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      style={{ ['--hold-progress-ms' as string]: `${STANDARD_LONG_PRESS_MS}ms` } as React.CSSProperties}
       title="Hold to jump to the Combat page"
     >
+      <span className={`hold-progress-fill${pressing ? ' active' : ''}`} aria-hidden="true" />
       <div className="play-overlay-header">
         <div>
           <div className="muted text-body" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

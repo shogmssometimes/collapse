@@ -1,26 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 
-const LONG_PRESS_MS = 550;
-const TAP_WINDOW_MS = 500;
 const COMMIT_FLASH_MS = 320;
+// How far (px) the pointer must move vertically before a touch counts as a
+// swipe instead of a tap. Below this, releasing commits the tap action
+// (+1) instantly — no delay, no "wait and see if another tap follows".
+const SWIPE_DEADZONE_PX = 8;
+// Full swipe distance (px) required to commit the swipe action. Between
+// the deadzone and this point, the card shows a live "if you let go now,
+// this is what happens" pulse but nothing commits yet — matching the same
+// "incomplete gesture does nothing" rule used by every other swipe in the
+// app (e.g. the roll-result popup).
+const SWIPE_COMMIT_PX = 28;
 
-type TapStage = 0 | 1 | 2;
+type DragState = null | "remove" | "open";
 type CommitFlash = null | "add" | "remove";
 
-// Core Stat card: tap = +1 (raise the pool), triple-tap = -1, long-press =
-// open the Approach distribution popout for this stat.
-//
-// Both tap paths take a moment to confirm (so a single tap can still
-// become a triple-tap), so the card visually tracks where it is in that
-// sequence rather than just silently waiting:
-//   tap 1 → cyan pulse, "this will add 1 if you stop tapping"
-//   tap 2 → red pulse, "the add is cancelled; this will remove 1 if you
-//           tap once more" (letting the window lapse here does nothing —
-//           2 taps alone was never a real input)
-//   tap 3 → commits the remove immediately
-// A brief solid flash (cyan for add, red for remove) confirms the moment
-// a change actually lands, since the pending pulse stops as soon as it
-// commits.
+// Core Stat card: tap = +1 (raise the pool) instantly, swipe down = -1,
+// swipe up = open the Approach distribution popout for this stat. Replaces
+// the old tap/double-tap/triple-tap timing window (every tap used to wait
+// 500ms to see if more taps followed, and -1 needed three precisely-timed
+// taps) — a tap now always commits the moment you lift your finger, which
+// is what "instant" means on a phone.
 export function CoreStatCard({
   label,
   value,
@@ -34,22 +34,12 @@ export function CoreStatCard({
   onDecr: () => void;
   onOpenDistribution: () => void;
 }) {
-  const [pressing, setPressing] = useState(false);
-  const [tapStage, setTapStage] = useState<TapStage>(0);
+  const [dragState, setDragState] = useState<DragState>(null);
   const [commitFlash, setCommitFlash] = useState<CommitFlash>(null);
-  const longPressTimer = useRef<number | null>(null);
-  const tapTimer = useRef<number | null>(null);
-  const tapCount = useRef(0);
+  const startY = useRef(0);
+  const startX = useRef(0);
+  const dragging = useRef(false);
   const commitFlashTimer = useRef<number | null>(null);
-  const suppressClick = useRef(false);
-
-  const cancelLongPress = () => {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-    setPressing(false);
-  };
 
   const flashCommit = (kind: "add" | "remove") => {
     if (commitFlashTimer.current !== null) window.clearTimeout(commitFlashTimer.current);
@@ -62,79 +52,71 @@ export function CoreStatCard({
 
   useEffect(
     () => () => {
-      if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
-      if (tapTimer.current !== null) window.clearTimeout(tapTimer.current);
       if (commitFlashTimer.current !== null) window.clearTimeout(commitFlashTimer.current);
     },
     []
   );
 
-  const handlePointerDown = () => {
-    suppressClick.current = false;
-    setPressing(true);
-    longPressTimer.current = window.setTimeout(() => {
-      longPressTimer.current = null;
-      suppressClick.current = true;
-      tapCount.current = 0;
-      setTapStage(0);
-      if (tapTimer.current !== null) {
-        window.clearTimeout(tapTimer.current);
-        tapTimer.current = null;
-      }
-      setPressing(false);
-      onOpenDistribution();
-    }, LONG_PRESS_MS);
+  const handlePointerDown = (event: React.PointerEvent) => {
+    dragging.current = true;
+    startX.current = event.clientX;
+    startY.current = event.clientY;
+    setDragState(null);
   };
 
-  const handleClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    if (suppressClick.current) {
-      suppressClick.current = false;
+  const handlePointerMove = (event: React.PointerEvent) => {
+    if (!dragging.current) return;
+    const dy = event.clientY - startY.current;
+    const dx = event.clientX - startX.current;
+    if (Math.abs(dy) < SWIPE_DEADZONE_PX || Math.abs(dy) < Math.abs(dx)) {
+      setDragState(null);
       return;
     }
-    tapCount.current += 1;
-    if (tapTimer.current !== null) window.clearTimeout(tapTimer.current);
+    setDragState(dy > 0 ? "remove" : "open");
+  };
 
-    if (tapCount.current >= 3) {
-      tapCount.current = 0;
-      tapTimer.current = null;
-      setTapStage(0);
-      onDecr();
-      flashCommit("remove");
-      return;
-    }
+  const endDrag = () => {
+    dragging.current = false;
+    setDragState(null);
+  };
 
-    setTapStage(tapCount.current as TapStage)
-    tapTimer.current = window.setTimeout(() => {
-      tapTimer.current = null;
-      const stageAtTimeout = tapCount.current
-      tapCount.current = 0;
-      setTapStage(0);
-      if (stageAtTimeout === 1) {
-        // Only a single tap landed in the window — commit the add. Two
-        // taps landing (then nothing) is a cancelled add, not a real
-        // input, so it resolves to no change.
+  const handlePointerUp = (event: React.PointerEvent) => {
+    if (!dragging.current) return;
+    const dy = event.clientY - startY.current;
+    const dx = event.clientX - startX.current;
+    const swipedFar = Math.abs(dy) >= SWIPE_COMMIT_PX && Math.abs(dy) >= Math.abs(dx);
+    endDrag();
+    if (!swipedFar) {
+      if (Math.abs(dy) < SWIPE_DEADZONE_PX && Math.abs(dx) < SWIPE_DEADZONE_PX) {
+        // Barely moved at all — a plain tap, commits instantly.
         onIncr();
         flashCommit("add");
       }
-    }, TAP_WINDOW_MS);
+      // Moved past the deadzone but short of the full swipe — an
+      // incomplete gesture, same as elsewhere in the app: no action.
+      return;
+    }
+    if (dy > 0) {
+      onDecr();
+      flashCommit("remove");
+    } else {
+      onOpenDistribution();
+    }
   };
 
   return (
     <div
-      className={`core-card interactive${pressing ? " pressing" : ""}${tapStage === 1 ? " tap-pending-add" : ""}${tapStage === 2 ? " tap-pending-remove" : ""}${commitFlash ? ` tap-flash-${commitFlash}` : ""}`}
+      className={`core-card interactive${dragState === "remove" ? " tap-pending-remove" : ""}${dragState === "open" ? " tap-pending-open" : ""}${commitFlash ? ` tap-flash-${commitFlash}` : ""}`}
       role="button"
       tabIndex={0}
-      aria-label={`${label} ${value}. Tap to increase, triple-tap to decrease, long-press to distribute into Methods.`}
+      aria-label={`${label} ${value}. Tap to increase, swipe down to decrease, swipe up to distribute into Methods.`}
       onPointerDown={handlePointerDown}
-      onPointerUp={cancelLongPress}
-      onPointerLeave={cancelLongPress}
-      onPointerCancel={cancelLongPress}
-      onClick={handleClick}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={endDrag}
+      onPointerCancel={endDrag}
       onContextMenu={(event) => event.preventDefault()}
-      style={{ ["--hold-progress-ms" as string]: `${LONG_PRESS_MS}ms` } as React.CSSProperties}
     >
-      <span className={`hold-progress-fill${pressing ? " active" : ""}`} aria-hidden="true" />
       <span className="core-label">{label}</span>
       <div className="core-controls">
         <span className="core-value">{value}</span>

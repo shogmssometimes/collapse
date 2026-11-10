@@ -229,30 +229,28 @@ body::-webkit-scrollbar {
   );
 }
 
-/* Tap-sequence feedback: a single tap pulses cyan while it's waiting to
-   see if a second tap follows (would commit +1 on release); a second tap
-   switches the pulse to red (the add is cancelled — a third tap would now
-   commit -1, but if neither tap arrives this is just a pulse, not a
-   change). Looping so the "still waiting" state reads clearly over the
-   ~500ms tap window, unlike a single one-shot flash. */
-.core-card.tap-pending-add {
-  animation: core-card-tap-pending 480ms ease-in-out infinite;
-  border-color: #0ff6ff;
-}
-
+/* Swiping down past the deadzone, heading towards -1. */
 .core-card.tap-pending-remove {
   animation: core-card-tap-pending-remove 480ms ease-in-out infinite;
   border-color: #ff5c5c;
 }
 
-@keyframes core-card-tap-pending {
-  0%, 100% { box-shadow: 0 0 0 rgba(15, 246, 255, 0); }
-  50% { box-shadow: 0 0 14px 2px rgba(15, 246, 255, 0.45); }
+/* Swiping up past the deadzone, heading towards "open the Distribution
+   popout" — gold, matching the app's existing "opens a menu/options"
+   accent (Wardrobe pips, Ganbare!) rather than the add/remove cyan/red. */
+.core-card.tap-pending-open {
+  animation: core-card-tap-pending-open 480ms ease-in-out infinite;
+  border-color: #ffd43b;
 }
 
 @keyframes core-card-tap-pending-remove {
   0%, 100% { box-shadow: 0 0 0 rgba(255, 92, 92, 0); }
   50% { box-shadow: 0 0 14px 2px rgba(255, 92, 92, 0.5); }
+}
+
+@keyframes core-card-tap-pending-open {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 212, 59, 0); }
+  50% { box-shadow: 0 0 14px 2px rgba(255, 212, 59, 0.45); }
 }
 
 /* One-shot solid flash the instant a tap sequence actually commits a
@@ -786,7 +784,17 @@ body::-webkit-scrollbar {
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
   user-select: none;
-  touch-action: none;
+  /* Horizontal drag (swipe-left-to-cancel) is captured by JS; vertical
+   * scrolling of the tray list still passes through natively. */
+  touch-action: pan-y;
+  /* Springs back to translateX(0) on release unless actively dragging
+   * (see .dragging below, which removes this so the row follows the
+   * finger 1:1 instead of lagging behind it). */
+  transition: transform 180ms ease-out;
+}
+
+.notification-row.dragging {
+  transition: none;
 }
 
 .notification-row > *:not(.hold-progress-fill) {
@@ -834,7 +842,7 @@ body::-webkit-scrollbar {
 }
 
 /* Choice-style notifications ("Choose Your Path") render buttons instead of
- * the hold/triple-tap gesture, so they don't need the pressable cursor or
+ * the hold/swipe gesture, so they don't need the pressable cursor or
  * touch-action lockout the gesture rows use. */
 .notification-row-choice {
   cursor: default;

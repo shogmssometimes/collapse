@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { gear, GearItem, GearSlot, GearRarity } from '../data/handbook/gear'
+import { STANDARD_LONG_PRESS_MS } from '../utils/gestureConstants'
 
 const CHUD_STATE_KEY = 'chud.state.v1'
 const GEAR_SLOTS_KEY = 'gear.slots.v1'
@@ -209,31 +210,23 @@ function SlotRow({ index, entry, onChange }: {
   entry: SlotEntry
   onChange: (entry: SlotEntry) => void
 }) {
-  const [holdProgress, setHoldProgress] = useState(0) // 0–100
+  const [pressing, setPressing] = useState(false)
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null)
-  const HOLD_MS = 2000
 
   const startHold = () => {
-    const start = Date.now()
-    holdInterval.current = setInterval(() => {
-      const pct = Math.min(((Date.now() - start) / HOLD_MS) * 100, 100)
-      setHoldProgress(pct)
-    }, 30)
+    setPressing(true)
     holdTimer.current = setTimeout(() => {
       cancelHold()
-      setHoldProgress(0)
       const current = parseFloat(entry.qty)
       if (!isNaN(current) && current > 0) {
         onChange({ ...entry, qty: String(current - 1) })
       }
-    }, HOLD_MS)
+    }, STANDARD_LONG_PRESS_MS)
   }
 
   const cancelHold = () => {
     if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null }
-    if (holdInterval.current) { clearInterval(holdInterval.current); holdInterval.current = null }
-    setHoldProgress(0)
+    setPressing(false)
   }
 
   const qtyNum = parseFloat(entry.qty)
@@ -251,51 +244,36 @@ function SlotRow({ index, entry, onChange }: {
       <span style={{ fontSize: '0.65rem', color: 'var(--muted)', textAlign: 'right', paddingRight: 2 }}>
         {index + 1}
       </span>
-      {/* Use button with hold-progress ring */}
+      {/* Use button: shared long-press visual (same fill used by every
+          other hold-to-trigger control in the app), clipped to a circle. */}
       <div
-        style={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}
+        style={{
+          position: 'relative',
+          width: 28,
+          height: 28,
+          flexShrink: 0,
+          borderRadius: '50%',
+          overflow: 'hidden',
+          border: `1px solid ${canUse ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)'}`,
+          ['--hold-progress-ms' as string]: `${STANDARD_LONG_PRESS_MS}ms`,
+        } as React.CSSProperties}
         onPointerDown={e => { if (canUse) { e.currentTarget.setPointerCapture(e.pointerId); startHold() } }}
         onPointerUp={cancelHold}
         onPointerLeave={cancelHold}
         onPointerCancel={cancelHold}
         onContextMenu={e => e.preventDefault()}
       >
-        <svg
-          viewBox="0 0 28 28"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: 28,
-            height: 28,
-            transform: 'rotate(-90deg)',
-            pointerEvents: 'none',
-          }}
-        >
-          <circle
-            cx="14" cy="14" r="11"
-            fill="none"
-            stroke={canUse ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)'}
-            strokeWidth="2"
-          />
-          {holdProgress > 0 && (
-            <circle
-              cx="14" cy="14" r="11"
-              fill="none"
-              stroke="var(--accent, #0ff6ff)"
-              strokeWidth="2"
-              strokeDasharray={`${2 * Math.PI * 11}`}
-              strokeDashoffset={`${2 * Math.PI * 11 * (1 - holdProgress / 100)}`}
-              strokeLinecap="round"
-            />
-          )}
-        </svg>
+        <span className={`hold-progress-fill${pressing ? ' active' : ''}`} aria-hidden="true" />
         <div
           style={{
-            position: 'absolute',
+            position: 'relative',
+            zIndex: 1,
             inset: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            width: '100%',
+            height: '100%',
             fontSize: '0.55rem',
             letterSpacing: '0.04em',
             fontFamily: 'var(--font-display)',

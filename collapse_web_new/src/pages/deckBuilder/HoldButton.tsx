@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
-
-const DEFAULT_HOLD_MS = 900
+import { STANDARD_LONG_PRESS_MS } from '../../utils/gestureConstants'
 
 type HoldButtonProps = {
   label: string
@@ -15,7 +14,7 @@ type HoldButtonProps = {
 // Generic long-press button: holding it down for holdMs fires onHold. A fill
 // sweeps across the button while held to visually register the press;
 // releasing early resets the fill instantly and cancels the action.
-export default function HoldButton({ label, onHold, holdMs = DEFAULT_HOLD_MS, className, style, ariaLabel, disabled }: HoldButtonProps) {
+export default function HoldButton({ label, onHold, holdMs = STANDARD_LONG_PRESS_MS, className, style, ariaLabel, disabled }: HoldButtonProps) {
   const [holding, setHolding] = useState(false)
   const timerRef = useRef<number | null>(null)
 
@@ -44,17 +43,17 @@ export default function HoldButton({ label, onHold, holdMs = DEFAULT_HOLD_MS, cl
   return (
     <button
       type="button"
-      className={`reshuffle-btn${className ? ` ${className}` : ''}`}
+      className={`hold-btn${className ? ` ${className}` : ''}`}
       onPointerDown={startHold}
       onPointerUp={cancelHold}
       onPointerLeave={cancelHold}
       onPointerCancel={cancelHold}
-      style={{ ['--reshuffle-hold-ms' as string]: `${holdMs}ms`, ...style } as React.CSSProperties}
+      style={{ ['--hold-progress-ms' as string]: `${holdMs}ms`, ...style } as React.CSSProperties}
       aria-label={ariaLabel ?? `${label} (hold to confirm)`}
       disabled={disabled}
     >
-      <span className={`reshuffle-progress${holding ? ' active' : ''}`} aria-hidden="true" />
-      <span className="reshuffle-label">{label}</span>
+      <span className={`hold-progress-fill${holding ? ' active' : ''}`} aria-hidden="true" />
+      <span className="hold-btn-label">{label}</span>
     </button>
   )
 }

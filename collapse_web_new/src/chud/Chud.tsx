@@ -357,7 +357,6 @@ export default function Chud() {
             notification={hpZeroNotification}
             onAccept={(id) => resolveNotification(id, true)}
             onCancel={(id) => resolveNotification(id, false)}
-            onTapRecorded={() => setNotifications(listNotifications())}
           />
 
           <HPPanel

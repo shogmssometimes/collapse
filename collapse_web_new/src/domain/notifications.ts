@@ -6,9 +6,9 @@
 //
 // A notification represents a system-affecting change (HP hitting 0, a Dig
 // Deep roll, etc.) that must be explicitly accepted (long-press) or
-// cancelled (triple-tap) by the player instead of auto-applying. While one
-// of a given `kind` is pending, the area that produced it is expected to
-// refuse to queue another of the same kind until it's resolved.
+// cancelled (swipe) by the player instead of auto-applying. While one of a
+// given `kind` is pending, the area that produced it is expected to refuse
+// to queue another of the same kind until it's resolved.
 
 export type NotificationKind =
   | "hp-zero"
@@ -52,15 +52,9 @@ export type PendingNotification = {
   detail: string;
   effect: NotificationEffect;
   createdAt: number;
-  /** Triple-tap-to-cancel progress, shared across every rendering of this
-   * notification (e.g. the outer header bell's dropdown AND the in-iframe
-   * CollapseOverlay row show the *same* notification record) so a tap
-   * started in one place counts towards cancelling it from another. */
-  cancelTaps?: number;
-  cancelTapAt?: number;
   /** When present, this notification is rendered as a set of mutually
    * exclusive choice buttons (e.g. "Choose Your Path: Live/Survive/Die")
-   * instead of the usual hold-to-accept/triple-tap-to-cancel gesture. */
+   * instead of the usual hold-to-accept/swipe-to-cancel gesture. */
   choices?: NotificationChoice[];
   /** An embedded die roll to display alongside the detail text. */
   roll?: NotificationRoll;
@@ -164,25 +158,4 @@ export function notificationAccentColor(index: number, total: number): string {
   const g = Math.round(NOTIFICATION_NEW_RGB.g + (NOTIFICATION_OLD_RGB.g - NOTIFICATION_NEW_RGB.g) * t);
   const b = Math.round(NOTIFICATION_NEW_RGB.b + (NOTIFICATION_OLD_RGB.b - NOTIFICATION_NEW_RGB.b) * t);
   return `rgb(${r}, ${g}, ${b})`;
-}
-
-/**
- * Records one triple-tap-to-cancel tap against a notification's shared,
- * persisted progress (resetting first if the last tap was more than
- * `resetMs` ago), and returns the new tap count — or null if the
- * notification no longer exists (e.g. already resolved elsewhere).
- * Every rendering of the same notification reads/writes this same record,
- * so taps made in one place count towards cancelling it from another.
- */
-export function recordCancelTap(id: string, resetMs: number): number | null {
-  const items = read();
-  const idx = items.findIndex((n) => n.id === id);
-  if (idx === -1) return null;
-  const n = items[idx];
-  const now = Date.now();
-  const stale = typeof n.cancelTapAt !== "number" || now - n.cancelTapAt > resetMs;
-  const nextTaps = stale ? 1 : (n.cancelTaps ?? 0) + 1;
-  items[idx] = { ...n, cancelTaps: nextTaps, cancelTapAt: now };
-  write(items);
-  return nextTaps;
 }

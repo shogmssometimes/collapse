@@ -3,11 +3,10 @@ import { ApproachDie, type ApproachDieRollResult } from "./ApproachDie";
 import type { ApproachStats, CoreStats } from "../../types/chud";
 import type { DieSides } from "../../domain/approachDice";
 import { APPROACH_LABELS, CORE_APPROACH_MAP, CORE_LABELS } from "../../domain/coreApproachMap";
+import { STANDARD_LONG_PRESS_MS as GANBARE_HOLD_MS } from "../../utils/gestureConstants";
 
 
 const GANBARE_METHOD_ORDER: Array<keyof ApproachStats> = ["force", "finesse", "guts", "logic", "show", "tell"];
-
-const GANBARE_HOLD_MS = 500;
 
 // "Receive Ganbare!" — handbook: a friend can spend one of *their* own
 // Ganbare! Charges to return one of your Overloaded dice to its Method

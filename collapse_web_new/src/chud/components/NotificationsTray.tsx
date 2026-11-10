@@ -5,7 +5,7 @@ import { NotificationRow } from "./NotificationRow";
 
 /**
  * Header bell + dropdown listing every pending notification (HP hitting 0,
- * Dig Deep, etc.). Each row is long-press-to-accept / triple-tap-to-cancel;
+ * Dig Deep, etc.). Each row is long-press-to-accept / swipe-left-to-cancel;
  * resolving one unlocks whatever area queued it. The dropdown is portaled to
  * document.body and centered on the viewport (with a dimming backdrop) so it
  * always paints above every widget, including ones carrying their own
@@ -15,13 +15,11 @@ export function NotificationsTray({
   notifications,
   onAccept,
   onCancel,
-  onTapRecorded,
   onChoice,
 }: {
   notifications: PendingNotification[];
   onAccept: (id: string) => void;
   onCancel: (id: string) => void;
-  onTapRecorded?: () => void;
   onChoice?: (id: string, key: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -59,7 +57,6 @@ export function NotificationsTray({
                       notification={n}
                       onAccept={onAccept}
                       onCancel={onCancel}
-                      onTapRecorded={onTapRecorded}
                       onChoice={onChoice}
                       accentColor={notificationAccentColor(index, ordered.length)}
                     />
