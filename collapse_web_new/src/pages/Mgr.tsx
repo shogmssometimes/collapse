@@ -11,9 +11,11 @@ import "./mgrPage.css";
 // secondary itself.
 export default function MgrPage({
   chudStateStorageKey,
+  charSlot = 1,
   onCloseMgr,
 }: {
   chudStateStorageKey: string;
+  charSlot?: number;
   onCloseMgr: () => void;
 }) {
   const saved = loadState(chudStateStorageKey);
@@ -83,7 +85,7 @@ export default function MgrPage({
     <div className="page">
       <div className="mgr-page">
         <div className="row-rdy-mgr">
-          <Wallet />
+          <Wallet charSlot={charSlot} />
           <button className="topbar-square-btn" onClick={onCloseMgr}>
             XMGR
           </button>
@@ -100,7 +102,7 @@ export default function MgrPage({
         <div className="mods">
           <div className="csmatrix-preview">
             <iframe
-              src={`${import.meta.env.BASE_URL}csmatrix/index.html?mini=1`}
+              src={`${import.meta.env.BASE_URL}csmatrix/index.html?mini=1&slot=${charSlot}`}
               title="Social Matrix Preview"
               loading="lazy"
             />

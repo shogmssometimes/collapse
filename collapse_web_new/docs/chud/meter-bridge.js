@@ -1,9 +1,23 @@
-const STORAGE_KEY = 'csmatrix.graph'
-const NOTIFICATIONS_KEY = 'chud.notifications.v1'
-const WALLET_KEY = 'chud.wallet'
-const COMBAT_KEY = 'combat.v1'
-const STATUS_ROLLS_KEY = 'chud.statusRolls'
-const UI_KEY = 'chud.ui.v1'
+// Each character slot gets its own isolated storage (B2). meter-bridge.js
+// runs in the same iframe window as the React Chud.tsx bundle, which reads
+// this exact ?slot=N URL param (passed by the outer app's iframe src), so
+// self-resolving it here the same way keeps both halves of the HUD reading
+// and writing the same slot's data. Defaults to 1 for backward compat.
+const _mbSlot = (() => {
+  try {
+    const n = parseInt(new URLSearchParams(window.location.search).get('slot') ?? '1', 10)
+    return Number.isNaN(n) || n < 1 || n > 3 ? 1 : n
+  } catch { return 1 }
+})()
+const _slotKey = (legacyKey, strippedBase) => (_mbSlot === 1 ? legacyKey : `${strippedBase}.slot.${_mbSlot}`)
+const STORAGE_KEY = _slotKey('csmatrix.graph', 'csmatrix.graph')
+const NOTIFICATIONS_KEY = _slotKey('chud.notifications.v1', 'chud.notifications')
+const WALLET_KEY = _slotKey('chud.wallet', 'chud.wallet')
+const COMBAT_KEY = _slotKey('combat.v1', 'combat')
+const STATUS_ROLLS_KEY = _slotKey('chud.statusRolls', 'chud.statusRolls')
+const UI_KEY = _slotKey('chud.ui.v1', 'chud.ui')
+const CHUD_STATE_KEY = _slotKey('chud.state.v1', 'chud.state')
+const WARDROBE_STORAGE_KEY = _slotKey('wardrobe.v1', 'wardrobe')
 const STATUS_ROLL_MAX = 50
 const STATUS_ROLL_MAX_ROWS = 10
 const STATUS_ROLL_DEFAULT_ROWS = 2
@@ -400,6 +414,11 @@ function createStyles() {
   document.head.appendChild(style)
 }
 
+// Collapse Credits are a whole-number currency with no handbook-specified
+// upper bound; capped here purely so a huge/garbled input (e.g. "1e20")
+// can't blow out the header's fixed width (B4).
+const WALLET_AMOUNT_MAX = 999999999
+
 function readWallet() {
   try {
     const raw = localStorage.getItem(WALLET_KEY)
@@ -409,6 +428,16 @@ function readWallet() {
 
 function writeWallet(balance) {
   try { localStorage.setItem(WALLET_KEY, String(balance)) } catch {}
+}
+
+// `parseInt` alone stops at the first non-digit, so e.g. "1e9" silently
+// became 1 instead of being treated as invalid (B4). `Number()` catches
+// scientific notation and non-numeric input alike.
+function sanitizeWalletAmount(raw) {
+  if (raw === '') return ''
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return ''
+  return String(Math.min(WALLET_AMOUNT_MAX, Math.floor(Math.abs(n))))
 }
 
 function buildWalletWidget() {
@@ -454,7 +483,7 @@ function buildWalletWidget() {
   const refresh = () => { balanceEl.textContent = readWallet() }
   refresh()
 
-  const getAmount = () => { const v = parseInt(input.value, 10); return (isNaN(v) || v < 0) ? 0 : v }
+  const getAmount = () => { const n = Number(input.value); return Number.isFinite(n) ? Math.min(WALLET_AMOUNT_MAX, Math.floor(Math.abs(n))) : 0 }
   debitBtn.addEventListener('click', () => {
     const amt = getAmount(); if (!amt) return
     writeWallet(readWallet() + amt)
@@ -462,9 +491,12 @@ function buildWalletWidget() {
   })
   creditBtn.addEventListener('click', () => {
     const amt = getAmount(); if (!amt) return
-    writeWallet(Math.max(0, readWallet() - amt))
+    // Balance isn't floored at 0 here — debt (a negative balance) is
+    // intentional (B4); only the typed amount is bounded above.
+    writeWallet(readWallet() - amt)
     input.value = ''; refresh()
   })
+  input.addEventListener('input', () => { input.value = sanitizeWalletAmount(input.value) })
   input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') debitBtn.click() })
 
   window.addEventListener('storage', (ev) => { if (ev.key === WALLET_KEY) refresh() })
@@ -639,7 +671,6 @@ function buildCombatPanel() {
   })
 
   // ── Short Rest tally ──────────────────────────────────────────────────────
-  const CHUD_STATE_KEY = 'chud.state.v1'
   const readTally = (key) => {
     try { const s = JSON.parse(localStorage.getItem(CHUD_STATE_KEY) || '{}'); const v = s[key]; return typeof v === 'number' ? v : 0 } catch { return 0 }
   }
@@ -752,8 +783,6 @@ function buildStatusRollsPanel() {
     ['force', 'Force'], ['finesse', 'Finesse'], ['guts', 'Guts'],
     ['logic', 'Logic'], ['show', 'Show'], ['tell', 'Tell'],
   ]
-  const CHUD_STATE_KEY = 'chud.state.v1'
-  const WARDROBE_STORAGE_KEY = 'wardrobe.v1'
   // Method dice are always d10 — see domain/approachDice.ts's METHOD_DIE.
   const METHOD_DIE = 10
   // "Stats and Methods all max out at 6." — see domain/coreApproachMap.ts's

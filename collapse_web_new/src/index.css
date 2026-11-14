@@ -2341,6 +2341,42 @@ button.hub-card:not(:disabled):active {
   color: rgba(248, 250, 252, 0.75);
 }
 
+.engram-capacity-readout.over-capacity {
+  color: rgba(255, 100, 100, 0.95);
+  font-weight: 700;
+}
+
+.engram-over-capacity-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 43, 43, 0.6);
+  background: linear-gradient(135deg, rgba(212, 43, 43, 0.14), rgba(180, 20, 20, 0.08));
+  box-shadow: 0 0 18px rgba(212, 43, 43, 0.18);
+}
+
+.engram-over-capacity-banner .engram-over-capacity-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.engram-over-capacity-banner .engram-over-capacity-title {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 100, 100, 0.95);
+  font-weight: 700;
+}
+
+.engram-over-capacity-banner .engram-over-capacity-detail {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
 .engram-restore-budget {
   font-size: 0.85rem;
   color: #ffd43b;

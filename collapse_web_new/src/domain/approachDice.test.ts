@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   availableApproachDice,
+  computeMarginWounds,
   DEFAULT_DIE_SIZE,
   DIE_LADDER,
   fullRestOverload,
@@ -27,6 +28,20 @@ describe("Approach dice", () => {
     expect(DEFAULT_DIE_SIZE).toBe(8)
     expect(DIE_LADDER.map(stepUp)).toEqual([6, 8, 10, 12, 20, 20])
     expect(DIE_LADDER.map(stepDown)).toEqual([4, 4, 6, 8, 10, 12])
+  })
+
+  it("computes Margin-to-Wounds per the handbook table for negative Margin only", () => {
+    expect(computeMarginWounds(5)).toBe(0)
+    expect(computeMarginWounds(0)).toBe(0)
+    expect(computeMarginWounds(-1)).toBe(1)
+    expect(computeMarginWounds(-2)).toBe(1)
+    expect(computeMarginWounds(-3)).toBe(2)
+    expect(computeMarginWounds(-6)).toBe(2)
+    expect(computeMarginWounds(-7)).toBe(3)
+    expect(computeMarginWounds(-12)).toBe(3)
+    expect(computeMarginWounds(-13)).toBe(4)
+    expect(computeMarginWounds(-20)).toBe(4)
+    expect(computeMarginWounds(-50)).toBe(4)
   })
 
   it("recognizes valid persisted die sizes", () => {

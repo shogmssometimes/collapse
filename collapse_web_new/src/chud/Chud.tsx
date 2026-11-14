@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./chud.css";
 import type { ApproachStats, CollapsePath, CoreStats, GearSlotEntry, SaveState } from "../types/chud";
 import {
@@ -6,6 +6,7 @@ import {
   DEFAULT_APPROACH,
   computeDerived,
   computeInventorySlots,
+  computeGanbareCharges,
 } from "../domain/chudStats";
 import {
   isDieSides,
@@ -18,14 +19,15 @@ import { clampApproachToCore, clampCore } from "../domain/coreApproachMap";
 import { computeWardrobeBonuses } from "../domain/wardrobeBonus";
 import { loadState, readGearData, readWardrobeData } from "../utils/chudPersistence";
 import { wardrobeKey, deckBuilderKey } from "../utils/slotKeys";
-import { adjustGlobalMeters, setChipDesynced, resetApproachOverload } from "../utils/chudVanillaBridge";
+import { adjustGlobalMeters, setChipDesynced, resetApproachOverload, setVanillaBridgeSlot } from "../utils/chudVanillaBridge";
 import { fullRestEngrams, grantEngramRestoreBudget, readEngramState, type EngramManagerState } from "../utils/engramState";
 import {
-  NOTIFICATIONS_STORAGE_KEY,
-  hasPendingNotification,
+  getNotificationsStorageKey,
   listNotifications,
   pushNotification,
+  queueHpZeroNotificationsIfNeeded,
   removeNotification,
+  setNotificationsSlot,
   type PendingNotification,
 } from "../domain/notifications";
 import { CollapseOverlay } from "./panels/CollapseOverlay";
@@ -47,7 +49,13 @@ const STORAGE_KEY = _chudSlot === 1 ? "chud.state.v1" : `chud.state.slot.${_chud
 const GEAR_SLOTS_KEY = _chudSlot === 1 ? "gear.slots.v1" : `gear.slots.slot.${_chudSlot}`;
 const WARDROBE_KEY = wardrobeKey(_chudSlot);
 const DECK_BUILDER_KEY = deckBuilderKey(_chudSlot);
-const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 4;
+
+// Point the shared notifications queue and the vanilla-bridge (Set Rolls,
+// Combat chip-desync, CS Matrix Grit/Collapse) at this iframe's own slot —
+// see B2 in slotKeys.ts for why these can't self-resolve a slot on their own.
+setNotificationsSlot(_chudSlot);
+setVanillaBridgeSlot(_chudSlot);
+const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 6;
 
 // ── RepCard, StatCard, GearBriefWidget ─────────────────────────────────
 // (extracted to ./components/*.tsx)
@@ -69,6 +77,14 @@ export default function Chud() {
   const [approachWardrobeOverloadSpent, setApproachWardrobeOverloadSpent] = useState<
     Partial<Record<keyof ApproachStats, number>>
   >(saved?.approachWardrobeOverloadSpent ?? {});
+  const [ganbareGlassBrokenAt, setGanbareGlassBrokenAt] = useState<number | null>(
+    saved?.ganbareGlassBrokenAt ?? null
+  );
+  // Ganbare! Charges — the friend-assistance economy (distinct from the
+  // per-Method die-restore control above). Owned by the AAG page
+  // historically, but rendered here (to the right of HP) now, so this
+  // reads/writes the same shared `ganbareSpent` field of SaveState.
+  const [ganbareSpent, setGanbareSpent] = useState<number>(saved?.ganbareSpent ?? 0);
   const [hpCounter, setHpCounterRaw] = useState<number>(saved?.hpCounter ?? DEFAULT_HP_COUNTER);
   const [hasBeenDownedBefore, setHasBeenDownedBefore] = useState<boolean>(saved?.hasBeenDownedBefore ?? false);
   const [collapsePath, setCollapsePathState] = useState<CollapsePath | undefined>(saved?.collapsePath);
@@ -104,50 +120,10 @@ export default function Chud() {
     setHpCounterRaw((v) => Math.min(Math.max(v, 0), hpMax));
   }, [hpMax]);
 
-  // HP hitting 0 queues an "hp-zero" notification (if one isn't already
-  // pending) instead of auto-applying +1 Collapse. Only fires on the
-  // transition from >0 down to <=0 so it can't re-queue while already dead.
-  // The very first time this ever happens for this character, it also queues
-  // a one-time "Choose Your Path" (Live/Survive/Die) notification — the
-  // book's Collapse Table reminder (queued separately, on hp-zero accept)
-  // references whichever path the player picks here.
-  const prevHpRef = useRef(hpCounter);
-  const hasBeenDownedBeforeRef = useRef(hasBeenDownedBefore);
-  hasBeenDownedBeforeRef.current = hasBeenDownedBefore;
-  useEffect(() => {
-    const prev = prevHpRef.current;
-    prevHpRef.current = hpCounter;
-    if (prev > 0 && hpCounter <= 0 && !hasPendingNotification("hp-zero")) {
-      const created = pushNotification(
-        "hp-zero",
-        "HP reached 0",
-        "Accept to apply +1 Collapse and revive with 1 HP, or cancel to clear without it.",
-        { collapse: 1, hp: 1 }
-      );
-      if (!hasBeenDownedBeforeRef.current) {
-        setHasBeenDownedBefore(true);
-        pushNotification(
-          "choose-path",
-          "Choose Your Path",
-          "You've gone down for the first time. This choice determines which Collapse Table you'll roll on from now on.",
-          {},
-          {
-            choices: [
-              { key: "live", label: "Live" },
-              { key: "survive", label: "Survive" },
-              { key: "die", label: "Die" },
-            ],
-          }
-        );
-      }
-      if (created || !hasBeenDownedBeforeRef.current) setNotifications(listNotifications());
-    }
-  }, [hpCounter]);
-
   // Cross-realm notification sync (another window/iframe pushed or resolved one).
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key !== NOTIFICATIONS_STORAGE_KEY) return;
+      if (e.key !== getNotificationsStorageKey()) return;
       setNotifications(listNotifications());
     };
     window.addEventListener("storage", handler);
@@ -211,14 +187,34 @@ export default function Chud() {
   // until a friend gives you Ganbare! for it"). This doesn't touch this
   // character's own Ganbare! Charges (ganbareSpent) — that pool is only for
   // *giving* Ganbare! to someone else. Restores at most 1 die, capped so
-  // the pool never exceeds its base rating.
+  // the pool never exceeds its base rating. Prefers the base (Core-
+  // distributed) pool first, same as before, but falls back to restoring a
+  // Wardrobe die if the base pool has nothing spent — Wardrobe dice are
+  // spent the same way base dice are, so they should be restorable the
+  // same way too.
   const receiveGanbare = useCallback((field: keyof ApproachStats): void => {
-    setApproachOverloadSpent((prev) => {
-      const spent = prev[field] ?? 0;
-      if (spent <= 0) return prev;
-      return { ...prev, [field]: spent - 1 };
-    });
-  }, []);
+    const baseSpent = approachOverloadSpent[field] ?? 0;
+    if (baseSpent > 0) {
+      setApproachOverloadSpent((prev) => ({ ...prev, [field]: (prev[field] ?? 0) - 1 }));
+    } else {
+      const wardrobeSpent = approachWardrobeOverloadSpent[field] ?? 0;
+      if (wardrobeSpent > 0) {
+        setApproachWardrobeOverloadSpent((prev) => ({ ...prev, [field]: (prev[field] ?? 0) - 1 }));
+      }
+    }
+    // Shatter the glass cover regardless of whether there was anything to
+    // restore — 8 taps breaks it either way, matching a real glass cover.
+    setGanbareGlassBrokenAt(Date.now());
+  }, [approachOverloadSpent, approachWardrobeOverloadSpent]);
+
+  const ganbareMax = computeGanbareCharges(core);
+  const ganbareRemaining = Math.max(0, ganbareMax - ganbareSpent);
+  // Giving Ganbare! is a Free Action: spend 1 Charge, no roll (see the
+  // handbook's Ganbare! section). Clamped so a lowered Personality
+  // (fewer max Charges) can't leave ganbareSpent above the new max.
+  const spendGanbareCharge = useCallback(() => {
+    setGanbareSpent((prev) => Math.min(ganbareMax, prev + 1));
+  }, [ganbareMax]);
 
   // Persist to localStorage. Merge with whatever is currently saved so
   // fields owned by the AAG/MGR pages (wt, secondary) aren't clobbered.
@@ -244,6 +240,8 @@ export default function Chud() {
         damageDieSize,
         approachOverloadSpent,
         approachWardrobeOverloadSpent,
+        ganbareGlassBrokenAt,
+        ganbareSpent,
         inventorySlots,
         secondary: prev.secondary,
         shortRest,
@@ -254,7 +252,7 @@ export default function Chud() {
     } catch {
       // storage unavailable — ignore
     }
-  }, [core, hpCounter, approach, damageDieSize, approachOverloadSpent, approachWardrobeOverloadSpent, inventorySlots, shortRest, hasBeenDownedBefore, collapsePath]);
+  }, [core, hpCounter, approach, damageDieSize, approachOverloadSpent, approachWardrobeOverloadSpent, ganbareGlassBrokenAt, ganbareSpent, inventorySlots, shortRest, hasBeenDownedBefore, collapsePath]);
 
   // Cross-tab sync
   useEffect(() => {
@@ -267,6 +265,8 @@ export default function Chud() {
         if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
         if (s.approachOverloadSpent) setApproachOverloadSpent(s.approachOverloadSpent);
         if (s.approachWardrobeOverloadSpent) setApproachWardrobeOverloadSpent(s.approachWardrobeOverloadSpent);
+        if ("ganbareGlassBrokenAt" in s) setGanbareGlassBrokenAt(s.ganbareGlassBrokenAt ?? null);
+        if (typeof s.ganbareSpent === "number") setGanbareSpent(Math.max(0, s.ganbareSpent));
         if (typeof s.hpCounter === "number") setHpCounterRaw(s.hpCounter);
         if (typeof s.shortRest === "boolean") setShortRest(s.shortRest);
         if (typeof s.hasBeenDownedBefore === "boolean") setHasBeenDownedBefore(s.hasBeenDownedBefore);
@@ -311,9 +311,23 @@ export default function Chud() {
   const hpZeroNotification = notifications.find((n) => n.kind === "hp-zero") ?? null;
   const collapseLocked = hpZeroNotification != null;
 
-  const setHpCounter = useCallback(
-    (v: number) => setHpCounterRaw(Math.min(Math.max(v, 0), hpMax)),
-    [hpMax]
+  // Applies an HP delta (clamped to [0, hpMax]) and, in the same synchronous
+  // step, checks for the >0 -> <=0 transition and queues the "hp-zero"/
+  // "choose-path" notifications if needed. Doing this here — right where the
+  // delta is known — rather than in a React effect watching `hpCounter`
+  // means it fires correctly no matter which surface changed HP (the HUD's
+  // own HP card, or a Rest/Dig Deep notification accepted right here too).
+  const applyHpDelta = useCallback(
+    (delta: number) => {
+      const prevHp = hpCounter;
+      const nextHp = Math.min(Math.max(prevHp + delta, 0), hpMax);
+      if (queueHpZeroNotificationsIfNeeded(prevHp, nextHp, hasBeenDownedBefore)) {
+        setHasBeenDownedBefore(true);
+      }
+      setHpCounterRaw(nextHp);
+      setNotifications(listNotifications());
+    },
+    [hpCounter, hpMax, hasBeenDownedBefore]
   );
 
   const resolveNotification = useCallback(
@@ -321,7 +335,7 @@ export default function Chud() {
       const n = notifications.find((item) => item.id === id);
       if (!n) return;
       if (accept) {
-        if (n.effect.hp) setHpCounter(hpCounter + n.effect.hp);
+        if (n.effect.hp) applyHpDelta(n.effect.hp);
         if (n.effect.grit != null || n.effect.collapse != null) {
           adjustGlobalMeters({ grit: n.effect.grit, collapse: n.effect.collapse });
         }
@@ -344,7 +358,7 @@ export default function Chud() {
       removeNotification(id);
       setNotifications(listNotifications());
     },
-    [notifications, hpCounter, setHpCounter, collapsePath]
+    [notifications, applyHpDelta, collapsePath]
   );
 
   return (
@@ -363,8 +377,11 @@ export default function Chud() {
             hpCounter={hpCounter}
             hpMax={hpMax}
             collapseLocked={collapseLocked}
-            onHpIncr={() => setHpCounter(hpCounter + 1)}
-            onHpDecr={() => setHpCounter(hpCounter - 1)}
+            onHpIncr={() => applyHpDelta(1)}
+            onHpDecr={() => applyHpDelta(-1)}
+            ganbareRemaining={ganbareRemaining}
+            ganbareMax={ganbareMax}
+            onSpendGanbare={spendGanbareCharge}
             gearEntries={gearEntries}
             gearSlotsUsed={gearSlotsUsed}
             gearSlotsKey={GEAR_SLOTS_KEY}
@@ -381,6 +398,7 @@ export default function Chud() {
                 approachWardrobeOverloadSpent={approachWardrobeOverloadSpent}
                 onOverloadApproachDie={overloadApproachDie}
                 onReceiveGanbare={receiveGanbare}
+                ganbareGlassBrokenAt={ganbareGlassBrokenAt}
                 approachWardrobeBonus={approachWardrobeBonus}
                 approachWardrobeItems={approachWardrobeItems}
               />

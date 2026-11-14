@@ -25,9 +25,6 @@ export function Page2Panel({
   capacity,
   inventorySlots,
   skillCount,
-  ganbareRemaining,
-  ganbareMax,
-  onSpendGanbare,
   fumbleNumber,
   core,
   onCoreChange,
@@ -47,9 +44,6 @@ export function Page2Panel({
   capacity: number;
   inventorySlots: number;
   skillCount: number;
-  ganbareRemaining: number;
-  ganbareMax: number;
-  onSpendGanbare: () => void;
   fumbleNumber: number;
   core: CoreStats;
   onCoreChange: (field: keyof CoreStats, updater: (v: number) => number) => void;
@@ -110,25 +104,14 @@ export function Page2Panel({
         </div>
       </div>
 
-      {/* Row 4: Skills | Ganbare Charges | Fumble Number — all derived
-          from Core stats (Inference, Personality, V+I+P respectively). */}
-      <div className="core-grid row-vitals-3">
+      {/* Row 4: Skills | Fumble Number — derived from Core stats
+          (Inference, V+I+P respectively). Ganbare! Charges moved to the
+          HUD, rendered to the right of HP. */}
+      <div className="core-grid row-vitals-2">
         <div className="chip">
           <span>Skills</span>
           <strong>{skillCount}</strong>
         </div>
-        <button
-          type="button"
-          className="chip chip-spendable"
-          onClick={onSpendGanbare}
-          disabled={ganbareRemaining <= 0}
-          aria-label={`Ganbare! ${ganbareRemaining} of ${ganbareMax} remaining. Tap to spend a Charge.`}
-        >
-          <span>Ganbare!</span>
-          <strong>
-            {ganbareRemaining}/{ganbareMax}
-          </strong>
-        </button>
         <div className="chip">
           <span>Fumble</span>
           <strong>{fumbleNumber}</strong>

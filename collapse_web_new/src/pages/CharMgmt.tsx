@@ -1,5 +1,21 @@
 import React, { useRef, useState } from 'react'
-import { deckBuilderKey, gearSlotsKey, wardrobeKey, chudStateKey, notesKey, CHAR_ACTIVE_KEY, charSlotKey } from '../utils/slotKeys'
+import {
+  deckBuilderKey,
+  gearSlotsKey,
+  wardrobeKey,
+  chudStateKey,
+  notesKey,
+  CHAR_ACTIVE_KEY,
+  charSlotKey,
+  profileKey,
+  csmatrixKey,
+  walletKey,
+  notificationsKey,
+  statusRollsKey,
+  combatKey,
+  chudUiKey,
+  hideUnusedMethodsKey,
+} from '../utils/slotKeys'
 
 export const SLOT_DECK_KEYS: Record<number, string> = {
   1: deckBuilderKey(1),
@@ -71,6 +87,14 @@ const CharMgmt: React.FC = () => {
     localStorage.removeItem(chudStateKey(slotNum))
     localStorage.removeItem(notesKey(slotNum))
     localStorage.removeItem(charSlotKey(slotNum))
+    localStorage.removeItem(profileKey(slotNum))
+    localStorage.removeItem(csmatrixKey(slotNum))
+    localStorage.removeItem(walletKey(slotNum))
+    localStorage.removeItem(notificationsKey(slotNum))
+    localStorage.removeItem(statusRollsKey(slotNum))
+    localStorage.removeItem(combatKey(slotNum))
+    localStorage.removeItem(chudUiKey(slotNum))
+    localStorage.removeItem(hideUnusedMethodsKey(slotNum))
     const updatedMeta = [...slotMeta]
     updatedMeta[slotNum - 1] = { name: '' }
     setSlotMeta(updatedMeta)
@@ -92,6 +116,14 @@ const CharMgmt: React.FC = () => {
         wardrobe: localStorage.getItem(wardrobeKey(slotNum)),
         chudState: localStorage.getItem(chudStateKey(slotNum)),
         notes: localStorage.getItem(notesKey(slotNum)),
+        profile: localStorage.getItem(profileKey(slotNum)),
+        csmatrix: localStorage.getItem(csmatrixKey(slotNum)),
+        wallet: localStorage.getItem(walletKey(slotNum)),
+        notifications: localStorage.getItem(notificationsKey(slotNum)),
+        statusRolls: localStorage.getItem(statusRollsKey(slotNum)),
+        combat: localStorage.getItem(combatKey(slotNum)),
+        chudUi: localStorage.getItem(chudUiKey(slotNum)),
+        hideUnusedMethods: localStorage.getItem(hideUnusedMethodsKey(slotNum)),
       },
     }
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
@@ -126,6 +158,14 @@ const CharMgmt: React.FC = () => {
             wardrobe?: string | null
             chudState?: string | null
             notes?: string | null
+            profile?: string | null
+            csmatrix?: string | null
+            wallet?: string | null
+            notifications?: string | null
+            statusRolls?: string | null
+            combat?: string | null
+            chudUi?: string | null
+            hideUnusedMethods?: string | null
           }
           deckState?: string | null
         }
@@ -136,8 +176,12 @@ const CharMgmt: React.FC = () => {
         setSlotMeta(updatedMeta)
         localStorage.setItem(charSlotKey(slotNum), JSON.stringify({ name }))
 
-        const restoreKey = (key: string, value: string | null | undefined) => {
-          if (value) localStorage.setItem(key, value)
+        // `data` is only `as`-cast from JSON.parse, so a hand-edited or
+        // malformed import file can still hand us a number/object/array here
+        // despite the type annotation above — guard at runtime before ever
+        // writing into localStorage (B5).
+        const restoreKey = (key: string, value: unknown) => {
+          if (typeof value === 'string' && value) localStorage.setItem(key, value)
           else localStorage.removeItem(key)
         }
 
@@ -147,6 +191,14 @@ const CharMgmt: React.FC = () => {
           restoreKey(wardrobeKey(slotNum), data.slotData.wardrobe)
           restoreKey(chudStateKey(slotNum), data.slotData.chudState)
           restoreKey(notesKey(slotNum), data.slotData.notes)
+          restoreKey(profileKey(slotNum), data.slotData.profile)
+          restoreKey(csmatrixKey(slotNum), data.slotData.csmatrix)
+          restoreKey(walletKey(slotNum), data.slotData.wallet)
+          restoreKey(notificationsKey(slotNum), data.slotData.notifications)
+          restoreKey(statusRollsKey(slotNum), data.slotData.statusRolls)
+          restoreKey(combatKey(slotNum), data.slotData.combat)
+          restoreKey(chudUiKey(slotNum), data.slotData.chudUi)
+          restoreKey(hideUnusedMethodsKey(slotNum), data.slotData.hideUnusedMethods)
         } else if (data.deckState !== undefined) {
           restoreKey(deckBuilderKey(slotNum), data.deckState)
         }

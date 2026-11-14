@@ -97,6 +97,36 @@ body::-webkit-scrollbar {
   transition: border-color 300ms ease, box-shadow 300ms ease;
 }
 
+/* HP and Ganbare! Charges sit side by side — Ganbare takes less width
+   since it's just a counter, HP keeps the rest for its bar. */
+.hp-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.hp-row .hp-card {
+  flex: 1 1 auto;
+}
+
+.ganbare-charges-chip {
+  flex: 0 0 auto;
+  min-width: 84px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.ganbare-charges-chip:active:not(:disabled) {
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+}
+
+.ganbare-charges-chip:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .hp-card[data-hp-state="warning"] {
   border-color: rgba(234, 179, 8, 0.5);
   box-shadow: 0 8px 24px rgba(234, 179, 8, 0.18);
@@ -210,6 +240,12 @@ body::-webkit-scrollbar {
   flex-direction: column;
   gap: 4px;
   transition: border-color 120ms ease, background 120ms ease;
+  /* Without this, the browser's own vertical scroll can hijack the drag
+     before CoreStatCard's pointermove handler ever sees it on a real
+     touchscreen (every other custom-swipe element in this file sets an
+     explicit touch-action for the same reason) — the card's full vertical
+     gesture (tap / swipe down / swipe up) is handled entirely in JS. */
+  touch-action: none;
 }
 .core-card .core-label,
 .core-card .core-controls {
@@ -368,12 +404,30 @@ body::-webkit-scrollbar {
 .approach-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  /* Swipe-right hides 0-dice Methods, swipe-left restores them — fully
+     handled in JS (see HEADER_SWIPE_* in ApproachPanel.tsx). */
+  touch-action: pan-y;
+  transition: background 120ms ease;
+  border-radius: 4px;
 }
 
 .approach-panel-header h3 {
   flex-shrink: 0;
+}
+
+/* Live "if you let go now, this is what happens" pulse while a Method
+   header swipe is past the deadzone but hasn't committed yet — same
+   pending/commit pattern as CoreStatCard's swipe. */
+.method-header-swipe-hide {
+  background: rgba(255, 92, 92, 0.1);
+}
+
+.method-header-swipe-show {
+  background: rgba(15, 246, 255, 0.1);
 }
 
 /* Receive Ganbare!: a method-symbol box (tap cycles through the 6 Methods)
@@ -386,6 +440,9 @@ body::-webkit-scrollbar {
   align-items: center;
   gap: 6px;
   margin: 8px 0;
+  /* ~15% narrower than the full row width, per feedback that the full-width
+     bar felt oversized relative to its "assist a friend" use frequency. */
+  width: 85%;
 }
 
 .ganbare-method-box {
@@ -435,10 +492,65 @@ body::-webkit-scrollbar {
   font: inherit;
 }
 
-.ganbare-receive-box.charging {
-  border-color: #ffd43b;
-  animation: approach-die-charging 220ms ease-in-out infinite;
+/* The glass cover over the Ganbare! box: an inert pane until tapped. Each
+   crack stage layers in more hairline fractures (via repeating-linear-
+   gradient "glass shards" at different angles) — stage 0 is pristine,
+   stage 4 is one tap from shattering. Shattering (8th tap) uncovers the
+   box — it stays bright/usable (one tap = use) until the glass re-forms
+   on its own after the cooldown. */
+.ganbare-glass-cover {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(105deg, transparent 48%, rgba(255, 255, 255, 0.35) 49%, transparent 50%),
+    linear-gradient(15deg, transparent 48%, rgba(255, 255, 255, 0.3) 49%, transparent 50%),
+    linear-gradient(170deg, transparent 48%, rgba(255, 255, 255, 0.3) 49%, transparent 50%),
+    linear-gradient(60deg, transparent 48%, rgba(255, 255, 255, 0.3) 49%, transparent 50%);
+  background-size: 200% 200%;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
 }
+
+.ganbare-receive-box.crack-1 .ganbare-glass-cover { opacity: 0.35; background-position: 10% 20%, 0 0, 0 0, 0 0; }
+.ganbare-receive-box.crack-2 .ganbare-glass-cover { opacity: 0.55; background-position: 10% 20%, 70% 30%, 0 0, 0 0; }
+.ganbare-receive-box.crack-3 .ganbare-glass-cover { opacity: 0.75; background-position: 10% 20%, 70% 30%, 40% 80%, 0 0; }
+.ganbare-receive-box.crack-4 .ganbare-glass-cover { opacity: 0.95; background-position: 10% 20%, 70% 30%, 40% 80%, 80% 10%; }
+
+/* Broken = uncovered and ready — brighter/more inviting than the intact
+   state (not dimmed/disabled), since a single tap now triggers the gift
+   directly until the glass re-forms. */
+.ganbare-receive-box.shattered {
+  border-color: rgba(255, 212, 59, 0.7);
+  background: linear-gradient(135deg, rgba(255, 212, 59, 0.2), rgba(255, 212, 59, 0.06));
+  color: rgba(255, 212, 59, 1);
+  animation: ganbare-shatter 400ms ease-out;
+}
+
+.ganbare-receive-box.shattered .ganbare-glass-cover {
+  opacity: 0;
+}
+
+@keyframes ganbare-shatter {
+  0% { transform: scale(1); filter: brightness(2); }
+  30% { transform: scale(1.04) rotate(-0.5deg); }
+  60% { transform: scale(0.98) rotate(0.5deg); }
+  100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+}
+
+/* Small state badge shown next to the Method title when 0-dice Methods
+   are hidden — replaces the old "Hide 0s" pill button now that the
+   toggle is a swipe on the header itself. */
+.method-hide-unused-badge {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 212, 59, 0.75);
+}
+
 
 /* ── Stat grids ──────────────────────────────────────────────────────────── */
 
@@ -1404,11 +1516,40 @@ body::after {
   font-size: 2rem;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 220ms ease-in, opacity 220ms ease-in;
+  /* The 4-way swipe (Double/Send to Set/Margin/Cancel) is fully handled in
+     JS — without this, the browser's own scroll/pan can hijack the drag
+     before it reaches the pointermove handler on a real touchscreen. */
+  touch-action: none;
 }
 
 .approach-die-chip:disabled {
   cursor: default;
   opacity: 0.6;
+}
+
+/* Swipe-commit "fling" — the picked-up chip flies off in the swipe
+   direction (instead of its action/reset applying instantly) so the
+   gesture reads as a deliberate throw. Overrides the :disabled dimming
+   above (fling implies disabled, but should fully fade, not just dim). */
+.approach-die-chip.fling-up {
+  transform: translateY(-160px) scale(0.6);
+  opacity: 0;
+}
+
+.approach-die-chip.fling-down {
+  transform: translateY(160px) scale(0.6);
+  opacity: 0;
+}
+
+.approach-die-chip.fling-left {
+  transform: translateX(-220px) rotate(-18deg);
+  opacity: 0;
+}
+
+.approach-die-chip.fling-right {
+  transform: translateX(220px) rotate(18deg);
+  opacity: 0;
 }
 
 .approach-die-chip.overloaded {
@@ -1438,21 +1579,6 @@ body::after {
 .approach-die-chip.armed {
   border-color: #ffd43b;
   animation: approach-die-charging 220ms ease-in-out infinite;
-}
-
-/* The Summed value — derived from 2+ Overloaded dice added together, not
-   a rolled die itself — gets its own tint (violet, distinct from the
-   gold Overload/doubled color) so it reads as a different kind of total. */
-.approach-die-chip.summed {
-  background: rgba(186, 104, 255, 0.14);
-  border-color: #ba68ff;
-  color: #f8fafc;
-  font-weight: 700;
-  margin-top: 4px;
-}
-
-.approach-die-chip.summed .approach-die-chip-doubled {
-  background: #ba68ff;
 }
 
 .approach-die-chip-doubled {
@@ -1539,6 +1665,27 @@ body::after {
   border-radius: 8px;
   color: #f8fafc;
   padding: 6px 8px;
+}
+
+/* Defaults to "Attack roll" (Fumble can trigger) since that's the common
+   case; tapping flips it to "Save roll", which the Margin confirm handler
+   uses to skip the Fumble check entirely (a Save never Fumbles). */
+.approach-margin-save-toggle {
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: rgba(248, 250, 252, 0.75);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.approach-margin-save-toggle.active {
+  background: rgba(124, 211, 255, 0.16);
+  border-color: #7cd3ff;
+  color: #7cd3ff;
 }
 
 /* Margin is intentionally color-neutral: a high or low/negative margin is

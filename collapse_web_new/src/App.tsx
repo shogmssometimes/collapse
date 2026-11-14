@@ -638,7 +638,7 @@ export default function App() {
           </button>
         }
       >
-        <MgrPage chudStateStorageKey={chudStateKey(charSlot)} onCloseMgr={() => setRoute("aag")} />
+        <MgrPage chudStateStorageKey={chudStateKey(charSlot)} charSlot={charSlot} onCloseMgr={() => setRoute("aag")} />
       </PlayerShell>
     );
   }
@@ -648,7 +648,7 @@ export default function App() {
       <SubAppFrame
         key={route}
         title="CS Matrix"
-        src={buildPath("csmatrix/index.html")}
+        src={buildPath(`csmatrix/index.html?slot=${charSlot}`)}
         onBack={() => setRoute("hub")}
         actionsClassName="topbar-actions topbar-actions-stack"
         charSlot={charSlot}

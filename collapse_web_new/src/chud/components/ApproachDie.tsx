@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import type { ApproachDieResult, ApproachRollResult, DieSides } from "../../domain/approachDice"
-import { rollFlatDice } from "../../domain/approachDice"
+import { rollFlatDice, computeMarginWounds } from "../../domain/approachDice"
 import { addSetRollRow } from "../../utils/chudVanillaBridge"
+import { pushNotification } from "../../domain/notifications"
 import { STAT_AND_METHOD_MAX } from "../../domain/coreApproachMap"
 
 export type ApproachDieRollResult = ApproachRollResult
@@ -12,6 +13,9 @@ const ROLL_ANIM_TICKS = 8
 const ROLL_ANIM_INTERVAL_MS = 60
 const ERROR_FLASH_MS = 420
 const VIBRATE_PIP_MS = 14
+// How long a swipe-committed die takes to fly off before its action
+// (Double/Margin/Send to Set/Cancel) actually applies.
+const FLING_DURATION_MS = 220
 // Long-press (not a tap) to double a die — a plain tap on a die that's
 // already doubled cancels it instead (see handleDieClick).
 const DIE_LONG_PRESS_MS = 420
@@ -73,6 +77,7 @@ export function ApproachDie({
   wardrobeItems = [],
   available,
   damageDie,
+  fumbleNumber = 0,
   onRoll,
   onOverload,
 }: {
@@ -89,6 +94,8 @@ export function ApproachDie({
   available: number
   /** Weapon Quality die size, used for the post-Margin Wound roll. */
   damageDie: DieSides
+  /** Fumble Number (V+I+P) — a Margin confirmed as an Attack Fumbles when the opposition beats it by this much or more. 0 (default) means Fumble never triggers. */
+  fumbleNumber?: number
   onRoll: (count: number) => ApproachDieRollResult
   /** Spends `baseCount` dice from the base pool and `wardrobeCount` from the Wardrobe pool at once (one per doubled die, resolved together). Returns false if either pool couldn't cover its full count. */
   onOverload?: (baseCount: number, wardrobeCount: number) => boolean
@@ -104,15 +111,25 @@ export function ApproachDie({
   const [rollingPreview, setRollingPreview] = useState<number[]>([])
   const [pressingDieIndex, setPressingDieIndex] = useState<number | null>(null)
   const [armedDieIndex, setArmedDieIndex] = useState<number | null>(null)
-  const [sumPressing, setSumPressing] = useState(false)
-  const [sumArmed, setSumArmed] = useState(false)
   const [marginBase, setMarginBase] = useState<number | null>(null)
   const [view, setView] = useState<PopupView>("result")
   const [oppositionInput, setOppositionInput] = useState("")
+  // Fumble (handbook): only an Attack roll can Fumble, never a Save — this
+  // toggle lets the player flag the current Margin as a Save before
+  // confirming it, so the Fumble check below can skip it even when the
+  // Defense Total beats the Attack Total by the Fumble Number or more.
+  const [isSaveRoll, setIsSaveRoll] = useState(false)
   const [margin, setMargin] = useState<number | null>(null)
   const [damageDice, setDamageDice] = useState<number[]>([])
   const [woundValue, setWoundValue] = useState("")
   const [woundMode, setWoundMode] = useState<"threshold" | "target">("threshold")
+  // Swipe-commit "fling" — the picked-up die flies off in the swipe
+  // direction instead of the action applying (and the chip
+  // disappearing/resetting) instantly, so the gesture reads as a deliberate
+  // throw rather than a snap. The actual action is deferred until the fling
+  // finishes playing.
+  const [dieFling, setDieFling] = useState<{ index: number; dir: "up" | "down" | "left" | "right" } | null>(null)
+  const flingTimer = useRef<number | null>(null)
   const rollAnimTimer = useRef<number | null>(null)
   const errorFlashTimer = useRef<number | null>(null)
   const armTimer = useRef<number | null>(null)
@@ -125,9 +142,6 @@ export function ApproachDie({
   const dieSuppressClick = useRef(false)
   const dieGestureStart = useRef<{ x: number; y: number } | null>(null)
   const dieSwipedThisGesture = useRef(false)
-  const sumPressTimer = useRef<number | null>(null)
-  const sumGestureStart = useRef<{ x: number; y: number } | null>(null)
-  const sumSwipedThisGesture = useRef(false)
   const boxRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
@@ -168,14 +182,18 @@ export function ApproachDie({
     setResolved(false)
     setView("result")
     setOppositionInput("")
+    setIsSaveRoll(false)
     setMargin(null)
     setMarginBase(null)
     setDamageDice([])
     setWoundValue("")
     setWoundMode("threshold")
     setArmedDieIndex(null)
-    setSumArmed(false)
-    setSumPressing(false)
+    setDieFling(null)
+    if (flingTimer.current !== null) {
+      window.clearTimeout(flingTimer.current)
+      flingTimer.current = null
+    }
     if (rollAnimTimer.current !== null) {
       window.clearInterval(rollAnimTimer.current)
       rollAnimTimer.current = null
@@ -211,9 +229,9 @@ export function ApproachDie({
     if (rollAnimTimer.current !== null) window.clearInterval(rollAnimTimer.current)
     if (errorFlashTimer.current !== null) window.clearTimeout(errorFlashTimer.current)
     if (diePressTimer.current !== null) window.clearTimeout(diePressTimer.current)
-    if (sumPressTimer.current !== null) window.clearTimeout(sumPressTimer.current)
     if (armTimer.current !== null) window.clearTimeout(armTimer.current)
     if (chargeInterval.current !== null) window.clearInterval(chargeInterval.current)
+    if (flingTimer.current !== null) window.clearTimeout(flingTimer.current)
   }, [])
 
   const flashError = () => {
@@ -346,41 +364,30 @@ export function ApproachDie({
         0
       )
     : 0
-  // Once a 2nd die is Overloaded, a separate Summed value — the doubled
-  // dice added together, not just the pool's highest — becomes available
-  // as its own pick-up-able total (no further Doubling from it, since it's
-  // already a derived value, not a rolled die).
-  const summedValue =
-    result && pendingOverload.size >= 2
-      ? Array.from(pendingOverload).reduce((sum, index) => sum + overloadedValue(result.dice[index]), 0)
-      : null
-
   // Picking up a die previews doubling it, but only once confirmed with a
   // long-press (a plain tap would be too easy to trigger by accident while
   // reading the result) — it's then auto-resolved (spent from its own
   // pool — base or Wardrobe) the moment the player moves past this screen:
   // Send to Set, Create Margin, or just closing the popup. A quick tap on
   // an already-doubled die un-does it while the popup is still open;
-  // there's no separate Resolve/Undo step. Any number of dice can be
-  // Overloaded from either pool, as long as that pool still has one
-  // available to spend — a die's pool is identified by its index: indices
-  // below `available` came from the base pool, the rest from Wardrobe (see
+  // there's no separate Resolve/Undo step. Only one die may be Overloaded
+  // per roll — a die's pool is identified by its index: indices below
+  // `available` came from the base pool, the rest from Wardrobe (see
   // `poolMax`).
   const addOverload = (index: number) => {
     if (!onOverload || resolvedRef.current) return
     const isWardrobeDie = index >= available
     setPendingOverload((prev) => {
       if (prev.has(index)) return prev
-      let baseUsed = 0
-      let wardrobeUsed = 0
-      prev.forEach((i) => { if (i >= available) wardrobeUsed += 1; else baseUsed += 1 })
-      if (isWardrobeDie ? wardrobeUsed >= wardrobeAvail : baseUsed >= available) {
+      if (prev.size >= 1) {
+        flashError() // only one die can be Overloaded per roll
+        return prev
+      }
+      if (isWardrobeDie ? wardrobeAvail < 1 : available < 1) {
         flashError()
         return prev
       }
-      const next = new Set(prev)
-      next.add(index)
-      return next
+      return new Set([index])
     })
   }
 
@@ -458,11 +465,22 @@ export function ApproachDie({
     dieSwipedThisGesture.current = true
     vibrate(VIBRATE_PIP_MS * 2)
     if (Math.abs(dy) > Math.abs(dx)) {
-      if (dy < 0) addOverload(index) // swipe up: Doubled
-      else sendToSet(displayTotal) // swipe down: Send to Set
+      if (dy < 0) {
+        setDieFling({ index, dir: "up" }) // swipe up: Doubled
+        flingTimer.current = window.setTimeout(() => { addOverload(index); setDieFling(null) }, FLING_DURATION_MS)
+      } else {
+        setDieFling({ index, dir: "down" }) // swipe down: Send to Set
+        flingTimer.current = window.setTimeout(() => { sendToSet(displayTotal); setDieFling(null) }, FLING_DURATION_MS)
+      }
     } else if (dx > 0) {
-      startMargin(displayTotal) // swipe right: Create Margin
-    } // swipe left: Cancel — just drop the pick-up, no action
+      setDieFling({ index, dir: "right" }) // swipe right: Create Margin
+      flingTimer.current = window.setTimeout(() => { startMargin(displayTotal); setDieFling(null) }, FLING_DURATION_MS)
+    } else {
+      // swipe left: Cancel — just drop the pick-up, no action, but still
+      // fling it off so the cancel reads as a deliberate throw-away.
+      setDieFling({ index, dir: "left" })
+      flingTimer.current = window.setTimeout(() => setDieFling(null), FLING_DURATION_MS)
+    }
     setArmedDieIndex(null)
   }
 
@@ -476,63 +494,6 @@ export function ApproachDie({
     removeOverload(index)
   }
 
-  const cancelSumPress = () => {
-    if (sumPressTimer.current !== null) {
-      window.clearTimeout(sumPressTimer.current)
-      sumPressTimer.current = null
-    }
-    setSumPressing(false)
-    setSumArmed(false)
-    sumGestureStart.current = null
-  }
-
-  // The Summed chip picks up the same way a die does, but only 3 of the
-  // 4 directions apply — it's a derived value, not a rolled die, so
-  // there's nothing to Double (swipe up just flashes the "can't" error).
-  const handleSumPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (resolvedRef.current) return
-    sumSwipedThisGesture.current = false
-    sumGestureStart.current = { x: event.clientX, y: event.clientY }
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId)
-    } catch {
-      // Pointer capture isn't critical — move/up still fire on this
-      // element for mouse, and most touch browsers grant it anyway.
-    }
-    setSumPressing(true)
-    sumPressTimer.current = window.setTimeout(() => {
-      sumPressTimer.current = null
-      setSumPressing(false)
-      setSumArmed(true)
-      vibrate(VIBRATE_PIP_MS)
-    }, DIE_LONG_PRESS_MS)
-  }
-
-  const handleSumPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (sumSwipedThisGesture.current || !sumGestureStart.current || summedValue === null) return
-    const dx = event.clientX - sumGestureStart.current.x
-    const dy = event.clientY - sumGestureStart.current.y
-    const dist = Math.hypot(dx, dy)
-    if (!sumArmed) {
-      if (dist > DIE_PRE_ARM_CANCEL_PX) cancelSumPress()
-      return
-    }
-    if (dist <= DIE_SWIPE_PX) return
-    sumSwipedThisGesture.current = true
-    if (Math.abs(dy) > Math.abs(dx)) {
-      if (dy < 0) {
-        flashError() // swipe up: not available on the Summed value
-      } else {
-        vibrate(VIBRATE_PIP_MS * 2)
-        sendToSet(summedValue) // swipe down: Send to Set
-      }
-    } else if (dx > 0) {
-      vibrate(VIBRATE_PIP_MS * 2)
-      startMargin(summedValue) // swipe right: Create Margin
-    } // swipe left: Cancel — just drop the pick-up, no action
-    setSumArmed(false)
-  }
-
   const handleConfirmMargin = () => {
     resolveOverloadIfNeeded()
     const opposition = Number(oppositionInput)
@@ -540,6 +501,34 @@ export function ApproachDie({
     const computed = (marginBase ?? displayTotal) - opposition
     setMargin(computed)
     setView("margin-result")
+    // A negative Margin is a failed roll — the handbook scales Wounds
+    // taken to how badly it failed by. Surface a notification so the
+    // player explicitly applies it (accept = -HP) rather than silently
+    // losing HP the moment the popup shows the result.
+    const wounds = computeMarginWounds(computed)
+    if (wounds > 0) {
+      pushNotification(
+        "margin-wound",
+        "Apply Wound",
+        `${label} failed by ${Math.abs(computed)} (Margin ${computed}) — apply ${wounds} Wound${wounds === 1 ? "" : "s"}.`,
+        { hp: -wounds }
+      )
+    }
+    // Fumble (handbook): only on an Attack roll (never a Save, never a
+    // tie), and only when the Defense Total beats the Attack Total by the
+    // Fumble Number (V+I+P) or more. This is a *separate* notification
+    // from the Wound above — it never auto-applies an effect, it just
+    // surfaces the same severity table so the player/GM can resolve
+    // whatever the book's Fumble entry calls for.
+    if (!isSaveRoll && computed < 0 && Math.abs(computed) >= fumbleNumber) {
+      const severity = computeMarginWounds(computed)
+      pushNotification(
+        "margin-fumble",
+        "Fumble!",
+        `${label}: the opposition beat you by ${Math.abs(computed)} (Fumble Number ${fumbleNumber}) — Fumble severity ${severity}. Check the Fumble Table.`,
+        {}
+      )
+    }
   }
 
   const handleRollDamage = () => {
@@ -745,12 +734,14 @@ export function ApproachDie({
                   const isTop = result.dice.length > 0 && effectiveValue === displayTotal
                   const isPressing = pressingDieIndex === index
                   const isArmed = armedDieIndex === index
+                  const fling = dieFling?.index === index ? dieFling.dir : null
                   return (
                     <button
                       key={index}
                       type="button"
-                      className={`approach-die-chip${pendingOverload.has(index) ? " overloaded" : ""}${isTop ? " top" : ""}${isPressing ? " pressing" : ""}${isArmed ? " armed" : ""}`}
+                      className={`approach-die-chip${pendingOverload.has(index) ? " overloaded" : ""}${isTop ? " top" : ""}${isPressing ? " pressing" : ""}${isArmed ? " armed" : ""}${fling ? ` fling-${fling}` : ""}`}
                       style={{ ["--hold-progress-ms" as string]: `${DIE_LONG_PRESS_MS}ms` } as CSSProperties}
+                      disabled={fling !== null}
                       onPointerDown={(event) => { event.stopPropagation(); handleDiePointerDown(index, event) }}
                       onPointerMove={(event) => { event.stopPropagation(); handleDiePointerMove(index, event) }}
                       onPointerUp={(event) => { event.stopPropagation(); cancelDiePress() }}
@@ -774,28 +765,8 @@ export function ApproachDie({
                   )
                 })}
               </div>
-              {summedValue !== null && (
-                <button
-                  type="button"
-                  className={`approach-die-chip summed${sumPressing ? " pressing" : ""}${sumArmed ? " armed" : ""}`}
-                  style={{ ["--hold-progress-ms" as string]: `${DIE_LONG_PRESS_MS}ms` } as CSSProperties}
-                  onPointerDown={(event) => { event.stopPropagation(); handleSumPointerDown(event) }}
-                  onPointerMove={(event) => { event.stopPropagation(); handleSumPointerMove(event) }}
-                  onPointerUp={(event) => { event.stopPropagation(); cancelSumPress() }}
-                  onPointerLeave={cancelSumPress}
-                  onPointerCancel={cancelSumPress}
-                  onContextMenu={(event) => event.preventDefault()}
-                  title="Hold, then swipe: down sends to Set, right starts Margin, left cancels (no Double)"
-                >
-                  <span className={`hold-progress-fill${sumPressing ? " active" : ""}`} aria-hidden="true" />
-                  {summedValue}
-                  <span className="approach-die-chip-doubled">SUM</span>
-                </button>
-              )}
               <div className="approach-die-popup-swipe-hint">
-                {summedValue !== null
-                  ? "Dice: ↑ Double · ↓ Send to Set · → Margin · ← Cancel  —  Sum: ↓ Set · → Margin · ← Cancel"
-                  : "↑ Double · ↓ Send to Set · → Margin · ← Cancel"}
+                ↑ Double · ↓ Send to Set · → Margin · ← Cancel
               </div>
             </>
           )}
@@ -815,6 +786,14 @@ export function ApproachDie({
                 onChange={(e) => setOppositionInput(e.target.value)}
                 autoFocus
               />
+              <button
+                type="button"
+                className={`approach-margin-save-toggle${isSaveRoll ? " active" : ""}`}
+                aria-pressed={isSaveRoll}
+                onClick={(e) => { e.stopPropagation(); setIsSaveRoll((v) => !v) }}
+              >
+                {isSaveRoll ? "Save roll (never Fumbles)" : "Attack roll (can Fumble)"}
+              </button>
               <button
                 type="button"
                 className="approach-roll-path-btn"

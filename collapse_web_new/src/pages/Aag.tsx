@@ -5,7 +5,6 @@ import {
   DEFAULT_WT,
   computeDerived,
   computeFumbleNumber,
-  computeGanbareCharges,
   computeInventorySlots,
   computeSkillCount,
 } from "../domain/chudStats";
@@ -16,7 +15,7 @@ import { Page2Panel } from "../chud/panels/Page2Panel";
 import { RestWidget } from "../chud/components/RestWidget";
 import "./aagPage2.css";
 
-const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 4;
+const DEFAULT_DAMAGE_DIE_SIZE: DieSides = 6;
 
 // AAG page: hosts the Page 2 box (moved out of the CHUD iframe). Reads and
 // writes the same persisted cHUD state so the two stay in sync.
@@ -39,9 +38,6 @@ export default function AagPage({
     isDieSides(saved?.damageDieSize) ? saved.damageDieSize : DEFAULT_DAMAGE_DIE_SIZE
   );
   const [wt, setWtRaw] = useState<number>(saved?.wt ?? DEFAULT_WT);
-  const [ganbareSpent, setGanbareSpent] = useState<number>(
-    typeof saved?.ganbareSpent === "number" ? saved.ganbareSpent : 0
-  );
   const [gearSlotsUsed, setGearSlotsUsed] = useState<number>(() =>
     typeof window !== "undefined" ? (readGearData(gearSlotsStorageKey)?.slotsUsed ?? 0) : 0
   );
@@ -84,20 +80,11 @@ export default function AagPage({
   const inventorySlots = computeInventorySlots(core);
   const isOverEncumbered = gearSlotsUsed > inventorySlots;
   const skillCount = computeSkillCount(core);
-  const ganbareMax = computeGanbareCharges(core);
-  const ganbareRemaining = Math.max(0, ganbareMax - ganbareSpent);
   const fumbleNumber = computeFumbleNumber(core);
 
-  // Giving Ganbare! is a Free Action: spend 1 Charge, no roll — see the
-  // handbook's Ganbare! section. Clamped so a lowered Personality (fewer
-  // max Charges) can never leave this negative.
-  const spendGanbareCharge = useCallback(() => {
-    setGanbareSpent((prev) => Math.min(ganbareMax, prev + 1));
-  }, [ganbareMax]);
-
   // Persist the fields this page owns, merging with whatever the CHUD iframe
-  // has saved for the fields it owns (hpCounter, secondary, etc.) so neither
-  // side clobbers the other.
+  // has saved for the fields it owns (hpCounter, secondary, ganbareSpent,
+  // etc.) so neither side clobbers the other.
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(chudStateStorageKey);
@@ -108,13 +95,13 @@ export default function AagPage({
       delete prev.ap;
       delete prev.draw;
       delete prev.approachDieSize;
-      const merged = { ...prev, core, approach, damageDieSize, wt, inventorySlots, ganbareSpent };
+      const merged = { ...prev, core, approach, damageDieSize, wt, inventorySlots };
       delete merged.approachDice;
       window.localStorage.setItem(chudStateStorageKey, JSON.stringify(merged));
     } catch {
       // storage unavailable — ignore
     }
-  }, [chudStateStorageKey, core, approach, damageDieSize, wt, inventorySlots, ganbareSpent]);
+  }, [chudStateStorageKey, core, approach, damageDieSize, wt, inventorySlots]);
 
   // Cross-tab / cross-iframe sync for these fields.
   useEffect(() => {
@@ -126,7 +113,6 @@ export default function AagPage({
           if (s.approach) setApproach(clampApproachToCore(s.approach, clampCore(s.core ?? core)));
           if (isDieSides(s.damageDieSize)) setDamageDieSize(s.damageDieSize);
           if (typeof s.wt === "number") setWtRaw(Math.max(0, s.wt));
-          if (typeof s.ganbareSpent === "number") setGanbareSpent(Math.max(0, s.ganbareSpent));
         } catch {
           // malformed storage — ignore
         }
@@ -153,9 +139,6 @@ export default function AagPage({
           capacity={derived.capacity}
           inventorySlots={inventorySlots}
           skillCount={skillCount}
-          ganbareRemaining={ganbareRemaining}
-          ganbareMax={ganbareMax}
-          onSpendGanbare={spendGanbareCharge}
           fumbleNumber={fumbleNumber}
           core={core}
           onCoreChange={setCoreField}

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { NotificationsTray } from "../chud/components/NotificationsTray";
 import {
-  NOTIFICATIONS_STORAGE_KEY,
+  getNotificationsStorageKey,
   listNotifications,
   pushNotification,
   removeNotification,
+  setNotificationsSlot,
   type PendingNotification,
 } from "../domain/notifications";
-import { adjustGlobalMeters, adjustHpCounter, readCollapsePath, setChipDesynced, setCollapsePath, resetApproachOverload } from "../utils/chudVanillaBridge";
+import { adjustGlobalMeters, adjustHpCounter, readCollapsePath, setChipDesynced, setCollapsePath, resetApproachOverload, setVanillaBridgeSlot } from "../utils/chudVanillaBridge";
 import { chudStateKey, deckBuilderKey } from "../utils/slotKeys";
 import { fullRestEngrams, grantEngramRestoreBudget } from "../utils/engramState";
 
@@ -19,11 +20,24 @@ import { fullRestEngrams, grantEngramRestoreBudget } from "../utils/engramState"
  * no live Chud.tsx instance in this window to delegate to).
  */
 export function HeaderNotificationsBell({ charSlot }: { charSlot: number }) {
-  const [notifications, setNotifications] = useState<PendingNotification[]>(() => listNotifications());
+  const [notifications, setNotifications] = useState<PendingNotification[]>(() => {
+    // charSlot is a prop, not a URL param, so (unlike the CHUD iframe) it can
+    // change at runtime — point the shared queue/bridge at it before the very
+    // first read, and again below whenever it changes (B2).
+    setNotificationsSlot(charSlot);
+    setVanillaBridgeSlot(charSlot);
+    return listNotifications();
+  });
+
+  useEffect(() => {
+    setNotificationsSlot(charSlot);
+    setVanillaBridgeSlot(charSlot);
+    setNotifications(listNotifications());
+  }, [charSlot]);
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key !== NOTIFICATIONS_STORAGE_KEY) return;
+      if (e.key !== getNotificationsStorageKey()) return;
       setNotifications(listNotifications());
     };
     window.addEventListener("storage", handler);

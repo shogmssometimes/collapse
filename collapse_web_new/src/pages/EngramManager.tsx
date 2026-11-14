@@ -56,6 +56,11 @@ export default function EngramManager({
     [state.equipped]
   );
   const capacityRemaining = Math.max(0, capacity - capacityUsed);
+  // Lowering Inference/Personality (via the AAG page) after Engrams are
+  // already equipped can leave capacityUsed above the new, lower capacity —
+  // the book only allows Engram edits at a Full Rest, so there's no way to
+  // silently re-clamp this; surface it instead (B6).
+  const isOverCapacity = capacityUsed > capacity;
 
   const selected = selectedId ? state.equipped[selectedId] : undefined;
   const maxDice = selected ? Math.min(selected.copies, selected.charges) : 0;
@@ -105,9 +110,21 @@ export default function EngramManager({
     <div className="page engram-manager">
       <div className="engram-manager-header">
         <h2>Engrams</h2>
-        <div className="engram-capacity-readout">
+        <div className={`engram-capacity-readout${isOverCapacity ? " over-capacity" : ""}`}>
           Capacity: <strong>{capacityUsed}</strong> / {capacity}
         </div>
+        {isOverCapacity && (
+          <div className="engram-over-capacity-banner" role="alert">
+            <span className="engram-over-capacity-icon">⚠</span>
+            <div>
+              <div className="engram-over-capacity-title">Over Capacity</div>
+              <div className="engram-over-capacity-detail">
+                Equipped Engrams exceed Capacity by {capacityUsed - capacity} — unequip copies to fix this. Engrams
+                can only be changed at a Full Rest.
+              </div>
+            </div>
+          </div>
+        )}
         {restoreBudget > 0 && (
           <div className="engram-restore-budget" role="status">
             Short Rest: {restoreBudget} Engram charge{restoreBudget === 1 ? "" : "s"} to restore — tap{" "}

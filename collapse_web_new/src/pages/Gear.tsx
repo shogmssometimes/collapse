@@ -6,6 +6,26 @@ const CHUD_STATE_KEY = 'chud.state.v1'
 const GEAR_SLOTS_KEY = 'gear.slots.v1'
 const MAX_INVENTORY_SLOTS = 18
 
+// Units (and Qty) must be a non-negative integer — a negative, fractional,
+// or absurdly large value here used to be stored and multiplied into
+// `slotsUsed` as-is, so the saved Carrying total silently disagreed with
+// the page. Sanitizing right at the input means what's typed is always
+// what's stored and what's shown. Keeps an in-progress empty field as "" so
+// the box can still be cleared while typing.
+function sanitizeNonNegativeIntInput(raw: string): string {
+  if (raw.trim() === '') return ''
+  const n = Math.floor(Math.abs(Number(raw)))
+  return Number.isFinite(n) ? String(n) : ''
+}
+
+// Defensive parse used when computing slotsUsed: covers entries written by
+// an older version of this page (or hand-edited localStorage) that still
+// hold a negative/fractional/non-numeric string.
+function parseNonNegativeInt(raw: string): number {
+  const n = Math.floor(Math.abs(parseFloat(raw)))
+  return Number.isFinite(n) ? n : 0
+}
+
 function readChudInventorySlots(key: string = CHUD_STATE_KEY): number | null {
   try {
     const raw = localStorage.getItem(key)
@@ -303,7 +323,7 @@ function SlotRow({ index, entry, onChange }: {
         inputMode="numeric"
         placeholder="0"
         value={entry.units}
-        onChange={e => onChange({ ...entry, units: e.target.value })}
+        onChange={e => onChange({ ...entry, units: sanitizeNonNegativeIntInput(e.target.value) })}
         style={FIELD_STYLE}
       />
       <input
@@ -311,7 +331,7 @@ function SlotRow({ index, entry, onChange }: {
         inputMode="numeric"
         placeholder="0"
         value={entry.qty}
-        onChange={e => onChange({ ...entry, qty: e.target.value })}
+        onChange={e => onChange({ ...entry, qty: sanitizeNonNegativeIntInput(e.target.value) })}
         style={FIELD_STYLE}
       />
     </div>
@@ -651,9 +671,7 @@ export default function GearPage({
     for (let i = 0; i < inventorySlots; i++) {
       const e = entries[i]
       if (!e) continue
-      const u = parseFloat(e.units)
-      const q = parseFloat(e.qty)
-      if (!isNaN(u) && !isNaN(q)) total += u * q
+      total += parseNonNegativeInt(e.units) * parseNonNegativeInt(e.qty)
     }
     return total
   }, [entries, inventorySlots])

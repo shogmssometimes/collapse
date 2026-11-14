@@ -15,6 +15,9 @@ export function HPPanel({
   collapseLocked,
   onHpIncr,
   onHpDecr,
+  ganbareRemaining,
+  ganbareMax,
+  onSpendGanbare,
   gearEntries,
   gearSlotsUsed,
   gearSlotsKey,
@@ -28,6 +31,10 @@ export function HPPanel({
   collapseLocked: boolean;
   onHpIncr: () => void;
   onHpDecr: () => void;
+  /** Ganbare! Charges (the friend-assistance economy) — rendered to the right of HP. */
+  ganbareRemaining: number;
+  ganbareMax: number;
+  onSpendGanbare: () => void;
   gearEntries: GearSlotEntry[] | null;
   gearSlotsUsed: number;
   gearSlotsKey: string;
@@ -37,30 +44,47 @@ export function HPPanel({
   /** The Methods (ApproachPanel) section, rendered directly below HP. */
   methods: ReactNode;
 }) {
-  const hpHandlers = useGesture(onHpIncr, onHpDecr);
+  // HP is inverted relative to every other stat card: a tap removes 1 HP
+  // (the common case — taking damage), a 500ms hold adds 1 HP (healing —
+  // deliberately slower/rarer to avoid accidental taps undoing damage).
+  const hpHandlers = useGesture(onHpDecr, onHpIncr);
   const hpFillPct = Math.max(0, Math.min(100, (hpCounter / hpMax) * 100));
 
   return (
     <div className="mods">
-      <div
-        className="stat-card hp-card interactive"
-        role="button"
-        aria-disabled={collapseLocked ? "true" : "false"}
-        tabIndex={collapseLocked ? -1 : 0}
-        data-hp-state={hpFillPct <= 30 ? "critical" : hpFillPct <= 60 ? "warning" : "normal"}
-        {...(collapseLocked ? {} : hpHandlers)}
-      >
-        <div className="stat-label">
-          <strong>HP</strong>
-          <span>{hpCounter} / {hpMax}</span>
-        </div>
+      <div className="hp-row">
         <div
-          className="stat-bar"
-          role="img"
-          aria-label={`HP ${hpCounter} of ${hpMax}`}
+          className="stat-card hp-card interactive"
+          role="button"
+          aria-disabled={collapseLocked ? "true" : "false"}
+          tabIndex={collapseLocked ? -1 : 0}
+          data-hp-state={hpFillPct <= 30 ? "critical" : hpFillPct <= 60 ? "warning" : "normal"}
+          {...(collapseLocked ? {} : hpHandlers)}
         >
-          <div className="bar-fill" style={{ width: `${hpFillPct}%` }} />
+          <div className="stat-label">
+            <strong>HP</strong>
+            <span>{hpCounter} / {hpMax}</span>
+          </div>
+          <div
+            className="stat-bar"
+            role="img"
+            aria-label={`HP ${hpCounter} of ${hpMax}`}
+          >
+            <div className="bar-fill" style={{ width: `${hpFillPct}%` }} />
+          </div>
         </div>
+        <button
+          type="button"
+          className="chip chip-spendable ganbare-charges-chip"
+          onClick={onSpendGanbare}
+          disabled={ganbareRemaining <= 0}
+          aria-label={`Ganbare! ${ganbareRemaining} of ${ganbareMax} remaining. Tap to spend a Charge.`}
+        >
+          <span>Ganbare!</span>
+          <strong>
+            {ganbareRemaining}/{ganbareMax}
+          </strong>
+        </button>
       </div>
       {methods}
       {/* Set Rolls (Status Effects, vanilla widget from meter-bridge.js)

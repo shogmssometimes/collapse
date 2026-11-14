@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { CoreStats } from "../../types/chud";
 import { DEFAULT_CORE, computeDerived } from "../../domain/chudStats";
 import {
-  NOTIFICATIONS_STORAGE_KEY,
+  getNotificationsStorageKey,
   hasPendingNotification,
   pushNotification,
 } from "../../domain/notifications";
@@ -10,6 +10,7 @@ import {
   readGlobalMeters,
   readHpCounter,
   readCore,
+  maxGritForCollapse,
   resetApproachOverload,
   resetGanbareCharges,
 } from "../../utils/chudVanillaBridge";
@@ -73,7 +74,7 @@ export function RestWidget({
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key !== NOTIFICATIONS_STORAGE_KEY) return;
+      if (e.key !== getNotificationsStorageKey()) return;
       setDigDeepPending(hasPendingNotification("dig-deep"));
       setShortRestPending(anyShortRestPending());
       setFullRestPending(hasPendingNotification("full-rest"));
@@ -88,10 +89,16 @@ export function RestWidget({
     const d2 = 1 + Math.floor(Math.random() * 4);
     const lose = Math.max(d1, d2);
     const gain = Math.min(d1, d2);
+    // Max Grit is 6 - Collapse — show the Grit gain that will actually land,
+    // not the raw roll, so "accept" never silently falls short of the promise.
+    const { grit: currentGrit, collapse } = readGlobalMeters();
+    const maxGrit = maxGritForCollapse(collapse);
+    const actualGain = Math.min(maxGrit, currentGrit + gain) - currentGrit;
+    const capNote = actualGain < gain ? ` (Grit capped at ${maxGrit} by Collapse)` : "";
     const created = pushNotification(
       "dig-deep",
       "Dig Deep",
-      `Rolled ${d1}, ${d2}. Accept to lose ${lose} HP and gain ${gain} Grit.`,
+      `Rolled ${d1}, ${d2}. Accept to lose ${lose} HP and gain ${actualGain} Grit${capNote}.`,
       { hp: -lose, grit: gain }
     );
     if (created) setDigDeepPending(true);
@@ -99,10 +106,15 @@ export function RestWidget({
 
   const chooseShortRestGrit = useCallback(() => {
     if (anyShortRestPending()) return;
+    const { grit: currentGrit, collapse } = readGlobalMeters();
+    const maxGrit = maxGritForCollapse(collapse);
+    const actualGain = Math.min(maxGrit, currentGrit + 1) - currentGrit;
     const created = pushNotification(
       "short-rest-grit",
       "Short Rest — Restore Grit",
-      "Accept to gain +1 Grit.",
+      actualGain > 0
+        ? `Accept to gain +${actualGain} Grit.`
+        : `Grit is already at its Collapse-limited max (${maxGrit}) — accepting has no effect.`,
       { grit: 1 }
     );
     if (created) {
@@ -146,17 +158,19 @@ export function RestWidget({
   const onFullRest = useCallback(() => {
     if (hasPendingNotification("full-rest")) return;
     const roll = 1 + Math.floor(Math.random() * 6);
-    const targetGrit = Math.min(6, roll + restBonus);
-    const { grit: currentGrit } = readGlobalMeters();
+    const { grit: currentGrit, collapse } = readGlobalMeters();
+    const maxGrit = maxGritForCollapse(collapse);
+    const targetGrit = Math.min(maxGrit, roll + restBonus);
     const gritDelta = targetGrit - currentGrit;
     const activeCore = core ?? readCore(storageKey) ?? DEFAULT_CORE;
     const hpMax = computeDerived(activeCore).hp;
     const hpDelta = hpMax - readHpCounter(storageKey);
     const bonusText = restBonus ? ` + ${restBonus} Rest Bonus` : "";
+    const capNote = roll + restBonus > maxGrit ? ` (max Grit is ${maxGrit} with current Collapse)` : "";
     const created = pushNotification(
       "full-rest",
       "Full Rest",
-      `Rolled ${roll}${bonusText} (max 6) for Grit. Accept to set Grit to ${targetGrit}, restore HP to full, refill all Engram charges, reset Method dice, and restore all Ganbare! Charges.`,
+      `Rolled ${roll}${bonusText} for Grit${capNote}. Accept to set Grit to ${targetGrit}, restore HP to full, refill all Engram charges, reset Method dice, and restore all Ganbare! Charges.`,
       { grit: gritDelta, hp: hpDelta, restoreOverload: true, fullEngramRestore: true },
       { roll: { die: 6, value: roll } }
     );

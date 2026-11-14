@@ -1,5 +1,15 @@
 import type { GearData, SaveState, SecondaryStats, WardrobeEntry } from '../types/chud'
-import { DEFAULT_SECONDARY } from '../domain/chudStats'
+import { DEFAULT_SECONDARY, DEFAULT_HP_COUNTER, DEFAULT_WT } from '../domain/chudStats'
+
+// Normalizes a persisted counter-style field (HP, Wound Threshold, Ganbare!
+// charges spent, etc.): hand-edited or corrupt saves can replace a number
+// with a string, NaN-producing value, or other garbage, which otherwise
+// poisons downstream arithmetic (e.g. "x" + delta => NaN) rather than being
+// caught — see B5. Falls back to `fallback` for anything that isn't a
+// finite number, and clamps to non-negative otherwise.
+function sanitizeSavedCounter(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : fallback;
+}
 
 // Reads & normalizes the persisted cHUD character sheet.
 export function loadState(storageKey: string): Partial<SaveState> | null {
@@ -15,6 +25,11 @@ export function loadState(storageKey: string): Partial<SaveState> | null {
       const isValid = keys.every((k) => typeof s[k] === "number" && !Number.isNaN(s[k]));
       if (!isValid) parsed.secondary = { ...DEFAULT_SECONDARY };
     }
+    // Normalize counter-style numeric fields (B5): a corrupted/hand-edited
+    // or badly-imported save can otherwise leave these as a string or NaN.
+    if ("hpCounter" in parsed) parsed.hpCounter = sanitizeSavedCounter(parsed.hpCounter, DEFAULT_HP_COUNTER);
+    if ("wt" in parsed) parsed.wt = sanitizeSavedCounter(parsed.wt, DEFAULT_WT);
+    if ("ganbareSpent" in parsed) parsed.ganbareSpent = sanitizeSavedCounter(parsed.ganbareSpent, 0);
     return parsed;
   } catch {
     return null;

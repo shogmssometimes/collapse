@@ -20,7 +20,9 @@ export type NotificationKind =
   | "short-rest-grit"
   | "short-rest-hp"
   | "short-rest-engrams"
-  | "full-rest";
+  | "full-rest"
+  | "margin-wound"
+  | "margin-fumble";
 
 export type NotificationEffect = {
   hp?: number;
@@ -60,13 +62,30 @@ export type PendingNotification = {
   roll?: NotificationRoll;
 };
 
-export const NOTIFICATIONS_STORAGE_KEY = "chud.notifications.v1";
+// This queue is per-character-slot (B2): each realm (the CHUD iframe, which
+// knows its slot from its own `?slot=` URL param, and the outer app, whose
+// pages/components know it as a `charSlot` prop/state) is responsible for
+// calling `setNotificationsSlot` once it knows which slot it's showing, so
+// every read/write below lands on that slot's own queue instead of a single
+// queue shared by every character. Defaults to slot 1 (the legacy
+// un-suffixed key) so this is a no-op until a realm opts in.
+let activeSlot = 1;
+
+export function setNotificationsSlot(slot: number): void {
+  activeSlot = slot;
+}
+
+/** The actual localStorage key in use for the current slot — exported so
+ * listeners outside this module (storage-event handlers) can filter on it. */
+export function getNotificationsStorageKey(): string {
+  return activeSlot === 1 ? "chud.notifications.v1" : `chud.notifications.slot.${activeSlot}`;
+}
 
 type StoredShape = { items: PendingNotification[] };
 
 function read(): PendingNotification[] {
   try {
-    const raw = window.localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    const raw = window.localStorage.getItem(getNotificationsStorageKey());
     if (!raw) return [];
     const parsed: StoredShape = JSON.parse(raw);
     return Array.isArray(parsed.items) ? parsed.items : [];
@@ -77,8 +96,9 @@ function read(): PendingNotification[] {
 
 function write(items: PendingNotification[]) {
   try {
+    const key = getNotificationsStorageKey();
     const json = JSON.stringify({ items } satisfies StoredShape);
-    window.localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, json);
+    window.localStorage.setItem(key, json);
     // The native "storage" event only fires in other tabs/windows, not the
     // one that made the change — dispatch a synthetic copy so listeners
     // mounted in this same tab (e.g. the header bell) pick up the update
@@ -86,7 +106,7 @@ function write(items: PendingNotification[]) {
     try {
       window.dispatchEvent(
         new StorageEvent("storage", {
-          key: NOTIFICATIONS_STORAGE_KEY,
+          key,
           newValue: json,
           storageArea: window.localStorage,
         })
@@ -139,6 +159,59 @@ export function pushNotification(
  * or on cancel, which discards it with no effect applied. */
 export function removeNotification(id: string): void {
   write(read().filter((n) => n.id !== id));
+}
+
+/**
+ * Call this synchronously, right where an HP delta is applied, with the HP
+ * value just before and just after the change. Detects the >0 -> <=0
+ * transition and queues the "HP reached 0" notification — plus, the first
+ * time this ever happens for the character, the one-time "Choose Your Path"
+ * notification.
+ *
+ * This has to be driven from every surface that can change HP (the HUD's
+ * own HP card, a Rest/Dig Deep notification accepted while the HUD is open,
+ * and one accepted from the outer app's header bell with no HUD mounted at
+ * all) rather than left to a React effect tied to one specific component
+ * instance — a transition that happens while that instance isn't mounted
+ * (e.g. Dig Deep accepted from the AAG page, a separate route from the HUD)
+ * would otherwise never queue anything, and the HUD has no way to notice it
+ * later either, since by the time it next mounts, HP is already at rest.
+ *
+ * Returns true if `hasBeenDownedBefore` should now be persisted as true —
+ * the caller owns where/how that flag is stored (React state in the HUD,
+ * directly to the slot's storage from the outer app).
+ */
+export function queueHpZeroNotificationsIfNeeded(
+  prevHp: number,
+  nextHp: number,
+  hasBeenDownedBefore: boolean
+): boolean {
+  if (!(prevHp > 0 && nextHp <= 0)) return false;
+  if (!hasPendingNotification("hp-zero")) {
+    pushNotification(
+      "hp-zero",
+      "HP reached 0",
+      "Accept to apply +1 Collapse and revive with 1 HP, or cancel to clear without it.",
+      { collapse: 1, hp: 1 }
+    );
+  }
+  if (!hasBeenDownedBefore) {
+    pushNotification(
+      "choose-path",
+      "Choose Your Path",
+      "You've gone down for the first time. This choice determines which Collapse Table you'll roll on from now on.",
+      {},
+      {
+        choices: [
+          { key: "live", label: "Live" },
+          { key: "survive", label: "Survive" },
+          { key: "die", label: "Die" },
+        ],
+      }
+    );
+    return true;
+  }
+  return false;
 }
 
 // "Fresh" (just queued) vs "aging" (pending a while, sitting behind newer

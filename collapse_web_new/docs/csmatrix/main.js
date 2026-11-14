@@ -2,6 +2,16 @@
 import CSGraph from './graph.js';
 const _BUILD_TS = '2026-04-10T-v9';
 console.log('csmatrix: boot', _BUILD_TS);
+// Each character slot gets its own isolated graph (B2). The outer app
+// passes ?slot=N in this iframe's src (mirrors Chud.tsx's own _chudSlot
+// pattern); defaults to 1 for backward compat with pre-existing saves.
+const _csmatrixSlot = (() => {
+	try {
+		const n = parseInt(new URLSearchParams(window.location.search).get('slot') ?? '1', 10);
+		return Number.isNaN(n) || n < 1 || n > 3 ? 1 : n;
+	} catch { return 1; }
+})();
+const CSMATRIX_GRAPH_KEY = _csmatrixSlot === 1 ? 'csmatrix.graph' : `csmatrix.graph.slot.${_csmatrixSlot}`;
 // storage smoke test – runs once at startup
 try {
 	const _probe = '__csmatrix_probe__';
@@ -9,7 +19,7 @@ try {
 	const _ok = localStorage.getItem(_probe) === '1';
 	localStorage.removeItem(_probe);
 	console.log('csmatrix: localStorage writable:', _ok);
-	const _saved = localStorage.getItem('csmatrix.graph');
+	const _saved = localStorage.getItem(CSMATRIX_GRAPH_KEY);
 	console.log('csmatrix: stored graph on load:', _saved ? JSON.parse(_saved).nodes?.length + ' nodes' : 'EMPTY');
 } catch(e) { console.error('csmatrix: localStorage error', e); }
 let svg = document.getElementById('matrix-svg');
@@ -113,7 +123,7 @@ function persistGraph() {
 			faction: n.faction || '',
 		}));
 		const json = { nodes, edges: [], meta: { globalMeters } };
-		localStorage.setItem('csmatrix.graph', JSON.stringify(json));
+		localStorage.setItem(CSMATRIX_GRAPH_KEY, JSON.stringify(json));
 		console.log('csmatrix: saved', nodes.map(n => `${n.id}(color:${n.color},notes:${n.notes?.length||0}ch)`).join(' | '));
 	} catch (err) { console.error('csmatrix: persistGraph failed', err); }
 }
@@ -578,7 +588,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 		if (!window.confirm(confirmMsg)) return;
 		downloadCSMatrixBackup('before-reset');
 	}
-	localStorage.removeItem('csmatrix.graph');
+	localStorage.removeItem(CSMATRIX_GRAPH_KEY);
 	loadSample();
 });
 
@@ -1444,7 +1454,7 @@ function updateNodeList() {
 
 // load a simple sample
 function loadSample() {
-	const saved = localStorage.getItem('csmatrix.graph');
+	const saved = localStorage.getItem(CSMATRIX_GRAPH_KEY);
 	if (saved) {
 		try {
 			const parsed = JSON.parse(saved);

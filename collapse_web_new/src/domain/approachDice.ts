@@ -73,6 +73,25 @@ export function fullRestOverload(): number {
 }
 
 /**
+ * Negative Margin (a failed roll against Opposition) inflicts Wounds,
+ * scaled to how badly the roll failed by. Table from the handbook:
+ *   0–2   -> 1 Wound
+ *   3–6   -> 2 Wounds
+ *   7–12  -> 3 Wounds
+ *   13–20 -> 4 Wounds
+ * A non-negative Margin (success or tie) inflicts none. Anything beyond
+ * 20 is treated the same as 13-20 (no higher tier specified).
+ */
+export function computeMarginWounds(margin: number): number {
+  if (margin >= 0) return 0
+  const magnitude = Math.abs(margin)
+  if (magnitude <= 2) return 1
+  if (magnitude <= 6) return 2
+  if (magnitude <= 12) return 3
+  return 4
+}
+
+/**
  * Flat, non-exploding dice roll — used for the Wound/Severity roll
  * (quantity = Margin, die size = Weapon Quality) and any other roll where
  * the individual die faces matter more than a summed total. No roll in

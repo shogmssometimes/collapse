@@ -34,6 +34,10 @@ export interface SaveState {
    * base pool), capped at that Method's current Wardrobe bonus instead of
    * its base rating. */
   approachWardrobeOverloadSpent?: Partial<Record<keyof ApproachStats, number>>;
+  /** Timestamp (ms) when the Ganbare! "glass cover" was last shattered (8
+   * taps) — the control stays visibly broken and disabled until the
+   * cooldown elapses, then the glass restores itself. */
+  ganbareGlassBrokenAt?: number | null;
   wt: number;
   /** Derived as Vigor — persisted as an echo for pages that read it (Gear,
    * GearPanel, HPPanel), never set directly. */

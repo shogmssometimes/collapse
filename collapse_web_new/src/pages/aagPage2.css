@@ -332,22 +332,22 @@
 
 /* Row 4: Skills | Ganbare! Charges | Fumble Number — same compact sizing
    as row 3, but always 3-across (including on mobile). */
-.aag-page2 .row-vitals-3 {
-  grid-template-columns: repeat(3, 1fr);
+.aag-page2 .row-vitals-2 {
+  grid-template-columns: repeat(2, 1fr);
   gap: 4px;
 }
 
-.aag-page2 .row-vitals-3 .chip {
+.aag-page2 .row-vitals-2 .chip {
   padding: 6px 3px;
   border-radius: 3px;
   gap: 2px;
 }
 
-.aag-page2 .row-vitals-3 .chip span {
+.aag-page2 .row-vitals-2 .chip span {
   font-size: 0.5rem;
 }
 
-.aag-page2 .row-vitals-3 .chip strong {
+.aag-page2 .row-vitals-2 .chip strong {
   font-size: 1.2rem;
 }
 

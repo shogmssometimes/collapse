@@ -301,7 +301,7 @@ export default function ProfilePage({
   useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(data)); }, [data, storageKey]);
   useEffect(() => { setImgError(false); }, [data.pfpUrl]);
 
-  const miniMatrixSrc = `${BASE_URL}csmatrix/index.html?mini=1`;
+  const miniMatrixSrc = `${BASE_URL}csmatrix/index.html?mini=1&slot=${charSlot}`;
 
   return (
     <main aria-label="Bio Card" style={{ minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1.5rem 1rem 4rem' }}>
